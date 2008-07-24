@@ -1,11 +1,13 @@
 
 from twisted.web import xmlrpc, server, static
 from twisted.internet import defer
-import pickle, time
+import pickle, time, os
 
 # This module is standard in Python 2.2, otherwise get it from
 #   http://www.pythonware.com/products/xmlrpc/
 import xmlrpclib
+
+os.mkdir ("logs", 755);
 
 global TimeOut
 TimeOut = 10
@@ -56,10 +58,10 @@ class Master(xmlrpc.XMLRPC):
 				print ("Job " + str(job.ID) + " timeout")
 				job.State = "WAITING"
 
-		print ("Jobs:")
-		for job in self.State.Jobs:
-			# Print the job
-			print ("\t"+str(job.ID)+" "+job.Title+" \""+job.Command+"\" "+job.State+" "+job.Worker+" "+str(job.Try)+" try")
+#		print ("Jobs:")
+#		for job in self.State.Jobs:
+#			# Print the job
+#			print ("\t"+str(job.ID)+" "+job.Title+" \""+job.Command+"\" "+job.State+" "+job.Worker+" "+str(job.Try)+" try")
 
 	def xmlrpc_addjob(self, title, cmd):
 		"""Show the command list."""
@@ -70,6 +72,8 @@ class Master(xmlrpc.XMLRPC):
 		return 1
 
 	def xmlrpc_getjobs(self):
+		print ("Send jobs")
+		self.update ();
 		return self.State.Jobs
 
 	def xmlrpc_log(self, hostname, jobId, log):
@@ -81,9 +85,12 @@ class Master(xmlrpc.XMLRPC):
 				job = self.State.Jobs[i]
 				if job.ID == jobId and job.State == "WORKING" and job.Worker == hostname:
 					job.PingTime = time.time()
-					logFile = open ("logs/" + str(jobId) + ".log", "a")
-					logFile.write (log)
-					logFile.close ()
+					try:
+						logFile = open ("logs/" + str(jobId) + ".log", "a")
+						logFile.write (log)
+						logFile.close ()
+					except IOError:
+						print ("Error in logs");
 					return 1
 		return 1
 
