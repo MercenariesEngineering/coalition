@@ -33,7 +33,7 @@ def output (str):
 		print (str)
 
 hostname = socket.gethostname()
-server = xmlrpclib.ServerProxy("http://localhost:8080/")
+server = xmlrpclib.ServerProxy("http://localhost:8080/xmlrpc")
 
 global working
 working = False
