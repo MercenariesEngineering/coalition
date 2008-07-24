@@ -1,0 +1,183 @@
+<?xml version="1.0" standalone="yes" ?>
+<job id="jsolait">
+    <?job error="true" debug="false"?>
+    <description>
+        JavaScript O Lait for WSH.
+        
+       Copyright (c) 2005 Jan-Klaas Kollhof
+       
+       This file is part of jsolait
+     
+       jsolait is free software; you can redistribute it and/or modify
+       it under the terms of the GNU Lesser General Public License as published by
+       the Free Software Foundation; either version 2.1 of the License, or
+       (at your option) any later version.
+      
+       This software is distributed in the hope that it will be useful,
+       but WITHOUT ANY WARRANTY; without even the implied warranty of
+       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+       GNU Lesser General Public License for more details.
+      
+       You should have received a copy of the GNU Lesser General Public License
+       along with this software; if not, write to the Free Software
+       Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA     
+    </description>
+
+    <runtime>
+        <named name="compile" helpstring="Specifies to run a the lang.parser on it." many="false" required="0" />
+        <unnamed name="filename" helpstring="The scriptfiles to run." many="false" required="1" />
+        <named name="script arguments" helpstring="Specifies arguments to pass to the module/script being run" many="false" required="0" />
+    </runtime>
+    
+    <script language="JavaScript" src="./jsolait.js" />
+    
+    <script language="JavaScript"> <![CDATA[
+    
+    Module("jsolaitws", "0.0.1", function(mod){
+            
+        var fs= new ActiveXObject("Scripting.FileSystemObject");
+        var wshShell= new ActiveXObject("WScript.Shell");
+        var ForReading = 1, ForWriting = 2;
+        
+        print = function(m){
+            var s=[];
+            for(var i=0;i<arguments.length;i++){
+                s.push(''+arguments[i]);
+            }
+            
+            WScript.echo(s.join(" "));
+        }
+         
+        pprint=function(m, indent){
+            var m = m.split("\n");
+            
+            indent =(indent === undefined) ? 0 : indent;
+            
+            if(indent<0){
+                pprint.indent+=indent;
+            }
+            
+            var s=[];
+            for(var i=0;i<pprint.indent;i++){
+                s.push(' ');
+            }
+            s=s.join('');
+            for(var i=0;i<m.length;i++){
+                print(s + m[i]);
+            }
+            
+            if(indent>0){
+                pprint.indent += indent;
+            }
+        }
+        pprint.indent=0;
+        
+        Error.prototype.toString=function(){
+            return this.name +": " + this.message;
+        }
+                
+        LogError=1;
+        LogWarn=2;
+        LogInfo=4;
+        Error.prototype.toTraceString=function(){
+            return this.message
+        }
+        
+        log=function(msg, level){
+            level = level==null?LogInfo:level;
+            if(typeof msg !="string"){
+                level = LogError;
+                
+                msg = msg.toTraceString();
+            }
+            
+            if(level & log.level){
+                print(msg);
+            }
+        }
+        log.level = LogInfo | LogWarn | LogError;    
+        
+        mod.run=function(){
+            mod.__sourceURI__ = 'file://' + WScript.scriptFullName;
+            jsolait.__sourceURI__ = 'file://' + WScript.scriptFullName.slice(0,-3) + "js";
+                        
+            ///The location where jsolait is installed.
+            jsolait.baseURI = 'file://' + fs.getParentFolderName(WScript.scriptFullName);
+        
+            if (WScript.arguments.unnamed.length==0){
+                WScript.Arguments.ShowUsage();                                              
+                return;
+            }else{
+                //var fileName=fs.getAbsolutePathName(WScript.arguments.unnamed.item(0));
+                var fileName=WScript.arguments.unnamed.item(0);
+                //todo:check if file exists
+            }
+                        
+            //get the base of the file to execute
+            var fileBase= fs.getParentFolderName(fileName);
+            
+            //make sure the search path is updated to include the fileBase
+            jsolait.moduleSearchURIs = [fileBase,  "%(baseURI)s/lib"];
+            
+            //change working dir to the file's location
+            //todo:is it OK to change cwd?
+            if(fileBase.slice(0, 'file://'.length) == 'file://'){
+                wshShell.currentDirectory = fileBase.slice('file://'.length);
+            }
+            
+            
+            if(WScript.arguments.named.exists("compile")){
+                var lang = imprt('lang');
+                var s = jsolait.loadURI(fileName);
+                var p = new lang.Parser(s);
+                    
+                try{
+                    p.parseStatements(p.next());
+                }catch(e){
+                    var l=p.getPosition();
+                    throw fileName + '(' + (l[0] ) + ',' +l[1] + ') ' +   e + ' near:\n' + p._working.slice(0,200);
+                } 
+    
+            }else{
+                try{//load the script if it is not the main jsolait or jsolaitws module that has already been loaded.
+                    if(fileName.toLowerCase() != jsolait.__sourceURI__.toLowerCase()  &&
+                                fileName.toLowerCase() != mod.__sourceURI__.toLowerCase()){
+                        var src = jsolait.loadURI(fileName);
+                        src = 'Module.currentURI="%s";\n%s\nModule.currentURI=null;\n'.format(src.__sourceURI__.replace(/\\/g, '\\\\'), src);
+                        var f=new Function("",src); //todo should it use globalEval ?
+                        f();
+                    }
+                }catch(e){
+                    log(e);
+                    return;
+                }
+                
+                //if the loaded file contained a module then run it's __main__ method
+                for(var mn in jsolait.modules){
+                    var modl =jsolait.modules[mn];
+                    if(modl.__sourceURI__.toLowerCase() == fileName.toLowerCase()){
+                        if(modl.__main__){
+                            //todo find arguments
+                            try{
+                                modl.__main__.call(modl,[]);
+                            }catch(e){
+                                throw new mod.Exception("runing %s  __main__()  failed\n".format(modl),e)
+                            }
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+    });
+
+    try{
+        imprt("jsolaitws").run();
+    }catch(e){
+        log(e,LogError);
+    }
+       
+    ]]>
+    </script>
+    
+</job>
