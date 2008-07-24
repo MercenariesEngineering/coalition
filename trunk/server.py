@@ -7,7 +7,11 @@ import pickle, time, os
 #   http://www.pythonware.com/products/xmlrpc/
 import xmlrpclib
 
-os.mkdir ("logs", 755);
+# Create the logs/ directory
+try:
+	os.mkdir ("logs", 755);
+except OSError:
+	pass
 
 global TimeOut
 TimeOut = 10
