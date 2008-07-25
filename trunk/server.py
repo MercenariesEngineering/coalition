@@ -22,10 +22,10 @@ def usage():
 	print ("Usage: server [OPTIONS]")
 	print ("Start a Coalition server.\n")
 	print ("Options:")
-	print ("  -p, --port=PORT\tPort used by the servre (default: "+str(port)+")")
+	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -h, --help\t\tShow this help")
 	print ("  -v, --verbose\t\tIncrease verbosity")
-	print ("\nExample : worker -s 30 -v http://localhost:8080")
+	print ("\nExample : server -p 1234")
 
 # Parse the options
 try:
