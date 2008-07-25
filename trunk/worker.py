@@ -2,18 +2,31 @@ import xmlrpclib, socket, time, popen2, thread, getopt, sys
 from select import select
 
 # Options
-global debug, verbose
+global serverUrl, debug, verbose, sleepTime
+serverUrl = ""
 debug = False
 verbose = False
+sleepTime = 2
+name = socket.gethostname()
 
 def usage():
-	print ("worker [OPTIONS]")
-	print ("\t-d --debug\t\tRun without the main try/catch")
-	print ("\t-v --verbose\t\tIncrease verbosity")
+	print ("Usage: worker [OPTIONS] SERVER_URL")
+	print ("Start a Coalition worker using the server located at SERVER_URL.\n")
+	print ("Options:")
+	print ("  -d, --debug\t\tRun without the main try/catch")
+	print ("  -h, --help\t\tShow this help")
+	print ("  -n, --name=NAME\tWorker name (default: "+name+")")
+	print ("  -s, --sleep=SLEEPTIME\tSleep time between two heart beats (default: "+str(sleepTime)+"s)")
+	print ("  -v, --verbose\t\tIncrease verbosity")
+	print ("\nExample : worker -s 30 -v http://localhost:8080")
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "dv", ["debug", "verbose"])
+	opts, args = getopt.getopt(sys.argv[1:], "dhn:s:v", ["debug", "help", "name=", "sleep=", "verbose"])
+	if len(args) != 1 :
+		usage()
+		sys.exit(2)
+	serverUrl = args[0]
 except getopt.GetoptError, err:
 	# print help information and exit:
 	print str(err) # will print something like "option -a not recognized"
@@ -22,8 +35,15 @@ except getopt.GetoptError, err:
 for o, a in opts:
 	if o in ("-d", "--debug"):
 		debug = True
+	elif o in ("-h", "--help"):
+		usage()
+		sys.exit(2)
+	elif o in ("-n", "--name"):
+		name = a
 	elif o in ("-v", "--verbose"):
 		verbose = True
+	elif o in ("-s", "--sleep"):
+		sleepTime = float(a)
 	else:
 		assert False, "unhandled option " + o
 
@@ -32,8 +52,7 @@ def output (str):
 	if verbose:
 		print (str)
 
-hostname = socket.gethostname()
-server = xmlrpclib.ServerProxy("http://localhost:8080/xmlrpc")
+server = xmlrpclib.ServerProxy(serverUrl+"/xmlrpc")
 
 global working
 working = False
@@ -43,6 +62,9 @@ errorCode = 0
 # Current log
 global log
 log = ""
+
+class JobStop:
+	pass
 
 #global lock
 #lock = thread.allocate_lock ()
@@ -60,6 +82,7 @@ def execProcess (cmd):
 		
 		# "" means EOF
 		if line == "":
+			print ("end")
 			break
 
 		log = log + line
@@ -80,8 +103,8 @@ def run (func, retry):
 		if not retry:
 			output ("Server down, continue...")
 			break
-		output ("Wait for the server")
-		time.sleep (2)
+		output ("No server")
+		time.sleep (sleepTime)
 
 # Flush the logs to the server
 def flushLogs (jobId, retry):
@@ -89,8 +112,11 @@ def flushLogs (jobId, retry):
 	output ("Flush logs (" + str(len(log)) + " bytes)")
 	def func ():
 		global log
-		server.log (hostname, jobId, log)
+		result = server.heartbeat (name, jobId, log)
 		log = ""
+		if not result:
+			output ("Server ask to stop the jod " + str(jobId))
+			raise JobStop
 	run (func, retry)
 
 # Application main loop
@@ -100,7 +126,7 @@ def mainLoop ():
 	output ("Ask for a job")
 	# Function to ask a job to the server
 	def startFunc ():
-		return server.pickjob (hostname)
+		return server.pickjob (name)
 
 	# Block until this message to handled by the server
 	jobId, cmd = run (startFunc, True)
@@ -112,24 +138,27 @@ def mainLoop ():
 		# Launch a new thread to run the process
 		thread.start_new_thread ( execProcess, (cmd,))
 
-		# Flush the logs
-		while (working):
-			flushLogs (jobId, False)
-			time.sleep (2)
+		try:
+			# Flush the logs
+			while (working):
+				flushLogs (jobId, False)
+				time.sleep (sleepTime)
 
-		# Flush for real for the last time
-		flushLogs (jobId, True)
+			# Flush for real for the last time
+			flushLogs (jobId, True)
 
-		output ("Finished jod " + str(jobId) + " (code " + str(errorCode) + ") : " + cmd)
+			output ("Finished jod " + str(jobId) + " (code " + str(errorCode) + ") : " + cmd)
 
-		# Function to end the job
-		def endFunc ():
-			server.endjob (hostname, jobId, errorCode)
+			# Function to end the job
+			def endFunc ():
+				server.endjob (name, jobId, errorCode)
 
-		# Block until this message to handled by the server
-		run (endFunc, True)
+			# Block until this message to handled by the server
+			run (endFunc, True)
+		except JobStop:
+			pass
 
-	time.sleep (2)
+	time.sleep (sleepTime)
 
 while (1):
 	if debug:
@@ -139,5 +168,5 @@ while (1):
 			mainLoop ()		
 		except:
 			print ("Fatal error, retry...")
-			time.sleep (2)
+			time.sleep (sleepTime)
 
