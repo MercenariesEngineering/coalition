@@ -1,0 +1,65 @@
+body 
+{ 
+	text-decoration: none; 
+	color: black;
+	font-family: "sans-serif"; 
+	font-size: 10pt; 
+	font-weight: normal; 
+	background-color: #b0b0b0;
+	background-image: url(bg-gradient.png);
+	background-repeat: repeat-x;
+}
+
+h2
+{
+	font-size: 12pt;
+}
+
+.jobs
+{
+}
+
+.entry, .entry0, .entry1, .title
+{
+	font-size: 8pt; 
+}
+
+.title
+{
+	background-color: #943a30;
+	color: #EEEEEE;
+}
+
+.entry0
+{
+	background-color: #DDDDDD;
+}
+
+.entry1
+{
+	background-color: #F5F5F5;
+}
+
+.FINISHED
+{
+	background-color: #00ff00;
+}
+
+.ERROR, .TIMEOUT
+{
+	background-color: #ff0000;
+}
+
+.WORKING
+{
+	background-color: #00FFFF;
+}
+
+.WAITING
+{
+}
+
+.logs
+{
+	font-size: 8pt; 
+};
