@@ -1,4 +1,5 @@
-import xmlrpclib, socket, time, popen2, thread, getopt, sys
+from __future__ import with_statement
+import xmlrpclib, socket, time, popen2, thread, getopt, sys, os, base64, signal
 from select import select
 
 # Options
@@ -47,35 +48,57 @@ for o, a in opts:
 	else:
 		assert False, "unhandled option " + o
 
-# Log function
-def output (str):
+# Log for debugging
+def debug (str):
 	if verbose:
 		print (str)
 
+# Log for debugging
+def debugRaw (str):
+	if verbose:
+		print (str),
+
+# Add to the logs
+def info (str):
+	global gLog, gLogLock
+	with gLogLock:
+		gLog = gLog + "WORKER: " + str + "\n";
+	if verbose:
+		print (str)
+	
+
 server = xmlrpclib.ServerProxy(serverUrl+"/xmlrpc")
 
-global working
+global working, pid
 working = False
+pid = 0
 global errorCode
 errorCode = 0
 
-# Current log
-global log
-log = ""
+# Lock for mutual exclusion on the logs
+global gLogLock
+gLogLock = thread.allocate_lock()
 
-class JobStop:
-	pass
+# Current log
+global gLog
+gLog = ""
 
 #global lock
 #lock = thread.allocate_lock ()
 
-# Thread functio to execute the job process
-def execProcess (cmd):
-	global working
-	global errorCode
-	global log
+# Thread function to execute the job process
+def execProcess (cmd,dir):
+	global working,  errorCode, gLog, pid
+
+	# Set the working directory
+	os.chdir (dir)
+
 	# Run the job
-	process = popen2.Popen3 (cmd, True)
+	info ("exec " + cmd)
+	process = popen2.Popen4 ("exec "+cmd)
+
+	# Get the pid
+	pid = int(process.pid)
 	while (1):
 		# Read some lines of logs
 		line = process.fromchild.readline()
@@ -85,10 +108,13 @@ def execProcess (cmd):
 			print ("end")
 			break
 
-		log = log + line
+		debugRaw (line)
+		with gLogLock:
+			gLog = gLog + line
 
 	# Get the error code of the job
 	errorCode = process.wait ()
+	info ("Job returns code: " + str(errorCode))
 
 	# Signal to the main process the job is finished
 	working = False
@@ -101,62 +127,73 @@ def run (func, retry):
 		except socket.error:
 			pass
 		if not retry:
-			output ("Server down, continue...")
+			debug ("Server down, continue...")
 			break
-		output ("No server")
+		debug ("No server")
 		time.sleep (sleepTime)
 
 # Flush the logs to the server
-def flushLogs (jobId, retry):
-	global log
-	output ("Flush logs (" + str(len(log)) + " bytes)")
+def heartbeat (jobId, retry):
+	global gLog, pid, gLogLock
+	debug ("Flush logs (" + str(len(gLog)) + " bytes)")
 	def func ():
-		global log
-		result = server.heartbeat (name, jobId, log)
-		log = ""
+		global gLog
+		result = True
+		with gLogLock:
+			result = server.heartbeat (name, jobId, base64.b64encode(gLog), os.getloadavg())
+			gLog = ""
 		if not result:
-			output ("Server ask to stop the jod " + str(jobId))
-			raise JobStop
+			debug ("Server ask to stop the jod " + str(jobId))
+
+			# Send the kill signal to the process
+			if pid != 0:
+				debug ("kill "+str(pid)+" "+str(signal.SIGKILL))
+				try:
+					os.kill (pid, signal.SIGKILL)
+				except OSError:
+					pass
 	run (func, retry)
 
 # Application main loop
 def mainLoop ():
-	global working, errorCode, log
+	global working, errorCode, gLog, pid
 
-	output ("Ask for a job")
+	debug ("Ask for a job")
 	# Function to ask a job to the server
 	def startFunc ():
-		return server.pickjob (name)
+		return server.pickjob (name, os.getloadavg())
 
 	# Block until this message to handled by the server
-	jobId, cmd = run (startFunc, True)
+	jobId, cmd, dir = run (startFunc, True)
 
 	if jobId != -1:
-		output ("Start jod " + str(jobId) + " : " + cmd)
+		debug ("Start jod " + str(jobId) + " : " + cmd)
+
+		# Reset the globals
 		working = True
+		stop = False
+		pid = 0
 
 		# Launch a new thread to run the process
-		thread.start_new_thread ( execProcess, (cmd,))
+		gLog = ""
+		thread.start_new_thread ( execProcess, (cmd,dir,))
 
-		try:
-			# Flush the logs
-			while (working):
-				flushLogs (jobId, False)
-				time.sleep (sleepTime)
+		# Flush the logs
+		while (working):
+			heartbeat (jobId, False)
+			time.sleep (sleepTime)
 
-			# Flush for real for the last time
-			flushLogs (jobId, True)
+		# Flush for real for the last time
+		heartbeat (jobId, True)
 
-			output ("Finished jod " + str(jobId) + " (code " + str(errorCode) + ") : " + cmd)
+		debug ("Finished jod " + str(jobId) + " (code " + str(errorCode) + ") : " + cmd)
 
-			# Function to end the job
-			def endFunc ():
-				server.endjob (name, jobId, errorCode)
+		# Function to end the job
+		def endFunc ():
+			server.endjob (name, jobId, errorCode)
 
-			# Block until this message to handled by the server
-			run (endFunc, True)
-		except JobStop:
-			pass
+		# Block until this message to handled by the server
+		run (endFunc, True)
 
 	time.sleep (sleepTime)
 

@@ -1,7 +1,7 @@
 
 from twisted.web import xmlrpc, server, static
 from twisted.internet import defer
-import pickle, time, os, getopt, sys
+import pickle, time, os, getopt, sys, base64
 
 # This module is standard in Python 2.2, otherwise get it from
 #   http://www.pythonware.com/products/xmlrpc/
@@ -22,8 +22,8 @@ def usage():
 	print ("Usage: server [OPTIONS]")
 	print ("Start a Coalition server.\n")
 	print ("Options:")
-	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -h, --help\t\tShow this help")
+	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
 	print ("\nExample : server -p 1234")
 
@@ -54,18 +54,36 @@ def output (str):
 	if verbose:
 		print (str)
 
+def getLogFilename (jobId):
+	return "logs/" + str(jobId) + ".log"
+
 class Job:
 	"""A farm job"""
 
-	def __init__ (self, id, title, cmd):
+	def __init__ (self, id, title, cmd, dir, priority, retry):
 		self.ID = id				# Jod ID
 		self.Title = title			# Job title
 		self.Command = cmd			# Job command to execute
+		self.Dir = dir				# Jod working directory
 		self.State = "WAITING"			# Job state, can be WAITING, WORKING, FINISHED or ERROR
 		self.Worker = ""			# Worker hostname
 		self.StartTime = time.time()		# Start working time 
+		self.Duration = 0			# Duration of the process
 		self.PingTime = self.StartTime		# Last worker ping time
 		self.Try = 0				# Number of try
+		self.Retry = retry			# Number of try max
+		self.Priority = priority		# Job priority
+
+def compareJobs (self, other):
+	if self.Priority < other.Priority:
+		return 1
+	if self.Priority > other.Priority:
+		return -1
+	if self.ID > other.ID:
+		return 1
+	if self.ID < other.ID:
+		return -1
+	return 0
 
 class Worker:
 	"""A farm worker"""
@@ -77,6 +95,7 @@ class Worker:
 		self.Finished = 0			# Number of finished
 		self.Error = 0				# Number of fault
 		self.LastJob = -1			# Last job done
+		self.Load = 0				# Load of the worker
 
 # State of the master
 class CState:
@@ -102,6 +121,23 @@ class CState:
 
 class Master(xmlrpc.XMLRPC):
 	"""    """
+	
+	def sortJobs (self):
+		self.State.Jobs.sort (compareJobs)
+
+	# Clear a job
+	def clearJob (self, jobId):
+		# Look for the job
+		for i in range(len(self.State.Jobs)) :
+			job = self.State.Jobs[i]
+			if job.ID == jobId :
+				self.State.Jobs.pop (i)
+				break;
+		# Clear the log	
+		try:
+			os.remove (getLogFilename(jobId))
+		except OSError:
+			pass
 
 	def getWorker (self, name):
 		found = False
@@ -124,27 +160,27 @@ class Master(xmlrpc.XMLRPC):
 		global TimeOut
 		self.saveDb ()
 		_time = time.time()
-
+		resort = False
 		for job in self.State.Jobs:
-			# Check if the job is timeout
-			if job.State == "WORKING" and _time - job.PingTime > TimeOut :
-				output ("Job " + str(job.ID) + " timeout")
-				job.State = "ERROR"
-				worker = self.getWorker (job.Worker)
-				worker.State = "TIMEOUT"
-				worker.Error = worker.Error+1
+			if job.State == "WORKING":
+				# Check if the job is timeout
+				if _time - job.PingTime > TimeOut :
+					output ("Job " + str(job.ID) + " timeout")
+					job.State = "ERROR"
+					worker = self.getWorker (job.Worker)
+					worker.State = "TIMEOUT"
+					worker.Error = worker.Error+1
+					job.Priority = job.Priority-1
+					resort = True
+				job.Duration = _time - job.StartTime
+		if resort:
+			self.sortJobs ()
 
-#		output ("Jobs:")
-#		for job in self.State.Jobs:
-#			# output the job
-#			output ("\t"+str(job.ID)+" "+job.Title+" \""+job.Command+"\" "+job.State+" "+job.Worker+" "+str(job.Try)+" try")
-
-	def xmlrpc_addjob(self, title, cmd):
+	def xmlrpc_addjob(self, title, cmd, dir, priority, retry):
 		"""Show the command list."""
 		output ("Add job : " + cmd)
-		self.State.Jobs.append (Job(self.State.Counter, title, cmd))
+		self.State.Jobs.append (Job(self.State.Counter, title, cmd, dir, priority, retry))
 		self.State.Counter = self.State.Counter + 1
-		self.update ()
 		return 1
 
 	def xmlrpc_getjobs(self):
@@ -154,20 +190,32 @@ class Master(xmlrpc.XMLRPC):
 
 	def xmlrpc_clearjobs(self):
 		output ("Clear jobs")
-		self.State.Jobs = []
-		self.update ()
+		while (len(self.State.Jobs) > 0):
+			self.clearJob (self.State.Jobs[0].ID)
 		return 1
 
 	def xmlrpc_clearjob(self, jobId):
 		output ("Clear job"+str(jobId))
-		# Look for the job
-		for i in range(len(self.State.Jobs)) :
-			job = self.State.Jobs[i]
-			if job.ID == jobId :
-				self.State.Jobs.pop (i)
-				break;
-		self.update ()
+		self.clearJob (jobId)
 		return 1
+
+	def xmlrpc_getlog(self, jobId):
+		output ("Send log "+str(jobId))
+		# Look for the job
+		log = ""
+		try:
+			logFile = open (getLogFilename(jobId), "r")
+			while (1):
+				# Read some lines of logs
+				line = logFile.readline()
+				# "" means EOF
+				if line == "":
+					break
+				log = log + line
+			logFile.close ()
+		except IOError:
+			pass
+		return log
 
 	def xmlrpc_getworkers(self):
 		output ("Send workers")
@@ -177,55 +225,59 @@ class Master(xmlrpc.XMLRPC):
 	def xmlrpc_clearworkers(self):
 		output ("Clear workers")
 		self.State.Workers = []
-		self.update ()
 		return 1
 
-	def xmlrpc_heartbeat(self, hostname, jobId, log):
+	def xmlrpc_heartbeat(self, hostname, jobId, log, load):
 		"""Add some logs."""
 		output ("Heart beat for " + str(jobId))
 
 		# Ping the worker
 		worker = self.getWorker (hostname)
 
+		# Update the worker load
+		worker.Load = load
+
 		# Look for the job
 		for i in range(len(self.State.Jobs)) :
 			job = self.State.Jobs[i]
 			if job.ID == jobId and job.State == "WORKING" and job.Worker == hostname:
+				job.PingTime = time.time()
 				if log != "" :
-					job.PingTime = time.time()
 					try:
-						logFile = open ("logs/" + str(jobId) + ".log", "a")
-						logFile.write (log)
+						logFile = open (getLogFilename (jobId), "a")
+						logFile.write (base64.b64decode(log))
 						logFile.close ()
 					except IOError:
 						output ("Error in logs")
 				# Continue
 				return True
 		# Stop
+		output ("Job " + str(jobId) + " not found for " + hostname)
 		worker.State = "WAITING"
 		return False
 
-	def xmlrpc_pickjob(self, hostname):
+	def xmlrpc_pickjob(self, hostname, load):
 		"""A worker ask for a job."""
 		output (hostname + " wants some job")
-
+		self.update ()
 		# Ping the worker
 		worker = self.getWorker (hostname)
+		worker.Load = load
 
 		# Look for a job
 		for i in range(len(self.State.Jobs)) :
 			job = self.State.Jobs[i]
-			if job.State == "WAITING":
+			if job.State == "WAITING" or (job.State == "ERROR" and job.Try < job.Retry):
 				job.State = "WORKING"
 				job.Worker = hostname
 				job.Try = job.Try + 1
 				job.PingTime = time.time()
-				self.update ()
+				job.StartTime = job.PingTime
+				job.Duration = 0
 				worker.State = "WORKING"
 				worker.LastJob = job.ID
-				return job.ID, job.Command
-		self.update ()
-		return -1,""
+				return job.ID, job.Command, job.Dir
+		return -1,"",""
 
 	def xmlrpc_endjob(self, hostname, jobId, errorCode):
 		"""A worker ask for a job."""
@@ -240,15 +292,15 @@ class Master(xmlrpc.XMLRPC):
 			job = self.State.Jobs[i]
 			if job.ID == jobId:
 				if errorCode == 0:
-					job.State =	"FINISHED"
+					job.State = "FINISHED"
 					worker.Finished = worker.Finished + 1
 				else:
-					job.State =	"ERROR"
+					job.State = "ERROR"
 					worker.Error = worker.Error + 1
-
-				self.update ()
+					job.Priority = job.Priority-1
+				job.Duration = time.time() - job.StartTime
+				self.sortJobs ()
 				return 1
-		self.update ()
 		return 1
 
 	# Write the DB on disk
@@ -272,6 +324,13 @@ class Master(xmlrpc.XMLRPC):
 		except IOError:
 			output ("No db found, create a new one")
 			return
+		# Touch every working job
+		_time = time.time()
+		for i in range(len(self.State.Jobs)) :
+			job = self.State.Jobs[i]
+			if job.State == "WORKING":
+				job.PingTime = _time
+		
 
 	State = CState()
 
