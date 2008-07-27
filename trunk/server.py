@@ -277,6 +277,7 @@ class Master(xmlrpc.XMLRPC):
 				worker.State = "WORKING"
 				worker.LastJob = job.ID
 				return job.ID, job.Command, job.Dir
+		worker.State = "WAITING"
 		return -1,"",""
 
 	def xmlrpc_endjob(self, hostname, jobId, errorCode):

@@ -17,8 +17,8 @@ def usage():
 	print ("  -t, --title=TITLE\tSet the job title (default: "+title+")")
 	print ("  -s, --start=INDEX\tSet the index of the first job (default: "+str(startIndex)+")")
 	print ("  -e, --end=INDEX\tSet the index of the last job (default: "+str(endIndex)+")")
-	print ("  -p, --priority=PRIORITY\tPriority of the job (default: "+priority+")")
-	print ("  -r, --retry=RETRY\tNumber of retry this jobs can do (default: "+retry+")")
+	print ("  -p, --priority=PRIORITY\tPriority of the job (default: "+str(priority)+")")
+	print ("  -r, --retry=RETRY\tNumber of retry this jobs can do (default: "+str(retry)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
 	print ("\nExample : addjob -t \"Job%04d\" -s 1 -e 10 http://localhost:8080 \"echo Hello world!\"")
 
