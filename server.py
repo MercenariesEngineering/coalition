@@ -245,7 +245,7 @@ class Master(xmlrpc.XMLRPC):
 				if log != "" :
 					try:
 						logFile = open (getLogFilename (jobId), "a")
-						logFile.write (base64.b64decode(log))
+						logFile.write (base64.decodestring(log))
 						logFile.close ()
 					except IOError:
 						output ("Error in logs")
