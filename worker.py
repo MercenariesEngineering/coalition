@@ -91,7 +91,10 @@ def execProcess (cmd,dir):
 	global working,  errorCode, gLog, pid
 
 	# Set the working directory
-	os.chdir (dir)
+	try:
+		os.chdir (dir)
+	except OSError:
+		info ("Can't set the directory to: " + dir)
 
 	# Run the job
 	info ("exec " + cmd)

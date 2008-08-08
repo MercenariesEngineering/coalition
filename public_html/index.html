@@ -26,5 +26,33 @@
 <input type='button' name='refreshButton' value='Refresh' onclick='refresh()'>
 </div>
 
+
+<div id="addjob">
+Add a job :
+<table>
+<tr>
+<td>Title:</td><td><input type='edit' id='newjobtitle' value='Job'></td>
+<td>Job title</td>
+</tr>
+<tr>
+<td>Command:</td><td><input type='edit' id='newjobcmd' value=''></td>
+<td>Command to execute on the worker</td>
+</tr>
+<tr>
+<td>Directory:</td><td><input type='edit' id='newjobdir' value='.'></td>
+<td>Worker directory where to execute the command</td>
+</tr>
+<tr>
+<td>Priority:</td><td><input type='edit' id='newjobpriority' value='1000'></td>
+<td>Job priority</td>
+</tr>
+<tr>
+<td>Retry:</td><td><input type='edit' id='newjobretry' value='10'></td>
+<td>Number of retry to do for this job</td>
+</tr>
+</table>
+<input type='button' name='addjobButton' value='Add job' onclick='addjob()'>
+</div>
+
 </body>
 </html>

@@ -7,7 +7,7 @@ var logId = 0;
 $(document).ready(function()
 {
 	xmlrpc = imprt("xmlrpc");
-	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers", "getlog"]);
+	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers", "getlog", "addjob"]);
 	timerCB ();
 });
 
@@ -122,5 +122,15 @@ function renderWorkers ()
 	renderButtons ();
 
 	page = "workers";
+}
+
+function addjob ()
+{
+	service.addjob($('#newjobtitle').attr("value"), 
+		$('#newjobcmd').attr("value"),
+		$('#newjobdir').attr("value"), 
+		$('#newjobpriority').attr("value"), 
+		$('#newjobretry').attr("value"));
+	renderJobs ();
 }
 
