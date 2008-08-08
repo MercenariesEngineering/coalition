@@ -140,7 +140,7 @@ def heartbeat (jobId, retry):
 		global gLog
 		result = True
 		with gLogLock:
-			result = server.heartbeat (name, jobId, base64.b64encode(gLog), os.getloadavg())
+			result = server.heartbeat (name, jobId, base64.encodestring(gLog), os.getloadavg())
 			gLog = ""
 		if not result:
 			debug ("Server ask to stop the jod " + str(jobId))
