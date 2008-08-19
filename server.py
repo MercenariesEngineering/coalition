@@ -176,6 +176,11 @@ class Master(xmlrpc.XMLRPC):
 		if resort:
 			self.sortJobs ()
 
+		# Timeout workers
+		for worker in self.State.Workers:
+			if worker.State != "TIMEOUT" and _time - worker.PingTime > TimeOut:
+				worker.State = "TIMEOUT"
+
 	def xmlrpc_addjob(self, title, cmd, dir, priority, retry):
 		"""Show the command list."""
 		output ("Add job : " + cmd)
