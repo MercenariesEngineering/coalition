@@ -8,6 +8,8 @@ body
 	background-color: #b0b0b0;
 	background-image: url(bg-gradient.png);
 	background-repeat: repeat-x;
+	padding: 0px;
+	margin: 0px;
 }
 
 h2

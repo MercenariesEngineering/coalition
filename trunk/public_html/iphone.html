@@ -4,18 +4,11 @@
 <script src="jquery-1.2.6.min.js"></script>
 <script type="text/javascript" src="/jsolait/jsolait.js"></script>
 <script type="text/javascript">jsolait.baseURI="/jsolait";</script>
-<script src="coalition.js"></script>
-<link href="coalition.css" rel="stylesheet" type="text/css"></link>
+<script src="iphone.js"></script>
+<link href="iphone.css" rel="stylesheet" type="text/css"></link>
+<meta name="viewport" content="width = 320" />
 </head>
 <body>
-
-<div id="header">
-<h1>Coalition</h1>
-<p>A small but beautiful job manager by Mercenaries Engineering - GPL licence</p>
-<input type='button' name='jobsButton' value='Jobs' onclick='renderJobs()'>
-<input type='button' name='workersButton' value='Workers' onclick='renderWorkers()'>
-<input type='button' name='refreshButton' value='Refresh' onclick='refresh()'>
-</div>
 
 <div id="main">
 </div>
@@ -26,29 +19,23 @@
 <input type='button' name='refreshButton' value='Refresh' onclick='refresh()'>
 </div>
 
-
 <div id="addjob">
 Add a job :
 <table>
 <tr>
 <td>Title:</td><td><input type='edit' id='newjobtitle' value='Job'></td>
-<td>Job title</td>
 </tr>
 <tr>
 <td>Command:</td><td><input type='edit' id='newjobcmd' value=''></td>
-<td>Command to execute on the worker</td>
 </tr>
 <tr>
 <td>Directory:</td><td><input type='edit' id='newjobdir' value='.'></td>
-<td>Worker directory where to execute the command</td>
 </tr>
 <tr>
 <td>Priority:</td><td><input type='edit' id='newjobpriority' value='1000'></td>
-<td>Job priority</td>
 </tr>
 <tr>
 <td>Retry:</td><td><input type='edit' id='newjobretry' value='10'></td>
-<td>Number of retry to do for this job</td>
 </tr>
 </table>
 <input type='button' name='addjobButton' value='Add job' onclick='addjob()'>
@@ -57,8 +44,10 @@ Add a job :
 
 <center>
 <a href="http://code.google.com/p/coalition/">Coalition</a> - 
-<a href="http://www.mercenaries-engineering.com">Mercenaries Engineering</a> - 
-<a href="iphone.html">iPhone</a>
+<a href="/">Normal</a><br>
+<a href="http://www.mercenaries-engineering.com">Mercenaries Engineering</a>
 </center>
+
 </body>
 </html>
+
