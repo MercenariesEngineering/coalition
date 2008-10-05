@@ -1,4 +1,3 @@
-from __future__ import with_statement
 import xmlrpclib, socket, time, popen2, thread, getopt, sys, os, base64, signal
 from select import select
 
@@ -61,12 +60,14 @@ def debugRaw (str):
 # Add to the logs
 def info (str):
 	global gLog, gLogLock
-	with gLogLock:
+	gLogLock.acquire()
+   	try:
 		gLog = gLog + "WORKER: " + str + "\n";
-	if verbose:
-		print (str)
-	
-
+		if verbose:
+			print (str)
+  	finally:
+		gLogLock.release()
+			
 server = xmlrpclib.ServerProxy(serverUrl+"/xmlrpc")
 
 global working, pid
@@ -91,10 +92,7 @@ def execProcess (cmd,dir):
 	global working,  errorCode, gLog, pid
 
 	# Set the working directory
-	try:
-		os.chdir (dir)
-	except OSError:
-		info ("Can't set the directory to: " + dir)
+	os.chdir (dir)
 
 	# Run the job
 	info ("exec " + cmd)
@@ -112,8 +110,12 @@ def execProcess (cmd,dir):
 			break
 
 		debugRaw (line)
-		with gLogLock:
-			gLog = gLog + line
+		gLogLock.acquire()
+   		try:
+        		gLog = gLog + line
+   		finally:
+         		gLogLock.release()
+			
 
 	# Get the error code of the job
 	errorCode = process.wait ()
@@ -142,9 +144,15 @@ def heartbeat (jobId, retry):
 	def func ():
 		global gLog
 		result = True
-		with gLogLock:
-			result = server.heartbeat (name, jobId, base64.encodestring(gLog), os.getloadavg())
+
+		gLogLock.acquire()
+   		try:
+        		result = server.heartbeat (name, jobId, base64.b64encode(gLog), os.getloadavg())
 			gLog = ""
+   		finally:
+         		gLogLock.release()
+		
+			
 		if not result:
 			debug ("Server ask to stop the jod " + str(jobId))
 
