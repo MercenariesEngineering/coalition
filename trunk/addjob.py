@@ -26,7 +26,7 @@ def usage():
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "d:e:hr:s:t:v:a", ["directory=", "end=", "help", "retry=", "start=", "title=", "verbose=", "affinity="])
+	opts, args = getopt.getopt(sys.argv[1:], "a:d:e:hr:s:t:v", ["affinity=", "directory=", "end=", "help", "retry=", "start=", "title=", "verbose="])
 	if len(args) != 2 :
 		usage()
 		sys.exit(2)
