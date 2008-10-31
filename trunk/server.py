@@ -285,7 +285,7 @@ class Master(xmlrpc.XMLRPC):
 		worker.State = "WAITING"
 		return False
 
-	def xmlrpc_pickjobwithaffinity(self, hostname, load, affinity)
+	def xmlrpc_pickjobwithaffinity(self, hostname, load, affinity):
 		"""A worker ask for a job."""
 		output (hostname + " wants some job")
 		self.update ()
