@@ -6,6 +6,7 @@ title = "New job"
 startIndex = 1
 endIndex = 1
 retry = 10
+affinity = ""
 priority = 1000
 
 def usage():
@@ -19,8 +20,9 @@ def usage():
 	print ("  -e, --end=INDEX\tSet the index of the last job (default: "+str(endIndex)+")")
 	print ("  -p, --priority=PRIORITY\tPriority of the job (default: "+str(priority)+")")
 	print ("  -r, --retry=RETRY\tNumber of retry this jobs can do (default: "+str(retry)+")")
+	print ("  -a, --affinity=AFFINITY\tAffinity words to workers, separated by a comma (default: \"\"")
 	print ("  -v, --verbose\t\tIncrease verbosity")
-	print ("\nExample : addjob -t \"Job%04d\" -s 1 -e 10 http://localhost:8080 \"echo Hello world!\"")
+	print ("\nExample : addjob -t \"Job%04d\" -s 1 -e 10 -a "hello,world" http://localhost:8080 \"echo Hello world!\"")
 
 # Parse the options
 try:
@@ -51,6 +53,8 @@ for o, a in opts:
 		retry = int(a)
 	elif o in ("-p", "--priority"):
 		priority = int(a)
+	elif o in ("-a", "--affinity"):
+		affinity = a
 	elif o in ("-t", "--title"):
 		title = a
 	else:
@@ -69,5 +73,5 @@ for i in range(startIndex, endIndex+1):
 			return s % i
 		except TypeError:
 			return s
-	server.addjob (format (title, i), format (cmd, i), format (dir, i), priority, retry)
+	server.addjobwithaffinity (format (title, i), format (cmd, i), format (dir, i), priority, retry, affinity)
 
