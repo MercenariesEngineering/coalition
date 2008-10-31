@@ -147,7 +147,7 @@ def heartbeat (jobId, retry):
 
 		gLogLock.acquire()
    		try:
-        		result = server.heartbeat (name, jobId, base64.b64encode(gLog), os.getloadavg())
+        		result = server.heartbeat (name, jobId, base64.b64encode(gLog), getloadavg())
 			gLog = ""
    		finally:
          		gLogLock.release()
@@ -165,6 +165,13 @@ def heartbeat (jobId, retry):
 					pass
 	run (func, retry)
 
+# LoadAvg
+def getloadavg ():
+	try:
+		return os.getloadavg ()
+	except:
+		return -1
+
 # Application main loop
 def mainLoop ():
 	global working, errorCode, gLog, pid
@@ -172,7 +179,7 @@ def mainLoop ():
 	debug ("Ask for a job")
 	# Function to ask a job to the server
 	def startFunc ():
-		return server.pickjob (name, os.getloadavg())
+		return server.pickjob (name, getloadavg())
 
 	# Block until this message to handled by the server
 	jobId, cmd, dir = run (startFunc, True)

@@ -60,7 +60,7 @@ def getLogFilename (jobId):
 class Job:
 	"""A farm job"""
 
-	def __init__ (self, id, title, cmd, dir, priority, retry):
+	def __init__ (self, id, title, cmd, dir, priority, retry, affinity):
 		self.ID = id				# Jod ID
 		self.Title = title			# Job title
 		self.Command = cmd			# Job command to execute
@@ -73,6 +73,7 @@ class Job:
 		self.Try = 0				# Number of try
 		self.Retry = retry			# Number of try max
 		self.Priority = priority		# Job priority
+		self.Affinity = affinity	# Job affinity
 
 def compareJobs (self, other):
 	if self.Priority < other.Priority:
@@ -85,11 +86,30 @@ def compareJobs (self, other):
 		return -1
 	return 0
 
+def compareAffinities (jobAffinity, workerAffinity)
+	# check for job with no affinity -- always success
+	if jobAffinity == "" :
+		return True
+	# check for worker with no affinity -- always failure unless no affinity
+	if workerAffinity == "" :
+		return False
+	jobWords = jobAffinity.split (',')
+	workerWords = workerAffinity.split (',')
+	for jobWord in jobWords:
+		found = False
+		for workerWord in workerWords:
+			if workerWord == jobWord then
+				found = True
+		if not found:
+			return False
+	return True
+
 class Worker:
 	"""A farm worker"""
 
 	def __init__ (self, name):
 		self.Name = name			# Worker name
+		self.Affinity = ""			# Worker affinity
 		self.State = "WAITING"			# Job state, can be WAITING, WORKING, FINISHED or TIMEOUT
 		self.PingTime = time.time()		# Last worker ping time
 		self.Finished = 0			# Number of finished
@@ -181,12 +201,16 @@ class Master(xmlrpc.XMLRPC):
 			if worker.State != "TIMEOUT" and _time - worker.PingTime > TimeOut:
 				worker.State = "TIMEOUT"
 
-	def xmlrpc_addjob(self, title, cmd, dir, priority, retry):
+	def xmlrpc_addjobwithaffinity(self, title, cmd, dir, priority, retry, affinity):
 		"""Show the command list."""
 		output ("Add job : " + cmd)
-		self.State.Jobs.append (Job(self.State.Counter, title, cmd, dir, priority, retry))
+		self.State.Jobs.append (Job(self.State.Counter, title, cmd, dir, priority, retry, affinity))
 		self.State.Counter = self.State.Counter + 1
 		return 1
+
+	def xmlrpc_addjob(self, title, cmd, dir, priority, retry):
+		"""Add a job to job list."""
+		return self.xmlrpc_addjobwithaffinity(title, cmd, dir, priority, retry, "")
 
 	def xmlrpc_getjobs(self):
 		output ("Send jobs")
@@ -261,7 +285,7 @@ class Master(xmlrpc.XMLRPC):
 		worker.State = "WAITING"
 		return False
 
-	def xmlrpc_pickjob(self, hostname, load):
+	def xmlrpc_pickjobwithaffinity(self, hostname, load, affinity)
 		"""A worker ask for a job."""
 		output (hostname + " wants some job")
 		self.update ()
@@ -272,7 +296,7 @@ class Master(xmlrpc.XMLRPC):
 		# Look for a job
 		for i in range(len(self.State.Jobs)) :
 			job = self.State.Jobs[i]
-			if job.State == "WAITING" or (job.State == "ERROR" and job.Try < job.Retry):
+			if compareAffinities (job.Affinity, affinity) and (job.State == "WAITING" or (job.State == "ERROR" and job.Try < job.Retry)):
 				job.State = "WORKING"
 				job.Worker = hostname
 				job.Try = job.Try + 1
@@ -280,10 +304,15 @@ class Master(xmlrpc.XMLRPC):
 				job.StartTime = job.PingTime
 				job.Duration = 0
 				worker.State = "WORKING"
+				worker.Affinity = affinity
 				worker.LastJob = job.ID
 				return job.ID, job.Command, job.Dir
 		worker.State = "WAITING"
 		return -1,"",""
+
+	def xmlrpc_pickjob(self, hostname, load):
+		"""A worker ask for a job."""
+		return self.xmlrpc_pickjobwithaffinity(hostname, load, "")
 
 	def xmlrpc_endjob(self, hostname, jobId, errorCode):
 		"""A worker ask for a job."""
