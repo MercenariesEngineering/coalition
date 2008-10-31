@@ -18,7 +18,7 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -n, --name=NAME\tWorker name (default: "+name+")")
 	print ("  -s, --sleep=SLEEPTIME\tSleep time between two heart beats (default: "+str(sleepTime)+"s)")
-	print ("  -a, --affinity=AFFINITY\tSet affinity to job categories (default: \"\"")
+	print ("  -a, --affinity=AFFINITY\tAffinity words to jobs (default: \"\"")
 	print ("  -v, --verbose\t\tIncrease verbosity")
 	print ("\nExample : worker -s 30 -v http://localhost:8080")
 
