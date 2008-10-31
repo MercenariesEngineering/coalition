@@ -98,7 +98,7 @@ def compareAffinities (jobAffinity, workerAffinity):
 	for jobWord in jobWords:
 		found = False
 		for workerWord in workerWords:
-			if workerWord == jobWord then
+			if workerWord == jobWord:
 				found = True
 		if not found:
 			return False

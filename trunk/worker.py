@@ -7,6 +7,7 @@ serverUrl = ""
 debug = False
 verbose = False
 sleepTime = 2
+affinity = ""
 name = socket.gethostname()
 
 def usage():
@@ -17,6 +18,7 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -n, --name=NAME\tWorker name (default: "+name+")")
 	print ("  -s, --sleep=SLEEPTIME\tSleep time between two heart beats (default: "+str(sleepTime)+"s)")
+	print ("  -a, --affinity=AFFINITY\tSet affinity to job categories (default: \"\"")
 	print ("  -v, --verbose\t\tIncrease verbosity")
 	print ("\nExample : worker -s 30 -v http://localhost:8080")
 
@@ -40,6 +42,8 @@ for o, a in opts:
 		sys.exit(2)
 	elif o in ("-n", "--name"):
 		name = a
+	elif o in ("-a", "--affinity"):
+		affinity = a
 	elif o in ("-v", "--verbose"):
 		verbose = True
 	elif o in ("-s", "--sleep"):
