@@ -86,7 +86,7 @@ def compareJobs (self, other):
 		return -1
 	return 0
 
-def compareAffinities (jobAffinity, workerAffinity)
+def compareAffinities (jobAffinity, workerAffinity):
 	# check for job with no affinity -- always success
 	if jobAffinity == "" :
 		return True
