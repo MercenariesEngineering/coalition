@@ -24,7 +24,7 @@ def usage():
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "dhn:s:v", ["debug", "help", "name=", "sleep=", "verbose"])
+	opts, args = getopt.getopt(sys.argv[1:], "dhn:s:v:a", ["debug", "help", "name=", "sleep=", "verbose", "affinity="])
 	if len(args) != 1 :
 		usage()
 		sys.exit(2)
