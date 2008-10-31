@@ -89,7 +89,7 @@ function renderJobs ()
 	for (i=0; i < jobs.length; i++)
 	{
 		var job = jobs[i];
-		table += "<tr class='entry"+(i%2)+"'><td>"+job.ID+"</td><td>"+job.Title+"</td><td class='"+job.State+"'>"+job.State+"</td><td>"+job.Priority+"</td><<td>"+job.Affinity+"</td>td>"+job.Worker+"</td><td>"+formatDuration (job.Duration)+"</td><td>"+job.Try+"/"+job.Retry+"</td><td>"+job.Command+"</td><td>"+job.Dir+
+		table += "<tr class='entry"+(i%2)+"'><td>"+job.ID+"</td><td>"+job.Title+"</td><td class='"+job.State+"'>"+job.State+"</td><td>"+job.Affinity+"</td><td>"+job.Priority+"</td><td>"+job.Worker+"</td><td>"+formatDuration (job.Duration)+"</td><td>"+job.Try+"/"+job.Retry+"</td><td>"+job.Command+"</td><td>"+job.Dir+
 		"</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a> <a href='javascript:clearJob("+job.ID+")'>Remove</a></td></tr>\n";
 	}
 	table += "</table>";
