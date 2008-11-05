@@ -126,11 +126,12 @@ function renderWorkers ()
 
 function addjob ()
 {
-	service.addjob($('#newjobtitle').attr("value"), 
+	service.addjobwithaffinity($('#newjobtitle').attr("value"), 
 		$('#newjobcmd').attr("value"),
 		$('#newjobdir').attr("value"), 
 		$('#newjobpriority').attr("value"), 
-		$('#newjobretry').attr("value"));
+		$('#newjobretry').attr("value"),
+		$('#newjobaffinity').attr("value"));
 	renderJobs ();
 }
 
