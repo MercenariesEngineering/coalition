@@ -1,4 +1,4 @@
-import xmlrpclib, socket, time, popen2, thread, getopt, sys, os, base64, signal
+import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal
 from select import select
 
 # Options
@@ -24,7 +24,7 @@ def usage():
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "dhn:s:v:a", ["debug", "help", "name=", "sleep=", "verbose", "affinity="])
+	opts, args = getopt.getopt(sys.argv[1:], "a:dhn:s:v", ["affinity=", "debug", "help", "name=", "sleep=", "verbose"])
 	if len(args) != 1 :
 		usage()
 		sys.exit(2)
@@ -100,13 +100,13 @@ def execProcess (cmd,dir):
 
 	# Run the job
 	info ("exec " + cmd)
-	process = popen2.Popen4 ("exec "+cmd)
+	process = subprocess.Popen (cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 	# Get the pid
 	pid = int(process.pid)
 	while (1):
 		# Read some lines of logs
-		line = process.fromchild.readline()
+		line = process.stdout.readline()
 		
 		# "" means EOF
 		if line == "":
@@ -183,7 +183,7 @@ def mainLoop ():
 	debug ("Ask for a job")
 	# Function to ask a job to the server
 	def startFunc ():
-		return server.pickjob (name, getloadavg())
+		return server.pickjobwithaffinity (name, getloadavg(), affinity)
 
 	# Block until this message to handled by the server
 	jobId, cmd, dir = run (startFunc, True)
