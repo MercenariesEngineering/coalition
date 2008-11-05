@@ -7,7 +7,7 @@ var logId = 0;
 $(document).ready(function()
 {
 	xmlrpc = imprt("xmlrpc");
-	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers", "getlog", "addjob"]);
+	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers", "getlog", "addjobwithaffinity"]);
 	timerCB ();
 });
 
