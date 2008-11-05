@@ -100,7 +100,7 @@ def execProcess (cmd,dir):
 
 	# Run the job
 	info ("exec " + cmd)
-	process = subprocess.Popen (cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	process = subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 	# Get the pid
 	pid = int(process.pid)
