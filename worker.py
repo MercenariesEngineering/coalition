@@ -52,7 +52,7 @@ for o, a in opts:
 		assert False, "unhandled option " + o
 
 # Log for debugging
-def debug (str):
+def debugOutput (str):
 	if verbose:
 		print (str)
 
@@ -136,15 +136,15 @@ def run (func, retry):
 		except socket.error:
 			pass
 		if not retry:
-			debug ("Server down, continue...")
+			debugOutput ("Server down, continue...")
 			break
-		debug ("No server")
+		debugOutput ("No server")
 		time.sleep (sleepTime)
 
 # Flush the logs to the server
 def heartbeat (jobId, retry):
 	global gLog, pid, gLogLock
-	debug ("Flush logs (" + str(len(gLog)) + " bytes)")
+	debugOutput ("Flush logs (" + str(len(gLog)) + " bytes)")
 	def func ():
 		global gLog
 		result = True
@@ -158,11 +158,11 @@ def heartbeat (jobId, retry):
 		
 			
 		if not result:
-			debug ("Server ask to stop the jod " + str(jobId))
+			debugOutput ("Server ask to stop the jod " + str(jobId))
 
 			# Send the kill signal to the process
 			if pid != 0:
-				debug ("kill "+str(pid)+" "+str(signal.SIGKILL))
+				debugOutput ("kill "+str(pid)+" "+str(signal.SIGKILL))
 				try:
 					os.kill (pid, signal.SIGKILL)
 				except OSError:
@@ -180,7 +180,7 @@ def getloadavg ():
 def mainLoop ():
 	global working, errorCode, gLog, pid
 
-	debug ("Ask for a job")
+	debugOutput ("Ask for a job")
 	# Function to ask a job to the server
 	def startFunc ():
 		return server.pickjobwithaffinity (name, getloadavg(), affinity)
@@ -189,7 +189,7 @@ def mainLoop ():
 	jobId, cmd, dir = run (startFunc, True)
 
 	if jobId != -1:
-		debug ("Start jod " + str(jobId) + " : " + cmd)
+		debugOutput ("Start jod " + str(jobId) + " : " + cmd)
 
 		# Reset the globals
 		working = True
@@ -208,7 +208,7 @@ def mainLoop ():
 		# Flush for real for the last time
 		heartbeat (jobId, True)
 
-		debug ("Finished jod " + str(jobId) + " (code " + str(errorCode) + ") : " + cmd)
+		debugOutput ("Finished jod " + str(jobId) + " (code " + str(errorCode) + ") : " + cmd)
 
 		# Function to end the job
 		def endFunc ():
