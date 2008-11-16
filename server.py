@@ -1,7 +1,8 @@
 
-from twisted.web import xmlrpc, server, static
+from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer
 import pickle, time, os, getopt, sys, base64
+import ldap
 
 # This module is standard in Python 2.2, otherwise get it from
 #   http://www.pythonware.com/products/xmlrpc/
@@ -17,6 +18,8 @@ global TimeOut, port, verbose
 TimeOut = 10
 port = 8080
 verbose = False
+LDAPServer = ""
+LDAPTemplate = ""
 
 def usage():
 	print ("Usage: server [OPTIONS]")
@@ -25,11 +28,13 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
+	print ("  --ldaphost=HOSTNAME\tLDAP server to use for authentication")
+	print ("  --ldaptemplate=TEMPLATE\tLDAP template used to validate the user, like uid=%login,ou=people,dc=exemple,dc=com")
 	print ("\nExample : server -p 1234")
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "hp:v", ["help", "port=", "verbose"])
+	opts, args = getopt.getopt(sys.argv[1:], "hp:v", ["help", "port=", "verbose", "ldaphost=", "ldaptemplate="])
 	if len(args) != 0:
 		usage()
 		sys.exit(2)
@@ -46,6 +51,10 @@ for o, a in opts:
 		verbose = True
 	elif o in ("-p", "--port"):
 		port = float(a)
+	elif o in ("-lh", "--ldaphost"):
+		LDAPServer = a
+	elif o in ("-lt", "--ldaptemplate"):
+		LDAPTemplate = a
 	else:
 		assert False, "unhandled option " + o
 
@@ -60,7 +69,7 @@ def getLogFilename (jobId):
 class Job:
 	"""A farm job"""
 
-	def __init__ (self, id, title, cmd, dir, priority, retry, affinity):
+	def __init__ (self, id, title, cmd, dir, priority, retry, affinity, user):
 		self.ID = id				# Jod ID
 		self.Title = title			# Job title
 		self.Command = cmd			# Job command to execute
@@ -73,7 +82,8 @@ class Job:
 		self.Try = 0				# Number of try
 		self.Retry = retry			# Number of try max
 		self.Priority = priority		# Job priority
-		self.Affinity = affinity	# Job affinity
+		self.Affinity = affinity		# Job affinity
+		self.User = user			# Job user
 
 def compareJobs (self, other):
 	if self.Priority < other.Priority:
@@ -118,6 +128,7 @@ class Worker:
 		self.Load = 0				# Load of the worker
 
 # State of the master
+DBVersion = 2
 class CState:
 
 	Counter = 0
@@ -127,85 +138,75 @@ class CState:
 	# Read the state
 	def read (self, fo):
 		version = pickle.load(fo)
-		self.Counter = pickle.load(fo)
-		self.Jobs = pickle.load(fo)
-		self.Workers = pickle.load(fo)
+		if version == DBVersion:
+			self.Counter = pickle.load(fo)
+			self.Jobs = pickle.load(fo)
+			self.Workers = pickle.load(fo)
+		else:
+			raise Exception ("Database too old, erase the master_db file")
+			self.Jobs = []
+			self.Workers = []
 
 	# Write the state
 	def write (self, fo):
-		version = 1
+		version = DBVersion
 		pickle.dump(version, fo)
 		pickle.dump(self.Counter, fo)
 		pickle.dump(self.Jobs, fo)
 		pickle.dump(self.Workers, fo)
+State = CState()
+
+# Authenticate the user
+def authenticate (request):
+	if LDAPServer != "":
+		username = request.getUser ()
+		password = request.getPassword ()
+		if username != "" or password != "":
+			l = ldap.open(LDAPServer)
+			output ("Authenticate "+username+" with LDAP")
+			username = LDAPTemplate.replace ("%login", username)
+			try:
+				if l.bind_s(username, password, ldap.AUTH_SIMPLE):
+					output ("Authentication OK")
+					return True
+			except ldap.LDAPError:
+				output ("Authentication Failed")
+				pass
+		else:
+			output ("Authentication Required")
+		request.setHeader ("WWW-Authenticate", "Basic realm=\"Coalition Login\"")
+		request.setResponseCode(http.UNAUTHORIZED)
+		return False
+	return True
+
+class Root(static.File):
+	def __init__ (self, path, defaultType='text/html', ignoredExts=(), registry=None, allowExt=0):
+		static.File.__init__(self, path, defaultType, ignoredExts, registry, allowExt)
+
+	def render (self, request):
+		if authenticate (request):
+			return static.File.render (self, request)
+		return 'Authorization required!'
 
 class Master(xmlrpc.XMLRPC):
 	"""    """
-	
-	def sortJobs (self):
-		self.State.Jobs.sort (compareJobs)
 
-	# Clear a job
-	def clearJob (self, jobId):
-		# Look for the job
-		for i in range(len(self.State.Jobs)) :
-			job = self.State.Jobs[i]
-			if job.ID == jobId :
-				self.State.Jobs.pop (i)
-				break;
-		# Clear the log	
-		try:
-			os.remove (getLogFilename(jobId))
-		except OSError:
-			pass
+	User = ""
 
-	def getWorker (self, name):
-		found = False
-		for i in range(len(self.State.Workers)) :
-			worker = self.State.Workers[i]
-			if worker.Name == name :
-				worker.PingTime = time.time()
-				found = True
-				return worker
-		
-		# Job not found, add it
-		if not found:
-			output ("Add worker " + name)
-			worker = Worker (name)
-			worker.PingTime = time.time()
-			self.State.Workers.append (worker)
-			return worker
-
-	def update (self):
-		global TimeOut
-		self.saveDb ()
-		_time = time.time()
-		resort = False
-		for job in self.State.Jobs:
-			if job.State == "WORKING":
-				# Check if the job is timeout
-				if _time - job.PingTime > TimeOut :
-					output ("Job " + str(job.ID) + " timeout")
-					job.State = "ERROR"
-					worker = self.getWorker (job.Worker)
-					worker.State = "TIMEOUT"
-					worker.Error = worker.Error+1
-					job.Priority = job.Priority-1
-					resort = True
-				job.Duration = _time - job.StartTime
-		if resort:
-			self.sortJobs ()
-
-		# Timeout workers
-		for worker in self.State.Workers:
-			if worker.State != "TIMEOUT" and _time - worker.PingTime > TimeOut:
-				worker.State = "TIMEOUT"
+	def render(self, request):
+		global State
+		if authenticate (request):
+			# return server.NOT_DONE_YET
+			self.User = request.getUser ()
+			return xmlrpc.XMLRPC.render (self, request)
+		return 'Authorization required!'
 
 	def xmlrpc_addjobwithaffinity(self, title, cmd, dir, priority, retry, affinity):
 		"""Show the command list."""
+		global State
 		output ("Add job : " + cmd)
-		self.State.Jobs.append (Job(self.State.Counter, title, cmd, dir, priority, retry, affinity))
-		self.State.Counter = self.State.Counter + 1
+		State.Jobs.append (Job(State.Counter, title, cmd, dir, priority, retry, affinity, self.User))
+		State.Counter = State.Counter + 1
 		return 1
 
 	def xmlrpc_addjob(self, title, cmd, dir, priority, retry):
@@ -213,22 +214,26 @@ class Master(xmlrpc.XMLRPC):
 		return self.xmlrpc_addjobwithaffinity(title, cmd, dir, priority, retry, "")
 
 	def xmlrpc_getjobs(self):
+		global State
 		output ("Send jobs")
-		self.update ()
-		return self.State.Jobs
+		update ()
+		return State.Jobs
 
 	def xmlrpc_clearjobs(self):
+		global State
 		output ("Clear jobs")
-		while (len(self.State.Jobs) > 0):
-			self.clearJob (self.State.Jobs[0].ID)
+		while (len(State.Jobs) > 0):
+			clearJob (State.Jobs[0].ID)
 		return 1
 
 	def xmlrpc_clearjob(self, jobId):
+		global State
 		output ("Clear job"+str(jobId))
-		self.clearJob (jobId)
+		clearJob (jobId)
 		return 1
 
 	def xmlrpc_getlog(self, jobId):
+		global State
 		output ("Send log "+str(jobId))
 		# Look for the job
 		log = ""
@@ -247,28 +252,35 @@ class Master(xmlrpc.XMLRPC):
 		return log
 
 	def xmlrpc_getworkers(self):
+		global State
 		output ("Send workers")
-		self.update ()
-		return self.State.Workers
+		update ()
+		return State.Workers
 
 	def xmlrpc_clearworkers(self):
+		global State
 		output ("Clear workers")
-		self.State.Workers = []
+		State.Workers = []
 		return 1
+
+# Unauthenticated connection for workers
+class Workers(xmlrpc.XMLRPC):
+	"""    """
 
 	def xmlrpc_heartbeat(self, hostname, jobId, log, load):
 		"""Add some logs."""
+		global State
 		output ("Heart beat for " + str(jobId))
 
 		# Ping the worker
-		worker = self.getWorker (hostname)
+		worker = getWorker (hostname)
 
 		# Update the worker load
 		worker.Load = load
 
 		# Look for the job
-		for i in range(len(self.State.Jobs)) :
-			job = self.State.Jobs[i]
+		for i in range(len(State.Jobs)) :
+			job = State.Jobs[i]
 			if job.ID == jobId and job.State == "WORKING" and job.Worker == hostname:
 				job.PingTime = time.time()
 				if log != "" :
@@ -287,15 +299,16 @@ class Master(xmlrpc.XMLRPC):
 
 	def xmlrpc_pickjobwithaffinity(self, hostname, load, affinity):
 		"""A worker ask for a job."""
+		global State
 		output (hostname + " wants some job")
-		self.update ()
+		update ()
 		# Ping the worker
-		worker = self.getWorker (hostname)
+		worker = getWorker (hostname)
 		worker.Load = load
 
 		# Look for a job
-		for i in range(len(self.State.Jobs)) :
-			job = self.State.Jobs[i]
+		for i in range(len(State.Jobs)) :
+			job = State.Jobs[i]
 			if compareAffinities (job.Affinity, affinity) and (job.State == "WAITING" or (job.State == "ERROR" and job.Try < job.Retry)):
 				job.State = "WORKING"
 				job.Worker = hostname
@@ -306,9 +319,12 @@ class Master(xmlrpc.XMLRPC):
 				worker.State = "WORKING"
 				worker.Affinity = affinity
 				worker.LastJob = job.ID
-				return job.ID, job.Command, job.Dir
+				if LDAPServer != "":
+					return job.ID, job.Command, job.Dir, job.User
+				else:
+					return job.ID, job.Command, job.Dir, ""
 		worker.State = "WAITING"
-		return -1,"",""
+		return -1,"","",""
 
 	def xmlrpc_pickjob(self, hostname, load):
 		"""A worker ask for a job."""
@@ -316,15 +332,16 @@ class Master(xmlrpc.XMLRPC):
 
 	def xmlrpc_endjob(self, hostname, jobId, errorCode):
 		"""A worker ask for a job."""
+		global State
 		output ("End job " + str(jobId) + " with code " + str(errorCode))
 
 		# Ping the worker
-		worker = self.getWorker (hostname)
+		worker = getWorker (hostname)
 		worker.State = "WAITING"
 
 		# Look for a job
-		for i in range(len(self.State.Jobs)) :
-			job = self.State.Jobs[i]
+		for i in range(len(State.Jobs)) :
+			job = State.Jobs[i]
 			if job.ID == jobId:
 				if errorCode == 0:
 					job.State = "FINISHED"
@@ -332,51 +349,116 @@ class Master(xmlrpc.XMLRPC):
 				else:
 					job.State = "ERROR"
 					worker.Error = worker.Error + 1
-					job.Priority = job.Priority-1
+					job.Priority = int(job.Priority)-1
 				job.Duration = time.time() - job.StartTime
-				self.sortJobs ()
+				sortJobs ()
 				return 1
 		return 1
 
-	# Write the DB on disk
-	def saveDb (self):
-		fo = open("master_db", "wb")
-		self.State.write (fo)
-		fo.close()
-		output ("DB saved")
+def sortJobs ():
+	global State
+	State.Jobs.sort (compareJobs)
 
-	# Read the DB from disk
-	def readDb (self):
-		output ("Read DB")
+# Clear a job
+def clearJob (jobId):
+	global State
+	# Look for the job
+	for i in range(len(State.Jobs)) :
+		job = State.Jobs[i]
+		if job.ID == jobId :
+			State.Jobs.pop (i)
+			break;
+	# Clear the log	
+	try:
+		os.remove (getLogFilename(jobId))
+	except OSError:
+		pass
+
+def getWorker (name):
+	global State
+	found = False
+	for i in range(len(State.Workers)) :
+		worker = State.Workers[i]
+		if worker.Name == name :
+			worker.PingTime = time.time()
+			found = True
+			return worker
+	
+	# Job not found, add it
+	if not found:
+		output ("Add worker " + name)
+		worker = Worker (name)
+		worker.PingTime = time.time()
+		State.Workers.append (worker)
+		return worker
+
+def update ():
+	global TimeOut
+	global State
+	saveDb ()
+	_time = time.time()
+	resort = False
+	for job in State.Jobs:
+		if job.State == "WORKING":
+			# Check if the job is timeout
+			if _time - job.PingTime > TimeOut :
+				output ("Job " + str(job.ID) + " timeout")
+				job.State = "ERROR"
+				worker = getWorker (job.Worker)
+				worker.State = "TIMEOUT"
+				worker.Error = worker.Error+1
+				job.Priority = int(job.Priority)-1
+				resort = True
+			job.Duration = _time - job.StartTime
+	if resort:
+		sortJobs ()
+
+	# Timeout workers
+	for worker in State.Workers:
+		if worker.State != "TIMEOUT" and _time - worker.PingTime > TimeOut:
+			worker.State = "TIMEOUT"
+
+# Write the DB on disk
+def saveDb ():
+	global State
+	fo = open("master_db", "wb")
+	State.write (fo)
+	fo.close()
+	output ("DB saved")
+
+# Read the DB from disk
+def readDb ():
+	global State
+	output ("Read DB")
+	try:
+		fo = open("master_db", "rb")
 		try:
-			fo = open("master_db", "rb")
-			try:
-				self.State.read (fo)
-			except IOError:
-				fo.close()
-				print ("Error reading master_db, create a new one")
-				self.State = self.CState()
+			State.read (fo)
 		except IOError:
-			output ("No db found, create a new one")
-			return
-		# Touch every working job
-		_time = time.time()
-		for i in range(len(self.State.Jobs)) :
-			job = self.State.Jobs[i]
-			if job.State == "WORKING":
-				job.PingTime = _time
+			fo.close()
+			print ("Error reading master_db, create a new one")
+			State = CState()
+	except IOError:
+		output ("No db found, create a new one")
+		return
+	# Touch every working job
+	_time = time.time()
+	for i in range(len(State.Jobs)) :
+		job = State.Jobs[i]
+		if job.State == "WORKING":
+			job.PingTime = _time
 		
-
-	State = CState()
 
 def main():
 	from twisted.internet import reactor
 	from twisted.web import server
-	root = static.File("public_html")
+	root = Root("public_html")
 	xmlrpc = Master()
-	xmlrpc.readDb ()
-	xmlrpc.update ()
+	readDb ()
+	update ()
+	workers = Workers()
 	root.putChild('xmlrpc', xmlrpc)
+	root.putChild('workers', workers)
 	reactor.listenTCP(port, server.Site(root))
 	reactor.run()
 

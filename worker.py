@@ -72,7 +72,7 @@ def info (str):
   	finally:
 		gLogLock.release()
 			
-server = xmlrpclib.ServerProxy(serverUrl+"/xmlrpc")
+server = xmlrpclib.ServerProxy(serverUrl+"/workers")
 
 global working, pid
 working = False
@@ -92,7 +92,7 @@ gLog = ""
 #lock = thread.allocate_lock ()
 
 # Thread function to execute the job process
-def execProcess (cmd,dir):
+def execProcess (cmd,dir,user):
 	global working,  errorCode, gLog, pid
 
 	# Set the working directory
@@ -100,6 +100,12 @@ def execProcess (cmd,dir):
 
 	# Run the job
 	info ("exec " + cmd)
+
+	# Change the user ?
+	if user != "":
+		debugOutput ("Run the command using login " + user)
+		cmd = "sudo -u " + user + " " + cmd
+
 	process = subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 	# Get the pid
@@ -110,7 +116,7 @@ def execProcess (cmd,dir):
 		
 		# "" means EOF
 		if line == "":
-			print ("end")
+			info ("end")
 			break
 
 		debugRaw (line)
@@ -186,7 +192,7 @@ def mainLoop ():
 		return server.pickjobwithaffinity (name, getloadavg(), affinity)
 
 	# Block until this message to handled by the server
-	jobId, cmd, dir = run (startFunc, True)
+	jobId, cmd, dir, user = run (startFunc, True)
 
 	if jobId != -1:
 		debugOutput ("Start jod " + str(jobId) + " : " + cmd)
@@ -198,7 +204,7 @@ def mainLoop ():
 
 		# Launch a new thread to run the process
 		gLog = ""
-		thread.start_new_thread ( execProcess, (cmd,dir,))
+		thread.start_new_thread ( execProcess, (cmd,dir,user))
 
 		# Flush the logs
 		while (working):
