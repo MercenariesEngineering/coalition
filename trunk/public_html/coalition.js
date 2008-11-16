@@ -4,6 +4,16 @@ var timer;
 var page = "jobs";
 var logId = 0;
 
+function get_cookie ( cookie_name )
+{
+  var results = document.cookie.match ( '(^|;) ?' + cookie_name + '=([^;]*)(;|$)' );
+
+  if ( results )
+    return ( unescape ( results[2] ) );
+  else
+    return "";
+}
+
 $(document).ready(function()
 {
 	xmlrpc = imprt("xmlrpc");
@@ -85,11 +95,11 @@ function renderJobs ()
 		$("#main").append("<input type='button' name='myButton' value='Clear All Jobs' onclick='clearJobs()'>\n");
 	}
 	renderButtons ();
-	table += "<tr class='title'><th>ID</th><th>Title</th><th>State</th><th>Priority</th><th>Affinity</th><th>Worker</th><th>Duration</th><th>Try</th><th>Command</th><th>Directory</th><th>Tools</th></tr>\n";
+	table += "<tr class='title'><th>ID</th><th>Title</th><th>User</th><th>State</th><th>Priority</th><th>Affinity</th><th>Worker</th><th>Duration</th><th>Try</th><th>Command</th><th>Directory</th><th>Tools</th></tr>\n";
 	for (i=0; i < jobs.length; i++)
 	{
 		var job = jobs[i];
-		table += "<tr class='entry"+(i%2)+"'><td>"+job.ID+"</td><td>"+job.Title+"</td><td class='"+job.State+"'>"+job.State+"</td><td>"+job.Priority+"</td><td>"+job.Affinity+"</td><td>"+job.Worker+"</td><td>"+formatDuration (job.Duration)+"</td><td>"+job.Try+"/"+job.Retry+"</td><td>"+job.Command+"</td><td>"+job.Dir+
+		table += "<tr class='entry"+(i%2)+"'><td>"+job.ID+"</td><td>"+job.Title+"</td><td>"+job.User+"</td><td class='"+job.State+"'>"+job.State+"</td><td>"+job.Priority+"</td><td>"+job.Affinity+"</td><td>"+job.Worker+"</td><td>"+formatDuration (job.Duration)+"</td><td>"+job.Try+"/"+job.Retry+"</td><td>"+job.Command+"</td><td>"+job.Dir+
 		"</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a> <a href='javascript:clearJob("+job.ID+")'>Remove</a></td></tr>\n";
 	}
 	table += "</table>";
