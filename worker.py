@@ -1,4 +1,4 @@
-import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal
+import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, pwd
 from select import select
 
 # Options
@@ -95,16 +95,17 @@ gLog = ""
 def execProcess (cmd,dir,user):
 	global working,  errorCode, gLog, pid
 
+	# Change the user ?
+	if user != "":
+		debugOutput ("Run the command using login " + user)
+		os.seteuid (pwd.getpwnam(user)[2])
+		# cmd = "sudo -u " + user + " " + cmd
+
 	# Set the working directory
 	os.chdir (dir)
 
 	# Run the job
 	info ("exec " + cmd)
-
-	# Change the user ?
-	if user != "":
-		debugOutput ("Run the command using login " + user)
-		cmd = "sudo -u " + user + " " + cmd
 
 	process = subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -225,7 +226,9 @@ def mainLoop ():
 
 	time.sleep (sleepTime)
 
+peuid = os.geteuid ()
 while (1):
+	os.seteuid (peuid)
 	if debug:
 		mainLoop ()
 	else:
