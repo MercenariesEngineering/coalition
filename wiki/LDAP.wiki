@@ -7,7 +7,7 @@ server.py can use LDAP to authenticate the users in order to control access to t
 To use a LDAP server, you have to run the server with the two following options :
 
 {{{
---ldapserver=LDAPHOST
+--ldaphost=LDAPHOST
 --ldaptemplate=LDAPTEMPALTE
 }}}
 
