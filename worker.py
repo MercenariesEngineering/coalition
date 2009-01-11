@@ -99,7 +99,7 @@ def execProcess (cmd,dir,user):
 	if user != "":
 		debugOutput ("Run the command using login " + user)
 		#os.seteuid (pwd.getpwnam(user)[2])
-		cmd = "su - " + user + " -c " + cmd
+		cmd = "su - " + user + " -c \"" + cmd + "\""
 
 	# Set the working directory
 	os.chdir (dir)
@@ -199,6 +199,7 @@ def heartbeat (jobId, retry):
 				try:
 					killr (pid, signal.SIGKILL)
 				except OSError:
+					debugOutput ("kill failed")
 					pass
 	run (func, retry)
 
