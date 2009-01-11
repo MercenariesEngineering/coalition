@@ -1,4 +1,4 @@
-import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, pwd
+import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, pwd, string
 from select import select
 
 # Options
@@ -98,8 +98,8 @@ def execProcess (cmd,dir,user):
 	# Change the user ?
 	if user != "":
 		debugOutput ("Run the command using login " + user)
-		os.seteuid (pwd.getpwnam(user)[2])
-		# cmd = "sudo -u " + user + " " + cmd
+		#os.seteuid (pwd.getpwnam(user)[2])
+		cmd = "su - " + user + " -c " + cmd
 
 	# Set the working directory
 	os.chdir (dir)
@@ -134,6 +134,32 @@ def execProcess (cmd,dir,user):
 
 	# Signal to the main process the job is finished
 	working = False
+
+### To kill all child process
+def killr (pid, sig): 
+	if sys.platform!="win32":
+		names=os.listdir("/proc/")
+		for name in names:
+			try:
+				f = open("/proc/" + name +"/stat","r")
+				line = f.readline()
+				words =  string.split(line)
+				if words[3]==str(pid):
+					debugOutput("Found in " + name)
+					killr(int(name), sig)
+			except IOError:
+				pass
+			
+		
+	try:
+		os.kill(pid,sig)
+	except:
+		pass
+		
+	
+
+
+
 
 # Safe method to run a command on the server, if retry is true, the function won't return until the message is passed
 def run (func, retry):
@@ -171,7 +197,7 @@ def heartbeat (jobId, retry):
 			if pid != 0:
 				debugOutput ("kill "+str(pid)+" "+str(signal.SIGKILL))
 				try:
-					os.kill (pid, signal.SIGKILL)
+					killr (pid, signal.SIGKILL)
 				except OSError:
 					pass
 	run (func, retry)
