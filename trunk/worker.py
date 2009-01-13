@@ -1,4 +1,4 @@
-import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, pwd, string
+import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, pwd, string, re
 from select import select
 
 # Options
@@ -225,6 +225,15 @@ def getloadavg ():
 	except:
 		return -1
 
+def evalEnv (_str):
+	def _getenv (match):
+		result = os.getenv (match.group(1))
+		if result == None:
+			info ("Environment variable not found : " + match.group(1))
+			result = ""
+		return result
+	return re.sub ('\$\(([^)]*)\)', _getenv, _str)
+
 # Application main loop
 def mainLoop ():
 	global working, errorCode, gLog, pid
@@ -247,7 +256,7 @@ def mainLoop ():
 
 		# Launch a new thread to run the process
 		gLog = ""
-		thread.start_new_thread ( execProcess, (cmd,dir,user))
+		thread.start_new_thread ( execProcess, (evalEnv(cmd),evalEnv(dir),user))
 
 		# Flush the logs
 		while (working):
