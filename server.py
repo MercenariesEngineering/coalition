@@ -252,6 +252,12 @@ class Master(xmlrpc.XMLRPC):
 		clearJob (jobId)
 		return 1
 
+	def xmlrpc_resetjob(self, jobId):
+		global State
+		output ("Reset job"+str(jobId))
+		resetJob (jobId)
+		return 1
+
 	def xmlrpc_getlog(self, jobId):
 		global State
 		output ("Send log "+str(jobId))
@@ -393,6 +399,16 @@ def clearJob (jobId):
 		os.remove (getLogFilename(jobId))
 	except OSError:
 		pass
+
+# Reset a job
+def resetJob (jobId):
+	global State
+	# Look for the job
+	for i in range(len(State.Jobs)) :
+		job = State.Jobs[i]
+		if job.ID == jobId :
+			job.Try = 0
+			break;
 
 def getWorker (name):
 	global State

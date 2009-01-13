@@ -17,7 +17,7 @@ function get_cookie ( cookie_name )
 $(document).ready(function()
 {
 	xmlrpc = imprt("xmlrpc");
-	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers", "getlog", "addjobwithaffinity"]);
+	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers", "getlog", "addjobwithaffinity", "resetjob"]);
 	timerCB ();
 });
 
@@ -30,6 +30,12 @@ function clearJobs ()
 function clearJob (jobId)
 {
 	service.clearjob (jobId);
+	renderJobs ();
+}
+
+function resetJob (jobId)
+{
+	service.resetjob (jobId);
 	renderJobs ();
 }
 
@@ -100,7 +106,7 @@ function renderJobs ()
 	{
 		var job = jobs[i];
 		table += "<tr class='entry"+(i%2)+"'><td>"+job.ID+"</td><td>"+job.Title+"</td><td>"+job.User+"</td><td class='"+job.State+"'>"+job.State+"</td><td>"+job.Priority+"</td><td>"+job.Affinity+"</td><td>"+job.Worker+"</td><td>"+formatDuration (job.Duration)+"</td><td>"+job.Try+"/"+job.Retry+"</td><td>"+job.Command+"</td><td>"+job.Dir+
-		"</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a> <a href='javascript:clearJob("+job.ID+")'>Remove</a></td></tr>\n";
+		"</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a> <a href='javascript:clearJob("+job.ID+")'>Remove</a> <a href='javascript:resetJob("+job.ID+")'>Reset</a></td></tr>\n";
 	}
 	table += "</table>";
 	$("#main").append(table);
