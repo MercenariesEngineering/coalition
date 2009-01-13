@@ -205,9 +205,20 @@ class Master(xmlrpc.XMLRPC):
 	def render(self, request):
 		global State
 		if authenticate (request):
-			# return server.NOT_DONE_YET
-			self.User = request.getUser ()
-			return xmlrpc.XMLRPC.render (self, request)
+			# Addjob
+			if request.path == "/xmlrpc/addjob":
+				title = request.args.get ("title", ["New job"])
+				cmd = request.args.get ("cmd", [""])
+				dir = request.args.get ("dir", ["."])
+				priority = request.args.get ("priority", ["1000	"])
+				retry = request.args.get ("retry", ["10"])
+				affinity = request.args.get ("affinity", [""])
+				self.xmlrpc_addjobwithaffinity(title[0], cmd[0], dir[0], int(priority[0]), int(retry[0]), affinity[0])
+				return "OK"
+			else:
+				# return server.NOT_DONE_YET
+				self.User = request.getUser ()
+				return xmlrpc.XMLRPC.render (self, request)
 		return 'Authorization required!'
 
 	def xmlrpc_addjobwithaffinity(self, title, cmd, dir, priority, retry, affinity):
