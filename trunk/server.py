@@ -2,7 +2,6 @@
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer
 import pickle, time, os, getopt, sys, base64
-import ldap
 
 # This module is standard in Python 2.2, otherwise get it from
 #   http://www.pythonware.com/products/xmlrpc/
@@ -57,6 +56,9 @@ for o, a in opts:
 		LDAPTemplate = a
 	else:
 		assert False, "unhandled option " + o
+
+if LDAPServer != "":
+	import ldap
 
 # Log function
 def output (str):
