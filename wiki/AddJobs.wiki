@@ -1,12 +1,12 @@
-= Add jobs to Coalition =
+= Add a job to Coalition =
 
 To add a job using the HTTP interface, simply GET or POST the url http://host:port/xmlrpc/addjob with the following options:
 
-* title : the title of the job
-* cmd : the full command of the job
-* priority : the priority of the job
-* affinity : the affinities of the job
-* retry : how many times the job should be retry
+  * title : the title of the job
+  * cmd : the full command of the job
+  * priority : the priority of the job
+  * affinity : the affinities of the job
+  * retry : how many times the job should be retry
 
 Example :
 
