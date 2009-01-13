@@ -66,6 +66,13 @@ def output (str):
 def getLogFilename (jobId):
 	return "logs/" + str(jobId) + ".log"
 
+# strip all 
+def strToInt (s):
+	try:
+		return int(s)
+	except:
+		return 0
+
 class Job:
 	"""A farm job"""
 
@@ -80,8 +87,8 @@ class Job:
 		self.Duration = 0			# Duration of the process
 		self.PingTime = self.StartTime		# Last worker ping time
 		self.Try = 0				# Number of try
-		self.Retry = retry			# Number of try max
-		self.Priority = priority		# Job priority
+		self.Retry = strToInt (retry)		# Number of try max
+		self.Priority = strToInt (priority)	# Job priority
 		self.Affinity = affinity		# Job affinity
 		self.User = user			# Job user
 
