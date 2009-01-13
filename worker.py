@@ -92,8 +92,8 @@ gLog = ""
 #lock = thread.allocate_lock ()
 
 # Thread function to execute the job process
-def execProcess (cmd,dir,user):
-	global working,  errorCode, gLog, pid
+def _execProcess (cmd,dir,user):
+	global errorCode, gLog, pid
 
 	# Change the user ?
 	if user != "":
@@ -102,7 +102,10 @@ def execProcess (cmd,dir,user):
 		cmd = "su - " + user + " -c \"" + cmd + "\""
 
 	# Set the working directory
-	os.chdir (dir)
+	try:
+		os.chdir (dir)
+	except OSError:
+		info ("Can't change dir to "+dir)
 
 	# Run the job
 	info ("exec " + cmd)
@@ -114,7 +117,7 @@ def execProcess (cmd,dir,user):
 	while (1):
 		# Read some lines of logs
 		line = process.stdout.readline()
-		
+	
 		# "" means EOF
 		if line == "":
 			info ("end")
@@ -126,11 +129,23 @@ def execProcess (cmd,dir,user):
         		gLog = gLog + line
    		finally:
          		gLogLock.release()
-			
-
+		
 	# Get the error code of the job
 	errorCode = process.wait ()
 	info ("Job returns code: " + str(errorCode))
+	
+
+def execProcess (cmd,dir,user):
+	global working, errorCode
+	if debug:
+		_execProcess (cmd,dir,user)
+	else:
+		try:
+			_execProcess (cmd,dir,user)	
+		except:
+			errorCode = -1
+			print ("Fatal error executing the job...")
+			time.sleep (sleepTime)
 
 	# Signal to the main process the job is finished
 	working = False
