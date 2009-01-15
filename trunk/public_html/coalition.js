@@ -30,7 +30,9 @@ function clearJobs ()
 function clearJob (jobId)
 {
 	service.clearjob (jobId);
-	renderJobs ();
+	$("#job"+jobId).fadeOut("slow");
+
+	//renderJobs ();
 }
 
 function resetJob (jobId)
@@ -105,7 +107,7 @@ function renderJobs ()
 	for (i=0; i < jobs.length; i++)
 	{
 		var job = jobs[i];
-		table += "<tr class='entry"+(i%2)+"'><td>"+job.ID+"</td><td>"+job.Title+"</td><td>"+job.User+"</td><td class='"+job.State+"'>"+job.State+"</td><td>"+job.Priority+"</td><td>"+job.Affinity+"</td><td>"+job.Worker+"</td><td>"+formatDuration (job.Duration)+"</td><td>"+job.Try+"/"+job.Retry+"</td><td>"+job.Command+"</td><td>"+job.Dir+
+		table += "<tr id='job"+job.ID+"' class='entry"+(i%2)+"'><td>"+job.ID+"</td><td>"+job.Title+"</td><td>"+job.User+"</td><td class='"+job.State+"'>"+job.State+"</td><td>"+job.Priority+"</td><td>"+job.Affinity+"</td><td>"+job.Worker+"</td><td>"+formatDuration (job.Duration)+"</td><td>"+job.Try+"/"+job.Retry+"</td><td>"+job.Command+"</td><td>"+job.Dir+
 		"</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a> <a href='javascript:clearJob("+job.ID+")'>Remove</a> <a href='javascript:resetJob("+job.ID+")'>Reset</a></td></tr>\n";
 	}
 	table += "</table>";
