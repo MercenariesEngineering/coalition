@@ -205,6 +205,7 @@ class Master(xmlrpc.XMLRPC):
 	def render(self, request):
 		global State
 		if authenticate (request):
+			self.User = request.getUser ()
 			# Addjob
 			if request.path == "/xmlrpc/addjob":
 				title = request.args.get ("title", ["New job"])
@@ -217,7 +218,6 @@ class Master(xmlrpc.XMLRPC):
 				return "OK"
 			else:
 				# return server.NOT_DONE_YET
-				self.User = request.getUser ()
 				return xmlrpc.XMLRPC.render (self, request)
 		return 'Authorization required!'
 
