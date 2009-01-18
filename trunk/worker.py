@@ -99,13 +99,13 @@ def _execProcess (cmd,dir,user):
 	if user != "":
 		debugOutput ("Run the command using login " + user)
 		#os.seteuid (pwd.getpwnam(user)[2])
-		cmd = "su - " + user + " -c \"" + cmd + "\""
-
-	# Set the working directory
-	try:
-		os.chdir (dir)
-	except OSError:
-		info ("Can't change dir to "+dir)
+		cmd = "su - " + user + " -c \"" + "cd "+ dir + "; " +cmd + "\""
+	else:
+		# Set the working directory
+		try:
+			os.chdir (dir)
+		except OSError:
+			info ("Can't change dir to "+dir)
 
 	# Run the job
 	info ("exec " + cmd)
