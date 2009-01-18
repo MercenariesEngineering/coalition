@@ -1,6 +1,6 @@
 import xmlrpclib, sys, getopt
 
-global cmd, serverUrl, dir, title, action
+global cmd, serverUrl, dir, title, action,id
 dir = "."
 title = "New job"
 startIndex = 1
@@ -8,6 +8,7 @@ endIndex = 1
 retry = 10
 affinity = ""
 priority = 1000
+id=-1
 
 def usage():
 	print ("Usage: control.py [OPTIONS] SERVER_URL ACTION [COMMAND]")
@@ -15,6 +16,7 @@ def usage():
 	print("Actions:")
 	print("  add: add a job, use option -c for command")
 	print("  list: list the jobs on the server")
+	print("  remove: remove job designated by id, option -id is necessary") 
 	print ("Options:")
 	print ("  -h, --help\t\tShow this help")
 	print ("  -c, --command=COMMAND\t\tIf action is add, add command to server")
@@ -23,13 +25,14 @@ def usage():
 	print ("  -p, --priority=PRIORITY\tPriority of the job (default: "+str(priority)+")")
 	print ("  -r, --retry=RETRY\tNumber of retry this jobs can do (default: "+str(retry)+")")
 	print ("  -a, --affinity=AFFINITY\tAffinity words to workers, separated by a comma (default: \"\"")
+	print("   -i, --jobid=JOBID\tID of the Job")
 	print ("  -v, --verbose\t\tIncrease verbosity")
 
 	print ("\nExample : control -t \"Job\" -a \"Linux\" -c \"echo Hello world!\" http://localhost:8080 add")
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "a:d:e:hr:s:t:v:c:", ["affinity=", "directory=", "end=", "help", "retry=", "start=", "title=", "verbose=", "command="])
+	opts, args = getopt.getopt(sys.argv[1:], "a:d:e:hr:s:t:v:c:i:", ["affinity=", "directory=", "end=", "help", "retry=", "start=", "title=", "verbose=", "command="])
 	if len(args) != 2 :
 		usage()
 		sys.exit(2)
@@ -62,6 +65,8 @@ for o, a in opts:
 		title = a
 	elif o in ("-c", "--command"):
 		cmd=a
+	elif o in ("-i", "--jobid"):
+		id=a
 	else:
 		assert False, "unhandled option " + o
 
@@ -79,3 +84,10 @@ elif action=="list":
 	jobs=server.getjobs()
 	for i in range(len(jobs)):
 		print(str(jobs[i]["ID"])+" "+str(jobs[i]["Title"])+" "+str(jobs[i]["State"])+" "+str(jobs[i]["Priority"])+" "+str(jobs[i]["Affinity"])+" "+str(jobs[i]["Worker"])+" "+str(jobs[i]["Duration"])+" "+str(jobs[i]["Try"])+" "+str(jobs[i]["Command"])+" "+str(jobs[i]["Dir"]))
+elif action=="remove":
+	if id<0: 
+		print("Use option -id to specify the job id to remove")
+	else:
+		server.clearjob(int(id))
+else:
+	print("I don't know what to do with myself. Use another action")
