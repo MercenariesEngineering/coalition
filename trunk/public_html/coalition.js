@@ -169,7 +169,7 @@ function renderJobs ()
 	{
 		table += "<th>";
 		var value = jobs[0];
-		if (value && value[attribute])
+		if (value && value[attribute] != null)
 		{
 			table += "<a href='javascript:setJobKey(\""+attribute+"\")'>"+attribute;
 			if (attribute == jobsSortKey && jobsSortKeyToUpper)
