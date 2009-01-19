@@ -10,6 +10,13 @@ body
 	background-repeat: repeat-x;
 }
 
+input
+{
+	border: #000000 solid 1px;
+	font-size: 12px;
+	color: #000000
+};
+
 h2
 {
 	font-size: 12pt;
@@ -19,7 +26,7 @@ h2
 {
 }
 
-.entry, .entry0, .entry1, .title
+.entry, .entry0, .entry1, .title, .entry0Selected, .entry1Selected
 {
 	font-size: 8pt; 
 }
@@ -27,6 +34,11 @@ h2
 .title
 {
 	background-color: #943a30;
+	color: #EEEEEE;
+}
+
+.title a:link
+{
 	color: #EEEEEE;
 }
 
@@ -38,6 +50,16 @@ h2
 .entry1
 {
 	background-color: #F5F5F5;
+}
+
+.entry0Selected
+{
+	background-color: #DDADAD;
+}
+
+.entry1Selected
+{
+	background-color: #F5B5B5;
 }
 
 .FINISHED
@@ -53,6 +75,16 @@ h2
 .WORKING
 {
 	background-color: #00FFFF;
+}
+
+.ACTIVEtrue
+{
+	background-color: #00FF00;
+}
+
+.ACTIVEfalse
+{
+	background-color: #FF0000;
 }
 
 .WAITING
