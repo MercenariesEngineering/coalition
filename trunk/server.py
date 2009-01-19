@@ -93,6 +93,7 @@ class Job:
 		self.Priority = strToInt (priority)	# Job priority
 		self.Affinity = affinity		# Job affinity
 		self.User = user			# Job user
+		self.Order = 0				# Job order
 
 def compareJobs (self, other):
 	if self.Priority < other.Priority:
@@ -135,9 +136,10 @@ class Worker:
 		self.Error = 0				# Number of fault
 		self.LastJob = -1			# Last job done
 		self.Load = 0				# Load of the worker
+		self.Active = True				# Is the worker enabled
 
 # State of the master
-DBVersion = 2
+DBVersion = 3
 class CState:
 
 	Counter = 0
@@ -236,7 +238,7 @@ class Master(xmlrpc.XMLRPC):
 	def xmlrpc_getjobs(self):
 		global State
 		output ("Send jobs")
-		update ()
+		update (True)
 		return State.Jobs
 
 	def xmlrpc_clearjobs(self):
@@ -256,6 +258,14 @@ class Master(xmlrpc.XMLRPC):
 		global State
 		output ("Reset job"+str(jobId))
 		resetJob (jobId)
+		return 1
+
+	def xmlrpc_setjobpriority(self, jobId, priority):
+		global State
+		output ("Set job "+str(jobId)+" priority to "+str(priority))
+		for job in State.Jobs:
+			if job.ID == jobId:
+				job.Priority = int(priority)
 		return 1
 
 	def xmlrpc_getlog(self, jobId):
@@ -280,13 +290,35 @@ class Master(xmlrpc.XMLRPC):
 	def xmlrpc_getworkers(self):
 		global State
 		output ("Send workers")
-		update ()
+		update (False)
 		return State.Workers
 
 	def xmlrpc_clearworkers(self):
 		global State
 		output ("Clear workers")
 		State.Workers = []
+		return 1
+
+	def xmlrpc_stopworker(self, workerName):
+		global State
+		output ("Stop worker " + workerName)
+		for worker in State.Workers:
+			if worker.Name == workerName:
+				worker.Active = False
+
+		# Try to stop the worker's jobs
+		for job in State.Jobs:
+			if job.Worker == workerName and job.State == "WORKING":
+				job.State = "WAITING"
+
+		return 1
+
+	def xmlrpc_startworker(self, workerName):
+		global State
+		output ("Start worker " + workerName)
+		for worker in State.Workers:
+			if worker.Name == workerName:
+				worker.Active = True
 		return 1
 
 # Unauthenticated connection for workers
@@ -327,10 +359,13 @@ class Workers(xmlrpc.XMLRPC):
 		"""A worker ask for a job."""
 		global State
 		output (hostname + " wants some job")
-		update ()
+		update (False)
 		# Ping the worker
 		worker = getWorker (hostname)
 		worker.Load = load
+
+		if not worker.Active:
+			return -1,"","",""
 
 		# Look for a job
 		for i in range(len(State.Jobs)) :
@@ -368,7 +403,7 @@ class Workers(xmlrpc.XMLRPC):
 		# Look for a job
 		for i in range(len(State.Jobs)) :
 			job = State.Jobs[i]
-			if job.ID == jobId:
+			if job.ID == jobId and job.Worker == hostname and job.State == "WORKING":
 				if errorCode == 0:
 					job.State = "FINISHED"
 					worker.Finished = worker.Finished + 1
@@ -384,6 +419,11 @@ class Workers(xmlrpc.XMLRPC):
 def sortJobs ():
 	global State
 	State.Jobs.sort (compareJobs)
+	# Set job order
+	id = 1
+	for i in range(len(State.Jobs)) :
+		State.Jobs[i].Order = id
+		id += 1
 
 # Clear a job
 def clearJob (jobId):
@@ -429,12 +469,12 @@ def getWorker (name):
 		State.Workers.append (worker)
 		return worker
 
-def update ():
+def update (forceResort):
 	global TimeOut
 	global State
 	saveDb ()
 	_time = time.time()
-	resort = False
+	resort = forceResort
 	for job in State.Jobs:
 		if job.State == "WORKING":
 			# Check if the job is timeout
@@ -492,7 +532,7 @@ def main():
 	root = Root("public_html")
 	xmlrpc = Master()
 	readDb ()
-	update ()
+	update (True)
 	workers = Workers()
 	root.putChild('xmlrpc', xmlrpc)
 	root.putChild('workers', workers)
@@ -502,3 +542,4 @@ def main():
 
 if __name__ == '__main__':
 	main()
+
