@@ -408,6 +408,7 @@ def resetJob (jobId):
 		job = State.Jobs[i]
 		if job.ID == jobId :
 			job.Try = 0
+			job.State = "WAITING"
 			break;
 
 def getWorker (name):
