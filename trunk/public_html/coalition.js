@@ -34,7 +34,7 @@ function get_cookie ( cookie_name )
 $(document).ready(function()
 {
 	xmlrpc = imprt("xmlrpc");
-	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers", "getlog", "addjobwithaffinity", "resetjob", "startworker", "stopworker", "setjobpriority"]);
+	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers", "getlog", "addjob", "resetjob", "startworker", "stopworker", "setjobpriority"]);
 	timerCB ();
 });
 
@@ -196,6 +196,7 @@ function renderJobs ()
 	addTitleHTML ("Try");
 	addTitleHTML ("Command");
 	addTitleHTML ("Dir");
+	addTitleHTML ("Dependencies");
 	addTitleHTML ("Tools");
 	table += "</tr>\n";
 
@@ -220,6 +221,14 @@ function renderJobs ()
 		addTD (job.Try+"/"+job.Retry);
 		addTD (job.Command);
 		addTD (job.Dir);
+		// Compute the dependencies
+		var deps = "";
+		var j;
+		for (j = 0; j < job.Dependencies.length; j++)
+		{
+			deps += job.Dependencies[j] + " ";
+		}
+		addTD (deps);
 		table += "</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a> <a href='javascript:clearJob("+job.ID+")'>Remove</a> <a href='javascript:resetJob("+job.ID+")'>Reset</a></td></tr>\n";
 	}
 	table += "</table>";
@@ -275,12 +284,13 @@ function reloadWorkers ()
 
 function addjob ()
 {
-        service.addjobwithaffinity($('#title').attr("value"), 
+        service.addjob($('#title').attr("value"), 
                 $('#cmd').attr("value"),
                 $('#dir').attr("value"), 
                 $('#priority').attr("value"), 
                 $('#retry').attr("value"),
-                $('#affinity').attr("value"));
+                $('#affinity').attr("value"),
+		$('#dependencies').attr("value"));
         reloadJobs ();
 }
 

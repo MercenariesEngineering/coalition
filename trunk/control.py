@@ -8,6 +8,7 @@ endIndex = 1
 retry = 10
 affinity = ""
 priority = 1000
+dependencies = ""
 id=-1
 
 def usage():
@@ -26,13 +27,14 @@ def usage():
 	print ("  -r, --retry=RETRY\tNumber of retry this jobs can do (default: "+str(retry)+")")
 	print ("  -a, --affinity=AFFINITY\tAffinity words to workers, separated by a comma (default: \"\"")
 	print("   -i, --jobid=JOBID\tID of the Job")
+	print("   -D, --dependencies=DEPS\tIDs of the dependent jobs (exemple : \"21 22 23\"")
 	print ("  -v, --verbose\t\tIncrease verbosity")
 
 	print ("\nExample : control -t \"Job\" -a \"Linux\" -c \"echo Hello world!\" http://localhost:8080 add")
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "a:d:e:hr:s:t:v:c:i:", ["affinity=", "directory=", "end=", "help", "retry=", "start=", "title=", "verbose=", "command="])
+	opts, args = getopt.getopt(sys.argv[1:], "a:d:e:hr:s:t:v:c:i:D:", ["affinity=", "directory=", "end=", "help", "retry=", "start=", "title=", "verbose=", "command=", "dependencies="])
 	if len(args) != 2 :
 		usage()
 		sys.exit(2)
@@ -67,6 +69,8 @@ for o, a in opts:
 		cmd=a
 	elif o in ("-i", "--jobid"):
 		id=a
+	elif o in ("-D", "--dependencies"):
+		dependencies=a
 	else:
 		assert False, "unhandled option " + o
 
@@ -78,7 +82,7 @@ def output (str):
 server = xmlrpclib.ServerProxy(serverUrl + "/xmlrpc")
 
 if action=="add":
-	server.addjobwithaffinity (title, cmd, dir, priority, retry, affinity)
+	server.addjob (title, cmd, dir, priority, retry, affinity, dependencies)
 	print("job added")
 elif action=="list":
 	jobs=server.getjobs()
