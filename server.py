@@ -1,7 +1,7 @@
 
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer
-import pickle, time, os, getopt, sys, base64
+import pickle, time, os, getopt, sys, base64, re
 
 # This module is standard in Python 2.2, otherwise get it from
 #   http://www.pythonware.com/products/xmlrpc/
@@ -19,6 +19,7 @@ port = 8080
 verbose = False
 LDAPServer = ""
 LDAPTemplate = ""
+JobId2StateId = {}
 
 def usage():
 	print ("Usage: server [OPTIONS]")
@@ -78,7 +79,7 @@ def strToInt (s):
 class Job:
 	"""A farm job"""
 
-	def __init__ (self, id, title, cmd, dir, priority, retry, affinity, user):
+	def __init__ (self, id, title, cmd, dir, priority, retry, affinity, user, dependencies):
 		self.ID = id				# Jod ID
 		self.Title = title			# Job title
 		self.Command = cmd			# Job command to execute
@@ -94,6 +95,7 @@ class Job:
 		self.Affinity = affinity		# Job affinity
 		self.User = user			# Job user
 		self.Order = 0				# Job order
+		self.Dependencies = dependencies	# Job dependencies
 
 def compareJobs (self, other):
 	if self.Priority < other.Priority:
@@ -139,7 +141,7 @@ class Worker:
 		self.Active = True				# Is the worker enabled
 
 # State of the master
-DBVersion = 3
+DBVersion = 4
 class CState:
 
 	Counter = 0
@@ -165,6 +167,21 @@ class CState:
 		pickle.dump(self.Counter, fo)
 		pickle.dump(self.Jobs, fo)
 		pickle.dump(self.Workers, fo)
+
+	def doesJobDependOn (self, id0, id1):
+		global JobId2StateId
+		if id0 == id1:
+			return True
+		try:
+			_job0 = JobId2StateId[id0]
+			job0 = self.Jobs[_job0]
+			for i in job0.Dependencies:
+				if self.doesJobDependOn (i, id1):
+					return True
+		except KeyError:
+			pass
+		return False
+
 State = CState()
 
 # Authenticate the user
@@ -216,24 +233,37 @@ class Master(xmlrpc.XMLRPC):
 				priority = request.args.get ("priority", ["1000	"])
 				retry = request.args.get ("retry", ["10"])
 				affinity = request.args.get ("affinity", [""])
-				self.xmlrpc_addjobwithaffinity(title[0], cmd[0], dir[0], int(priority[0]), int(retry[0]), affinity[0])
-				return "OK"
+				dependenciesStr = request.args.get ("dependencies", [""])
+
+				id = self.xmlrpc_addjob(title[0], cmd[0], dir[0], int(priority[0]), int(retry[0]), affinity[0], dependenciesStr)
+				return str(id);
 			else:
 				# return server.NOT_DONE_YET
 				return xmlrpc.XMLRPC.render (self, request)
 		return 'Authorization required!'
 
-	def xmlrpc_addjobwithaffinity(self, title, cmd, dir, priority, retry, affinity):
+	def xmlrpc_addjob(self, title, cmd, dir, priority, retry, affinity, dependencies):
 		"""Show the command list."""
 		global State
 		output ("Add job : " + cmd)
-		State.Jobs.append (Job(State.Counter, title, cmd, dir, priority, retry, affinity, self.User))
-		State.Counter = State.Counter + 1
-		return 1
 
-	def xmlrpc_addjob(self, title, cmd, dir, priority, retry):
-		"""Add a job to job list."""
-		return self.xmlrpc_addjobwithaffinity(title, cmd, dir, priority, retry, "")
+		if type(dependencies) is str:
+			# Parse the dependencies string
+			dependencies = re.findall ('(\d+)', dependencies)
+
+		for i in range(len(dependencies)) :
+			dependencies[i] = int (dependencies[i])
+
+		# Check for cycling referencies
+		_id = State.Counter
+		for dependency in dependencies:
+			if State.doesJobDependOn (dependency, _id):
+				print ("Error : cycle in dependencies detected.")
+				return -1
+
+		State.Jobs.append (Job(_id, title, cmd, dir, priority, retry, affinity, self.User, dependencies))
+		State.Counter = _id + 1
+		return _id
 
 	def xmlrpc_getjobs(self):
 		global State
@@ -370,7 +400,7 @@ class Workers(xmlrpc.XMLRPC):
 		# Look for a job
 		for i in range(len(State.Jobs)) :
 			job = State.Jobs[i]
-			if compareAffinities (job.Affinity, affinity) and (job.State == "WAITING" or (job.State == "ERROR" and job.Try < job.Retry)):
+			if compareAffinities (job.Affinity, affinity) and (job.State == "WAITING" or (job.State == "ERROR" and job.Try < job.Retry)) and allDependsDone (job):
 				job.State = "WORKING"
 				job.Worker = hostname
 				job.Try = job.Try + 1
@@ -418,12 +448,44 @@ class Workers(xmlrpc.XMLRPC):
 
 def sortJobs ():
 	global State
+	global JobId2StateId
+
+	JobId2StateId = {}
+	for i in range(len(State.Jobs)) :
+		# Build the map jobId -> Jobs index
+		JobId2StateId[State.Jobs[i].ID] = i
+
 	State.Jobs.sort (compareJobs)
 	# Set job order
 	id = 1
 	for i in range(len(State.Jobs)) :
 		State.Jobs[i].Order = id
 		id += 1
+
+# Returns True if all the job dependencies are in the finished state
+def allDependsDone (job):
+	global State
+
+	def checkDeps (job):
+		if job.State != "FINISHED":
+			return False
+		for i in job.Dependencies:
+			try:
+				depjob = State.Jobs[JobId2StateId[i]]
+				if not checkDeps (depjob):
+					return False
+			except KeyError:
+				return False
+		return True
+
+	for i in job.Dependencies:
+		try:
+			depjob = State.Jobs[JobId2StateId[i]]
+			if not checkDeps (depjob):
+				return False
+		except KeyError:
+			return False
+	return True
 
 # Clear a job
 def clearJob (jobId):
