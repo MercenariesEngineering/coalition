@@ -235,7 +235,7 @@ class Master(xmlrpc.XMLRPC):
 				affinity = request.args.get ("affinity", [""])
 				dependenciesStr = request.args.get ("dependencies", [""])
 
-				id = self.xmlrpc_addjob(title[0], cmd[0], dir[0], int(priority[0]), int(retry[0]), affinity[0], dependenciesStr)
+				id = self.xmlrpc_addjob(title[0], cmd[0], dir[0], int(priority[0]), int(retry[0]), affinity[0], dependenciesStr[0])
 				return str(id);
 			else:
 				# return server.NOT_DONE_YET
