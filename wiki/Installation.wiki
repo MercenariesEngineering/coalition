@@ -11,5 +11,5 @@ Be sure to install pyton 2.5 and twisted matrix (for the server)
 Install python 2.5, and the corresponding twisted and win32api modules.
 
   * python : [http://www.python.org/download/windows/]
-  * twisted : [http://twistedmatrix.com/trac/wiki/Downloads]
+  * twisted (for the server) : [http://twistedmatrix.com/trac/wiki/Downloads]
   * win32api : [http://sourceforge.net/project/showfiles.php?group_id=78018]
