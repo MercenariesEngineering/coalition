@@ -1,4 +1,4 @@
-import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, pwd, string, re
+import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re
 from select import select
 
 # Options
@@ -277,9 +277,7 @@ def mainLoop ():
 
 	time.sleep (sleepTime)
 
-peuid = os.geteuid ()
 while (1):
-	os.seteuid (peuid)
 	if debug:
 		mainLoop ()
 	else:
