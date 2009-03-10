@@ -1,5 +1,5 @@
 = Add a job to Coalition =
-== Using an HTTP request ==
+== Using a HTTP request ==
 
 To add a job using the HTTP interface, simply GET or POST the url http://host:port/xmlrpc/addjob with the following options:
 
