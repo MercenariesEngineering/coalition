@@ -1,4 +1,4 @@
-import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re
+import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform
 from select import select
 
 # Options
@@ -226,6 +226,10 @@ def getloadavg ():
 		return -1
 
 def evalEnv (_str):
+	if platform.system () != 'Windows':
+		def _mapDrive (match):
+			return '$(' + match.group(1).upper () + '_DRIVE)'
+		_str = re.sub ('^([a-zA-Z]):', _mapDrive, _str)
 	def _getenv (match):
 		result = os.getenv (match.group(1))
 		if result == None:
@@ -247,7 +251,9 @@ def mainLoop ():
 	jobId, cmd, dir, user = run (startFunc, True)
 
 	if jobId != -1:
-		debugOutput ("Start jod " + str(jobId) + " : " + cmd)
+		_cmd = evalEnv (cmd)
+		_dir = evalEnv (dir)
+		debugOutput ("Start jod " + str(jobId) + " in " + _dir + " : " + _cmd)
 
 		# Reset the globals
 		working = True
@@ -256,7 +262,7 @@ def mainLoop ():
 
 		# Launch a new thread to run the process
 		gLog = ""
-		thread.start_new_thread ( execProcess, (evalEnv(cmd),evalEnv(dir),user))
+		thread.start_new_thread ( execProcess, (_cmd,_dir,user))
 
 		# Flush the logs
 		while (working):
@@ -266,7 +272,7 @@ def mainLoop ():
 		# Flush for real for the last time
 		heartbeat (jobId, True)
 
-		debugOutput ("Finished jod " + str(jobId) + " (code " + str(errorCode) + ") : " + cmd)
+		debugOutput ("Finished jod " + str(jobId) + " (code " + str(errorCode) + ") : " + _cmd)
 
 		# Function to end the job
 		def endFunc ():
