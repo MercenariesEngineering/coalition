@@ -1,7 +1,7 @@
 
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer
-import pickle, time, os, getopt, sys, base64, re
+import pickle, time, os, getopt, sys, base64, re, thread
 
 # This module is standard in Python 2.2, otherwise get it from
 #   http://www.pythonware.com/products/xmlrpc/
@@ -20,6 +20,7 @@ verbose = False
 LDAPServer = ""
 LDAPTemplate = ""
 JobId2StateId = {}
+broadcastPort = 19610
 
 def usage():
 	print ("Usage: server [OPTIONS]")
@@ -586,9 +587,24 @@ def readDb ():
 		job = State.Jobs[i]
 		if job.State == "WORKING":
 			job.PingTime = _time
-		
+	
+# Listen to an UDP socket to respond to workers broadcasts
+def listenUDP():
+	from socket import SOL_SOCKET, SO_BROADCAST
+	from socket import socket, AF_INET, SOCK_DGRAM, error
+	s = socket (AF_INET, SOCK_DGRAM)
+	s.bind (('0.0.0.0', broadcastPort))
+	while 1:
+		try:
+			data, addr = s.recvfrom (1024)
+			s.sendto ("roxor:" + str(port), addr)
+		except:
+			pass
 
 def main():
+	# Start the UDP server used for the broadcast
+	thread.start_new_thread (listenUDP, ())
+
 	from twisted.internet import reactor
 	from twisted.web import server
 	root = Root("public_html")
