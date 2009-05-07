@@ -2,17 +2,19 @@ import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, sig
 from select import select
 
 # Options
-global serverUrl, debug, verbose, sleepTime
+global serverUrl, debug, verbose, sleepTime, broadcastPort
 serverUrl = ""
 debug = False
 verbose = False
 sleepTime = 2
 affinity = ""
 name = socket.gethostname()
+broadcastPort = 19610
 
 def usage():
-	print ("Usage: worker [OPTIONS] SERVER_URL")
-	print ("Start a Coalition worker using the server located at SERVER_URL.\n")
+	print ("Usage: worker [OPTIONS] [SERVER_URL]")
+	print ("Start a Coalition worker using the server located at SERVER_URL.")
+	print ("If no SERVER_URL is specified, the worker will try to locate the server using a broadcast.\n")
 	print ("Options:")
 	print ("  -d, --debug\t\tRun without the main try/catch")
 	print ("  -h, --help\t\tShow this help")
@@ -25,10 +27,8 @@ def usage():
 # Parse the options
 try:
 	opts, args = getopt.getopt(sys.argv[1:], "a:dhn:s:v", ["affinity=", "debug", "help", "name=", "sleep=", "verbose"])
-	if len(args) != 1 :
-		usage()
-		sys.exit(2)
-	serverUrl = args[0]
+	if len(args) > 0:
+		serverUrl = args[0]
 except getopt.GetoptError, err:
 	# print help information and exit:
 	print str(err) # will print something like "option -a not recognized"
@@ -55,6 +55,31 @@ for o, a in opts:
 def debugOutput (str):
 	if verbose:
 		print (str)
+
+# If no server, look for it with a broadcast
+if serverUrl == "":
+	from socket import SOL_SOCKET, SO_BROADCAST
+	from socket import socket, AF_INET, SOCK_DGRAM, timeout
+	import re
+
+	s = socket (AF_INET, SOCK_DGRAM)
+	s.setsockopt(SOL_SOCKET, SO_BROADCAST, True)
+	s.bind (('0.0.0.0', 0))
+	s.settimeout (1)
+	while (True):
+		try:
+			debugOutput ("Broadcast port " + str (broadcastPort))
+			s.sendto ("coalition", ('255.255.255.255', broadcastPort))
+			data, addr = s.recvfrom (1024)
+			m = re.match ("roxor:(\d+)", data)
+			if m:
+				serverUrl = "http://" + addr[0] + ":" + str(m.group(1))
+				debugOutput ("Found : " + serverUrl)
+				found = True
+				break
+		except timeout:
+			pass
+	s.close ()
 
 # Log for debugging
 def debugRaw (str):
