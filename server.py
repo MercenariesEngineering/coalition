@@ -1,26 +1,45 @@
 
 from twisted.web import xmlrpc, server, static, http
-from twisted.internet import defer
-import pickle, time, os, getopt, sys, base64, re, thread
+from twisted.internet import defer, reactor
+import pickle, time, os, getopt, sys, base64, re, thread, ConfigParser
 
 # This module is standard in Python 2.2, otherwise get it from
 #   http://www.pythonware.com/products/xmlrpc/
 import xmlrpclib
 
+# Go to the script directory
+global installDir, dataDir
+if sys.platform=="win32":
+	import _winreg
+	# under windows, uses the registry setup by the installer
+	hKey = _winreg.OpenKey (_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Mercenaries Engineering\\Coalition", 0, _winreg.KEY_READ)
+	installDir, _type = _winreg.QueryValueEx (hKey, "Installdir")
+	dataDir, _type = _winreg.QueryValueEx (hKey, "Datadir")
+else:
+	installDir = os.path.dirname(__file__)
+	dataDir = installDir
+os.chdir (installDir)
+
 # Create the logs/ directory
 try:
-	os.mkdir ("logs", 755);
+	os.mkdir (dataDir + "/logs", 755);
 except OSError:
 	pass
 
-global TimeOut, port, verbose
+global TimeOut, port, verbose, config
+config = ConfigParser.SafeConfigParser()
+config.read ("coalition.ini")
 TimeOut = 10
-port = 8080
+port = 19211
+if config.has_option('server', 'port'):
+	try:
+		port = int (config.get('server', 'port'))
+	except ValueError:
+		pass
 verbose = False
 LDAPServer = ""
 LDAPTemplate = ""
 JobId2StateId = {}
-broadcastPort = 19610
 
 def usage():
 	print ("Usage: server [OPTIONS]")
@@ -33,34 +52,35 @@ def usage():
 	print ("  --ldaptemplate=TEMPLATE\tLDAP template used to validate the user, like uid=%login,ou=people,dc=exemple,dc=com")
 	print ("\nExample : server -p 1234")
 
-# Parse the options
-try:
-	opts, args = getopt.getopt(sys.argv[1:], "hp:v", ["help", "port=", "verbose", "ldaphost=", "ldaptemplate="])
-	if len(args) != 0:
+if sys.platform!="win32":
+	# Parse the options
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "hp:v", ["help", "port=", "verbose", "ldaphost=", "ldaptemplate="])
+		if len(args) != 0:
+			usage()
+			sys.exit(2)
+	except getopt.GetoptError, err:
+		# print help information and exit:
+		print str(err) # will print something like "option -a not recognized"
 		usage()
 		sys.exit(2)
-except getopt.GetoptError, err:
-	# print help information and exit:
-	print str(err) # will print something like "option -a not recognized"
-	usage()
-	sys.exit(2)
-for o, a in opts:
-	if o in ("-h", "--help"):
-		usage ()
-		sys.exit(2)
-	elif o in ("-v", "--verbose"):
-		verbose = True
-	elif o in ("-p", "--port"):
-		port = float(a)
-	elif o in ("-lh", "--ldaphost"):
-		LDAPServer = a
-	elif o in ("-lt", "--ldaptemplate"):
-		LDAPTemplate = a
-	else:
-		assert False, "unhandled option " + o
+	for o, a in opts:
+		if o in ("-h", "--help"):
+			usage ()
+			sys.exit(2)
+		elif o in ("-v", "--verbose"):
+			verbose = True
+		elif o in ("-p", "--port"):
+			port = float(a)
+		elif o in ("-lh", "--ldaphost"):
+			LDAPServer = a
+		elif o in ("-lt", "--ldaptemplate"):
+			LDAPTemplate = a
+		else:
+			assert False, "unhandled option " + o
 
-if LDAPServer != "":
-	import ldap
+	if LDAPServer != "":
+		import ldap
 
 # Log function
 def output (str):
@@ -68,7 +88,8 @@ def output (str):
 		print (str)
 
 def getLogFilename (jobId):
-	return "logs/" + str(jobId) + ".log"
+	global dataDir
+	return dataDir + "/logs/" + str(jobId) + ".log"
 
 # strip all 
 def strToInt (s):
@@ -560,18 +581,18 @@ def update (forceResort):
 
 # Write the DB on disk
 def saveDb ():
-	global State
-	fo = open("master_db", "wb")
+	global State, dataDir
+	fo = open(dataDir + "/master_db", "wb")
 	State.write (fo)
 	fo.close()
 	output ("DB saved")
 
 # Read the DB from disk
 def readDb ():
-	global State
+	global State, dataDir
 	output ("Read DB")
 	try:
-		fo = open("master_db", "rb")
+		fo = open(dataDir + "/master_db", "rb")
 		try:
 			State.read (fo)
 		except IOError:
@@ -593,11 +614,11 @@ def listenUDP():
 	from socket import SOL_SOCKET, SO_BROADCAST
 	from socket import socket, AF_INET, SOCK_DGRAM, error
 	s = socket (AF_INET, SOCK_DGRAM)
-	s.bind (('0.0.0.0', broadcastPort))
+	s.bind (('0.0.0.0', port))
 	while 1:
 		try:
 			data, addr = s.recvfrom (1024)
-			s.sendto ("roxor:" + str(port), addr)
+			s.sendto ("roxor", addr)
 		except:
 			pass
 
@@ -614,10 +635,49 @@ def main():
 	workers = Workers()
 	root.putChild('xmlrpc', xmlrpc)
 	root.putChild('workers', workers)
+	output ("Listen on port " + str (port))
 	reactor.listenTCP(port, server.Site(root))
 	reactor.run()
 
+if sys.platform=="win32":
 
-if __name__ == '__main__':
-	main()
+	# Windows Service
+	import win32serviceutil
+	import win32service
+	import win32event
+
+	class WindowsService(win32serviceutil.ServiceFramework):
+		_svc_name_ = "CoalitionServer"
+		_svc_display_name_ = "Coalition Server"
+
+		def __init__(self, args):
+			win32serviceutil.ServiceFramework.__init__(self, args)
+			self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+
+		def SvcStop(self):
+			self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+			win32event.SetEvent(self.hWaitStop)
+
+		def SvcDoRun(self):
+			import servicemanager
+
+			self.CheckForQuit()
+			main()
+
+
+		def CheckForQuit(self):
+			retval = win32event.WaitForSingleObject(self.hWaitStop, 10)
+			if not retval == win32event.WAIT_TIMEOUT:
+				# Received Quit from Win32
+				reactor.stop()
+
+			reactor.callLater(1.0, self.CheckForQuit)
+
+	if __name__=='__main__':
+		win32serviceutil.HandleCommandLine(WindowsService)
+else:
+
+	# Simple server
+	if __name__ == '__main__':
+		main()
 
