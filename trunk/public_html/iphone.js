@@ -123,11 +123,20 @@ function renderWorkers ()
 
 function addjob ()
 {
-	service.addjob($('#newjobtitle').attr("value"), 
-		$('#newjobcmd').attr("value"),
-		$('#newjobdir').attr("value"), 
-		$('#newjobpriority').attr("value"), 
-		$('#newjobretry').attr("value"));
+    service.addjob($('#title').attr("value"), 
+            $('#cmd').attr("value"),
+            $('#dir').attr("value"), 
+            $('#priority').attr("value"), 
+            $('#retry').attr("value"),
+            $('#affinity').attr("value"),
+	$('#dependencies').attr("value"));
+    reloadJobs ();
+}
+
+// Ask the server for the jobs and render them
+function reloadJobs ()
+{
+	jobs = service.getjobs ();
 	renderJobs ();
 }
 

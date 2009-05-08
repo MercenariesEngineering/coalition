@@ -49,29 +49,35 @@ function clearJobs ()
 
 function clearJob (jobId)
 {
-	service.clearjob (jobId);
-
-	// Remove from the job list
-	for (i=0; i < jobs.length; i++)
+	if (confirm("Do you really want to remove the job " + jobId + " ?"))
 	{
-		var job = jobs[i];
-		if (job.ID == jobId)
-		{
-			jobs.splice (i,1);
-			break;
-		}
-	}
-	
-	// Remove from the DOM
-	$("#table"+i).remove();
+	    service.clearjob (jobId);
 
-	// reloadJobs ();
+	    // Remove from the job list
+	    for (i=0; i < jobs.length; i++)
+	    {
+		    var job = jobs[i];
+		    if (job.ID == jobId)
+		    {
+			    jobs.splice (i,1);
+			    break;
+		    }
+	    }
+    	
+	    // Remove from the DOM
+	    $("#table"+i).remove();
+
+	    // reloadJobs ();
+    }
 }
 
 function resetJob (jobId)
 {
-	service.resetjob (jobId);
-	reloadJobs ();
+	if (confirm("Do you really want to reset the job " + jobId + " ?"))
+	{
+	    service.resetjob (jobId);
+	    reloadJobs ();
+    }
 }
 
 function renderLog (jobId)
