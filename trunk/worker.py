@@ -1,15 +1,34 @@
-import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform
-from select import select
+import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser
 
 # Options
-global serverUrl, debug, verbose, sleepTime, broadcastPort
-serverUrl = ""
+global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, xmlrpcServer
 debug = False
 verbose = False
 sleepTime = 2
 affinity = ""
 name = socket.gethostname()
-broadcastPort = 19610
+broadcastPort = 19211
+workerMonitorPort = 19212
+gogogo = True
+serverUrl = ""
+
+
+# Go to the script directory
+global coalitionDir
+if sys.platform=="win32":
+	import _winreg
+	# under windows, uses the registry setup by the installer
+	hKey = _winreg.OpenKey (_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Mercenaries Engineering\\Coalition", 0, _winreg.KEY_READ)
+	coalitionDir, type = _winreg.QueryValueEx (hKey, "Installdir")
+else:
+	coalitionDir = os.path.dirname(__file__)
+os.chdir (coalitionDir)
+
+# Read the config file
+config = ConfigParser.SafeConfigParser()
+config.read ("coalition.ini")
+if config.has_option('worker', 'serverUrl'):
+	serverUrl = config.get('worker', 'serverUrl')
 
 def usage():
 	print ("Usage: worker [OPTIONS] [SERVER_URL]")
@@ -24,62 +43,38 @@ def usage():
 	print ("  -v, --verbose\t\tIncrease verbosity")
 	print ("\nExample : worker -s 30 -v http://localhost:8080")
 
-# Parse the options
-try:
-	opts, args = getopt.getopt(sys.argv[1:], "a:dhn:s:v", ["affinity=", "debug", "help", "name=", "sleep=", "verbose"])
-	if len(args) > 0:
-		serverUrl = args[0]
-except getopt.GetoptError, err:
-	# print help information and exit:
-	print str(err) # will print something like "option -a not recognized"
-	usage()
-	sys.exit(2)
-for o, a in opts:
-	if o in ("-d", "--debug"):
-		debug = True
-	elif o in ("-h", "--help"):
+if sys.platform!="win32":
+	# Parse the options
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "a:dhn:s:v", ["affinity=", "debug", "help", "name=", "sleep=", "verbose"])
+		if len(args) > 0:
+			serverUrl = args[0]
+	except getopt.GetoptError, err:
+		# print help information and exit:
+		print str(err) # will print something like "option -a not recognized"
 		usage()
 		sys.exit(2)
-	elif o in ("-n", "--name"):
-		name = a
-	elif o in ("-a", "--affinity"):
-		affinity = a
-	elif o in ("-v", "--verbose"):
-		verbose = True
-	elif o in ("-s", "--sleep"):
-		sleepTime = float(a)
-	else:
-		assert False, "unhandled option " + o
+	for o, a in opts:
+		if o in ("-d", "--debug"):
+			debug = True
+		elif o in ("-h", "--help"):
+			usage()
+			sys.exit(2)
+		elif o in ("-n", "--name"):
+			name = a
+		elif o in ("-a", "--affinity"):
+			affinity = a
+		elif o in ("-v", "--verbose"):
+			verbose = True
+		elif o in ("-s", "--sleep"):
+			sleepTime = float(a)
+		else:
+			assert False, "unhandled option " + o
 
 # Log for debugging
 def debugOutput (str):
 	if verbose:
 		print (str)
-
-# If no server, look for it with a broadcast
-if serverUrl == "":
-	from socket import SOL_SOCKET, SO_BROADCAST
-	from socket import socket, AF_INET, SOCK_DGRAM, timeout
-	import re
-
-	s = socket (AF_INET, SOCK_DGRAM)
-	s.setsockopt(SOL_SOCKET, SO_BROADCAST, True)
-	s.bind (('0.0.0.0', 0))
-	s.settimeout (1)
-	while (True):
-		try:
-			debugOutput ("Broadcast port " + str (broadcastPort))
-			s.sendto ("coalition", ('255.255.255.255', broadcastPort))
-			data, addr = s.recvfrom (1024)
-			m = re.match ("roxor:(\d+)", data)
-			if m:
-				serverUrl = "http://" + addr[0] + ":" + str(m.group(1))
-				debugOutput ("Found : " + serverUrl)
-				found = True
-				break
-		except timeout:
-			pass
-	s.close ()
 
 # Log for debugging
 def debugRaw (str):
@@ -96,8 +91,6 @@ def info (str):
 			print (str)
   	finally:
 		gLogLock.release()
-			
-server = xmlrpclib.ServerProxy(serverUrl+"/workers")
 
 global working, pid
 working = False
@@ -203,7 +196,8 @@ def killr (pid, sig):
 
 # Safe method to run a command on the server, if retry is true, the function won't return until the message is passed
 def run (func, retry):
-	while (True):
+	global gogogo
+	while (gogogo):
 		try:
 			return func ()
 		except socket.error:
@@ -212,11 +206,12 @@ def run (func, retry):
 			debugOutput ("Server down, continue...")
 			break
 		debugOutput ("No server")
-		time.sleep (sleepTime)
+		if gogogo:
+			time.sleep (sleepTime)
 
 # Flush the logs to the server
 def heartbeat (jobId, retry):
-	global gLog, pid, gLogLock
+	global gLog, pid, gLogLock, xmlrpcServer
 	debugOutput ("Flush logs (" + str(len(gLog)) + " bytes)")
 	def func ():
 		global gLog
@@ -224,7 +219,7 @@ def heartbeat (jobId, retry):
 
 		gLogLock.acquire()
    		try:
-        		result = server.heartbeat (name, jobId, base64.b64encode(gLog), getloadavg())
+        		result = xmlrpcServer.heartbeat (name, jobId, base64.b64encode(gLog), getloadavg())
 			gLog = ""
    		finally:
          		gLogLock.release()
@@ -265,12 +260,12 @@ def evalEnv (_str):
 
 # Application main loop
 def mainLoop ():
-	global working, errorCode, gLog, pid
+	global working, errorCode, gLog, pid, xmlrpcServer
 
 	debugOutput ("Ask for a job")
 	# Function to ask a job to the server
 	def startFunc ():
-		return server.pickjobwithaffinity (name, getloadavg(), affinity)
+		return xmlrpcServer.pickjobwithaffinity (name, getloadavg(), affinity)
 
 	# Block until this message to handled by the server
 	jobId, cmd, dir, user = run (startFunc, True)
@@ -301,20 +296,89 @@ def mainLoop ():
 
 		# Function to end the job
 		def endFunc ():
-			server.endjob (name, jobId, errorCode)
+			xmlrpcServer.endjob (name, jobId, errorCode)
 
 		# Block until this message to handled by the server
 		run (endFunc, True)
 
 	time.sleep (sleepTime)
 
-while (1):
-	if debug:
-		mainLoop ()
-	else:
-		try:
-			mainLoop ()		
-		except:
-			print ("Fatal error, retry...")
-			time.sleep (sleepTime)
+def main():
+	global xmlrpcServer, serverUrl, gogogo
 
+	# If no server, look for it with a broadcast
+	if serverUrl == "":
+		from socket import SOL_SOCKET, SO_BROADCAST
+		from socket import socket, AF_INET, SOCK_DGRAM, timeout
+
+		s = socket (AF_INET, SOCK_DGRAM)
+		s.setsockopt(SOL_SOCKET, SO_BROADCAST, True)
+		s.bind (('0.0.0.0', 0))
+		s.settimeout (1)
+		while (gogogo):
+			try:
+				debugOutput ("Broadcast port " + str (broadcastPort))
+				s.sendto ("coalition", ('255.255.255.255', broadcastPort))
+				data, addr = s.recvfrom (1024)
+				if data == "roxor":
+					serverUrl = "http://" + addr[0] + ":" + str(broadcastPort)
+					debugOutput ("Found : " + serverUrl)
+					found = True
+					break
+			except timeout:
+				pass
+		s.close ()
+
+	xmlrpcServer = xmlrpclib.ServerProxy(serverUrl+"/workers")
+
+	while gogogo:
+		if debug:
+			mainLoop ()
+		else:
+			try:
+				mainLoop ()		
+			except:
+				print ("Fatal error, retry...")
+				if gogogo:
+					time.sleep (sleepTime)
+
+if sys.platform=="win32":
+
+	# Windows Service
+	import win32serviceutil
+	import win32service
+	import win32event
+
+	class WindowsService(win32serviceutil.ServiceFramework):
+		_svc_name_ = "CoalitionWorker"
+		_svc_display_name_ = "Coalition Worker"
+
+		def __init__(self, args):
+			win32serviceutil.ServiceFramework.__init__(self, args)
+			self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+
+		def SvcStop(self):
+			global gogogo
+			gogogo = False
+			self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+			win32event.SetEvent(self.hWaitStop)
+
+		def SvcDoRun(self):
+			import servicemanager
+
+			self.CheckForQuit()
+			main()
+
+		def CheckForQuit(self):
+			global gogogo
+			print ("CheckForQuit")
+			retval = win32event.WaitForSingleObject(self.hWaitStop, 10)
+			if not retval == win32event.WAIT_TIMEOUT:
+				# Received Quit from Win32
+				gogogo = False
+
+	if __name__=='__main__':
+		win32serviceutil.HandleCommandLine(WindowsService)
+else:
+	thread.start_new_thread ( workerThread, () )
+	main()
