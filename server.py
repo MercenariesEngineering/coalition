@@ -16,8 +16,8 @@ if sys.platform=="win32":
 	installDir, _type = _winreg.QueryValueEx (hKey, "Installdir")
 	dataDir, _type = _winreg.QueryValueEx (hKey, "Datadir")
 else:
-	installDir = os.path.dirname(__file__)
-	dataDir = installDir
+	installDir = "."
+	dataDir = "."
 os.chdir (installDir)
 
 # Create the logs/ directory

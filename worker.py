@@ -21,7 +21,7 @@ if sys.platform=="win32":
 	hKey = _winreg.OpenKey (_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Mercenaries Engineering\\Coalition", 0, _winreg.KEY_READ)
 	coalitionDir, type = _winreg.QueryValueEx (hKey, "Installdir")
 else:
-	coalitionDir = os.path.dirname(__file__)
+	coalitionDir = "."
 os.chdir (coalitionDir)
 
 # Read the config file
@@ -380,5 +380,4 @@ if sys.platform=="win32":
 	if __name__=='__main__':
 		win32serviceutil.HandleCommandLine(WindowsService)
 else:
-	thread.start_new_thread ( workerThread, () )
 	main()
