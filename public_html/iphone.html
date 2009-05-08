@@ -21,29 +21,30 @@
 
 <div id="addjob">
 Add a job :
-<form action="/xmlrpc/addjob" method="post">
 <table>
 <tr>
-<td>Title:</td><td><input type='edit' name='title' value='Job'></td>
+<td>Title:</td><td><input type='edit' id='title' name='title' value='Job'></td>
 </tr>
 <tr>
-<td>Command:</td><td><input type='edit' name='cmd' value=''></td>
+<td>Command:</td><td><input type='edit' id='cmd' name='cmd' value=''></td>
 </tr>
 <tr>
-<td>Directory:</td><td><input type='edit' name='dir' value='.'></td>
+<td>Directory:</td><td><input type='edit' id='dir' name='dir' value='.'></td>
 </tr>
 <tr>
-<td>Priority:</td><td><input type='edit' name='priority' value='1000'></td>
+<td>Priority:</td><td><input type='edit' id='priority' name='priority' value='1000'></td>
 </tr>
 <tr>
-<td>Affinity:</td><td><input type='edit' name='affinity' value=''></td>
+<td>Affinity:</td><td><input type='edit' id='affinity' name='affinity' value=''></td>
 </tr>
 <tr>
-<td>Retry:</td><td><input type='edit' name='retry' value='10'></td>
+<td>Retry:</td><td><input type='edit' id='retry' name='retry' value='10'></td>
+</tr>
+<tr>
+<td>Dependencies:</td><td><input type='edit' id='dependencies' name='dependencies' value=''></td>
 </tr>
 </table>
-<input type='submit' value='Add job'>
-</form>
+<input type='button' name='addjobButton' value='Add job' onclick='addjob()'>
 </div>
 <br>
 
