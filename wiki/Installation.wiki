@@ -1,9 +1,7 @@
 = Installation =
-== For all OS ==
+== For Linux ==
 
 There is no distribution but the SVN for the moment. So use the source Tab of google code and follow the instructions to download the source code.
-
-== For Linux ==
 
 Be sure to install pyton 2.5 and twisted matrix (for the server)
 
@@ -11,7 +9,7 @@ Be sure to install pyton 2.5 and twisted matrix (for the server)
 
 === For the users ===
 
-A Windows installer is available here. You can install the worker and/or the server. Both will be installed as will be installed as a Windows service.
+A Windows installer is available here. You can install the worker and/or the server. Both will be installed as a Windows service.
 
 === For the developers ===
 
