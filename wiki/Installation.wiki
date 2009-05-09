@@ -1,11 +1,11 @@
 = Installation =
-== For Linux ==
+== Linux ==
 
 There is no distribution but the SVN for the moment. So use the source Tab of google code and follow the instructions to download the source code.
 
 Be sure to install pyton 2.5 and twisted matrix (for the server)
 
-== For Windows ==
+== Windows ==
 
 === For the users ===
 
