@@ -25,8 +25,15 @@ Install python 2.5, and the corresponding twisted and win32api modules.
 
 The farm should include one server and some workers. 
 
+You can first test the server monitor. It should be available through this URL : 
+http://servername:19211
+
 Once the services are up, the workers will try to connect the server. If all the different computers are on the same local network, the workers should locate the server by themself.
 
-If the workers can't connect the server, you will have to edit the coalition.ini file present in the coalition directory and setup the option serverUrl like this:
+You can see the connected workers in the worker page on the monitor.
+
+If the workers can't connect the server, you will have to edit the coalition.ini file present in the coalition directory of the workers and setup the option serverUrl like this:
 
 serverUrl=http://servername:19211
+
+Where "servername" is the name of the server and 19211 its port. 19211 is the default port for a coalition server.
