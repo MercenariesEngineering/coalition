@@ -9,7 +9,9 @@ Be sure to install pyton 2.5 and twisted matrix (for the server)
 
 === For the users ===
 
-A Windows installer is available here. You can install the worker and/or the server. Both will be installed as a Windows service.
+A Windows installer is available here. You can install the worker and/or the server. Both will be installed as a Windows service. 
+
+Once installed, the services are started and are ready to use.
 
 === For the developers ===
 
@@ -25,6 +27,6 @@ The farm should include one server and some workers.
 
 Once the services are up, the workers will try to connect the server. If all the different computers are on the same local network, the workers should locate the server by themself.
 
-If the workers can't connect the server, you will have to edit the coalition.ini file present in the coalition directory and add the option :
+If the workers can't connect the server, you will have to edit the coalition.ini file present in the coalition directory and setup the option serverUrl like this:
 
 serverUrl=http://servername:19211
