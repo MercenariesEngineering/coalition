@@ -9,6 +9,12 @@ Be sure to install pyton 2.5 and twisted matrix (for the server)
 
 == For Windows ==
 
+=== For the users ===
+
+A Windows installer is available here. You can install the worker and/or the server. Both will be installed as will be installed as a Windows service.
+
+=== For the developers ===
+
 Install python 2.5, and the corresponding twisted and win32api modules.
 
   * python : [http://www.python.org/download/windows/]
