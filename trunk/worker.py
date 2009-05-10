@@ -125,6 +125,10 @@ def _execProcess (cmd,dir,user):
 		except OSError:
 			info ("Can't change dir to "+dir)
 
+	# Serious quoting under windows
+	if sys.platform=="win32":
+		cmd = '"' + cmd + '"'
+		
 	# Run the job
 	info ("exec " + cmd)
 
@@ -371,7 +375,6 @@ if sys.platform=="win32":
 
 		def CheckForQuit(self):
 			global gogogo
-			print ("CheckForQuit")
 			retval = win32event.WaitForSingleObject(self.hWaitStop, 10)
 			if not retval == win32event.WAIT_TIMEOUT:
 				# Received Quit from Win32
