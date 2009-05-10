@@ -16,6 +16,7 @@ SectionIn RO
 	SetShellVarContext current
 
 	CreateDirectory "$INSTDIR"
+	CreateDirectory "$SMPROGRAMS\Coalition"
 
 	ExecWait 'net stop CoalitionServer'
 	ExecWait 'net stop CoalitionWorker'
@@ -33,6 +34,8 @@ SectionIn RO
 	; Set output path to the installation directory.
 	WriteUninstaller "uninstall.exe"
 
+	CreateShortCut "$SMPROGRAMS\Coalition\Configuration File.lnk" "$INSTDIR\coalition.ini" "" ""
+
 	; Set output path to the installation directory.
 __INSTALL_FILES__
 SectionEnd
@@ -42,8 +45,6 @@ Section "Server (the master computer)"
 
 	WriteRegStr HKLM "Software\Mercenaries Engineering\Coalition" "Datadir" "$APPDATA\Coalition"
 
-	CreateDirectory "$SMPROGRAMS\Coalition"
-	CreateDirectory "$APPDATA\Coalition"
 	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Server Monitor.lnk" "http://localhost:19211" "" "$INSTDIR\coalition.ico"
 	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Server Start.lnk" "net" "start CoalitionServer" "$INSTDIR\server_start.ico"
 	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Server Stop.lnk" "net" "stop CoalitionServer" "$INSTDIR\server_stop.ico"
@@ -59,7 +60,6 @@ SectionEnd
 
 Section "Worker (computers composing the farm)"
 	SetShellVarContext current
-	CreateDirectory "$SMPROGRAMS\Coalition"
 	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Start.lnk" "net" "start CoalitionWorker" "$INSTDIR\worker_start.ico"
 	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Stop.lnk" "net" "stop CoalitionWorker" "$INSTDIR\worker_stop.ico"
 	CreateShortCut "$SMPROGRAMS\Coalition\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
@@ -68,6 +68,7 @@ Section "Worker (computers composing the farm)"
 
 	ExecWait '"$INSTDIR\worker" -remove'
 	ExecWait '"$INSTDIR\worker" -install -auto'
+	ExecWait '$INSTDIR\win32_network_drives'
 	ExecWait 'net start CoalitionWorker'
 SectionEnd
 
