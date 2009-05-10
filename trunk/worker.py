@@ -1,7 +1,7 @@
 import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser
 
 # Options
-global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, xmlrpcServer
+global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, xmlrpcServer, driveNetwork
 debug = False
 verbose = False
 sleepTime = 2
@@ -11,7 +11,7 @@ broadcastPort = 19211
 workerMonitorPort = 19212
 gogogo = True
 serverUrl = ""
-
+driveNetwork = ""
 
 # Go to the script directory
 global coalitionDir
@@ -29,6 +29,8 @@ config = ConfigParser.SafeConfigParser()
 config.read ("coalition.ini")
 if config.has_option('worker', 'serverUrl'):
 	serverUrl = config.get('worker', 'serverUrl')
+if config.has_option('worker', 'driveNetwork'):
+	driveNetwork = config.get('worker', 'driveNetwork')
 
 def usage():
 	print ("Usage: worker [OPTIONS] [SERVER_URL]")
@@ -119,7 +121,6 @@ def _execProcess (cmd,dir,user):
 		#os.seteuid (pwd.getpwnam(user)[2])
 		cmd = "su - " + user + " -c \"" + "cd "+ dir + "; " +cmd + "\""
 	else:
-		# Set the working directory
 		try:
 			os.chdir (dir)
 		except OSError:
@@ -286,6 +287,8 @@ def mainLoop ():
 
 		# Launch a new thread to run the process
 		gLog = ""
+
+		# Set the working directory in the main thead
 		thread.start_new_thread ( execProcess, (_cmd,_dir,user))
 
 		# Flush the logs
@@ -358,6 +361,13 @@ if sys.platform=="win32":
 		_svc_display_name_ = "Coalition Worker"
 
 		def __init__(self, args):
+			global driveNetwork
+			
+			# Mount the network drives
+			drives = re.findall ('([^,; ]+)', driveNetwork)
+			for i in range(0, len(drives), 2) :
+				os.system ("net use " + drives[i] + " " + drives[i+1])
+
 			win32serviceutil.ServiceFramework.__init__(self, args)
 			self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
 
