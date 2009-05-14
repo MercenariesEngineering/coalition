@@ -19,7 +19,6 @@ SectionIn RO
 	CreateDirectory "$SMPROGRAMS\Coalition"
 
 	ExecWait 'net stop CoalitionServer'
-	ExecWait 'net stop CoalitionWorker'
 
 	; Write the registry
 	WriteRegStr HKLM "Software\Mercenaries Engineering\Coalition" "Installdir" $INSTDIR
@@ -60,16 +59,9 @@ SectionEnd
 
 Section "Worker (computers composing the farm)"
 	SetShellVarContext current
-	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Start.lnk" "net" "start CoalitionWorker" "$INSTDIR\worker_start.ico"
-	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Stop.lnk" "net" "stop CoalitionWorker" "$INSTDIR\worker_stop.ico"
+	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Start.lnk" "$INSTDIR\worker.exe" "" "$INSTDIR\worker_start.ico"
 	CreateShortCut "$SMPROGRAMS\Coalition\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
-	CreateShortCut "$DESKTOP\Coalition Worker Start.lnk" "net" "start CoalitionWorker" "$INSTDIR\worker_start.ico"
-	CreateShortCut "$DESKTOP\Coalition Worker Stop.lnk" "net" "stop CoalitionWorker" "$INSTDIR\worker_stop.ico"
-
-	ExecWait '"$INSTDIR\worker" -remove'
-	ExecWait '"$INSTDIR\worker" -install -auto'
-	ExecWait '$INSTDIR\win32_network_drives'
-	ExecWait 'net start CoalitionWorker'
+	CreateShortCut "$DESKTOP\Coalition Worker Start.lnk" "$INSTDIR\worker.exe" "" "$INSTDIR\worker_start.ico"
 SectionEnd
 
 Section "Uninstall"
@@ -83,16 +75,13 @@ Section "Uninstall"
 noUninstallWarning:
 
 	ExecWait 'net stop CoalitionServer'
-	ExecWait 'net stop CoalitionWorker'
 	ExecWait '"$INSTDIR\server" -remove'
-	ExecWait '"$INSTDIR\worker" -remove'
 	Delete $INSTDIR\uninstall.exe ; delete self (see explanation below why this works) 
 	RMDir /r "$SMPROGRAMS\Coalition"
 	Delete "$DESKTOP\Coalition Server Monitor.lnk"
 	Delete "$DESKTOP\Coalition Server Start.lnk"
 	Delete "$DESKTOP\Coalition Server Stop.lnk"
 	Delete "$DESKTOP\Coalition Worker Start.lnk"
-	Delete "$DESKTOP\Coalition Worker Stop.lnk"
 	DeleteRegKey HKLM "Software\Mercenaries Engineering\Coalition"
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Coalition"
 __REMOVE_FILES__

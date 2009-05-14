@@ -1,7 +1,7 @@
 import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser
 
 # Options
-global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, xmlrpcServer, driveNetwork
+global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, xmlrpcServer
 debug = False
 verbose = False
 sleepTime = 2
@@ -11,7 +11,6 @@ broadcastPort = 19211
 workerMonitorPort = 19212
 gogogo = True
 serverUrl = ""
-driveNetwork = ""
 
 # Go to the script directory
 global coalitionDir
@@ -29,8 +28,6 @@ config = ConfigParser.SafeConfigParser()
 config.read ("coalition.ini")
 if config.has_option('worker', 'serverUrl'):
 	serverUrl = config.get('worker', 'serverUrl')
-if config.has_option('worker', 'driveNetwork'):
-	driveNetwork = config.get('worker', 'driveNetwork')
 
 def usage():
 	print ("Usage: worker [OPTIONS] [SERVER_URL]")
@@ -311,7 +308,7 @@ def mainLoop ():
 	time.sleep (sleepTime)
 
 def main():
-	global xmlrpcServer, serverUrl, gogogo
+	global xmlrpcServer, serverUrl, gogogo	
 
 	# If no server, look for it with a broadcast
 	if serverUrl == "":
@@ -329,6 +326,7 @@ def main():
 				data, addr = s.recvfrom (1024)
 				if data == "roxor":
 					serverUrl = "http://" + addr[0] + ":" + str(broadcastPort)
+					print ("Server found at " + serverUrl)
 					debugOutput ("Found : " + serverUrl)
 					found = True
 					break
@@ -337,6 +335,8 @@ def main():
 		s.close ()
 
 	xmlrpcServer = xmlrpclib.ServerProxy(serverUrl+"/workers")
+
+	print ("Working...")
 
 	while gogogo:
 		if debug:
@@ -349,48 +349,4 @@ def main():
 				if gogogo:
 					time.sleep (sleepTime)
 
-if sys.platform=="win32":
-
-	# Windows Service
-	import win32serviceutil
-	import win32service
-	import win32event
-
-	class WindowsService(win32serviceutil.ServiceFramework):
-		_svc_name_ = "CoalitionWorker"
-		_svc_display_name_ = "Coalition Worker"
-
-		def __init__(self, args):
-			global driveNetwork
-			
-			# Mount the network drives
-			drives = re.findall ('([^,; ]+)', driveNetwork)
-			for i in range(0, len(drives), 2) :
-				os.system ("net use " + drives[i] + " " + drives[i+1])
-
-			win32serviceutil.ServiceFramework.__init__(self, args)
-			self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
-
-		def SvcStop(self):
-			global gogogo
-			gogogo = False
-			self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-			win32event.SetEvent(self.hWaitStop)
-
-		def SvcDoRun(self):
-			import servicemanager
-
-			self.CheckForQuit()
-			main()
-
-		def CheckForQuit(self):
-			global gogogo
-			retval = win32event.WaitForSingleObject(self.hWaitStop, 10)
-			if not retval == win32event.WAIT_TIMEOUT:
-				# Received Quit from Win32
-				gogogo = False
-
-	if __name__=='__main__':
-		win32serviceutil.HandleCommandLine(WindowsService)
-else:
-	main()
+main()

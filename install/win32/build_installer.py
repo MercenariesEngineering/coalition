@@ -10,13 +10,11 @@ print ("NSIS found here : " + NSISDir)
 
 # Stop the services
 os.system ("net stop CoalitionServer")
-os.system ("net stop CoalitionClient")
 
 # Compile the services
 # os.chdir ("../..")
 if compile:
 	os.system ("python server.py remove")
-	os.system ("python worker.py remove")
 	os.system ("python setup_py2exe.py install")
 	os.system ("python setup_py2exe.py py2exe")
 
