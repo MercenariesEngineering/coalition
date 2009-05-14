@@ -39,7 +39,7 @@ SectionIn RO
 __INSTALL_FILES__
 SectionEnd
 
-Section "Server (the master computer)" 
+Section /o "Server (the master computer)" 
 	SetShellVarContext current
 
 	WriteRegStr HKLM "Software\Mercenaries Engineering\Coalition" "Datadir" "$APPDATA\Coalition"
@@ -64,6 +64,10 @@ Section "Worker (computers composing the farm)"
 	CreateShortCut "$DESKTOP\Coalition Worker Start.lnk" "$INSTDIR\worker.exe" "" "$INSTDIR\worker_start.ico"
 SectionEnd
 
+Section "Autorun the worker on idle"
+	ExecWait 'schtasks /Create /TN "Coalition Worker" /SC ONIDLE /IT /I 1 /TR "\"$INSTDIR\worker.exe\""'
+SectionEnd
+
 Section "Uninstall"
 	SetShellVarContext current
 
@@ -74,6 +78,7 @@ Section "Uninstall"
 		Uninstall_yes:
 noUninstallWarning:
 
+	ExecWait 'schtasks /Delete /TN "Coalition Worker" /F'
 	ExecWait 'net stop CoalitionServer'
 	ExecWait '"$INSTDIR\server" -remove'
 	Delete $INSTDIR\uninstall.exe ; delete self (see explanation below why this works) 
