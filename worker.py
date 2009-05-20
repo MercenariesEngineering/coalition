@@ -42,33 +42,32 @@ def usage():
 	print ("  -v, --verbose\t\tIncrease verbosity")
 	print ("\nExample : worker -s 30 -v http://localhost:8080")
 
-if sys.platform!="win32":
-	# Parse the options
-	try:
-		opts, args = getopt.getopt(sys.argv[1:], "a:dhn:s:v", ["affinity=", "debug", "help", "name=", "sleep=", "verbose"])
-		if len(args) > 0:
-			serverUrl = args[0]
-	except getopt.GetoptError, err:
-		# print help information and exit:
-		print str(err) # will print something like "option -a not recognized"
+# Parse the options
+try:
+	opts, args = getopt.getopt(sys.argv[1:], "a:dhn:s:v", ["affinity=", "debug", "help", "name=", "sleep=", "verbose"])
+	if len(args) > 0:
+		serverUrl = args[0]
+except getopt.GetoptError, err:
+	# print help information and exit:
+	print str(err) # will print something like "option -a not recognized"
+	usage()
+	sys.exit(2)
+for o, a in opts:
+	if o in ("-d", "--debug"):
+		debug = True
+	elif o in ("-h", "--help"):
 		usage()
 		sys.exit(2)
-	for o, a in opts:
-		if o in ("-d", "--debug"):
-			debug = True
-		elif o in ("-h", "--help"):
-			usage()
-			sys.exit(2)
-		elif o in ("-n", "--name"):
-			name = a
-		elif o in ("-a", "--affinity"):
-			affinity = a
-		elif o in ("-v", "--verbose"):
-			verbose = True
-		elif o in ("-s", "--sleep"):
-			sleepTime = float(a)
-		else:
-			assert False, "unhandled option " + o
+	elif o in ("-n", "--name"):
+		name = a
+	elif o in ("-a", "--affinity"):
+		affinity = a
+	elif o in ("-v", "--verbose"):
+		verbose = True
+	elif o in ("-s", "--sleep"):
+		sleepTime = float(a)
+	else:
+		assert False, "unhandled option " + o
 
 # Log for debugging
 def debugOutput (str):
@@ -171,7 +170,7 @@ def execProcess (cmd,dir,user):
 	working = False
 
 ### To kill all child process
-def killr (pid, sig): 
+def killr (pid): 
 	if sys.platform!="win32":
 		names=os.listdir("/proc/")
 		for name in names:
@@ -181,15 +180,18 @@ def killr (pid, sig):
 				words =  string.split(line)
 				if words[3]==str(pid):
 					debugOutput("Found in " + name)
-					killr(int(name), sig)
+					killr(int(name))
 			except IOError:
 				pass
 			
 		
 	try:
-		os.kill(pid,sig)
+		if sys.platform=="win32":
+			subprocess.Popen ("taskkill /F /T /PID %i"%pid, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		else:
+			os.kill(pid,signal.SIGKILL)
 	except:
-		pass
+		print ("Can't kill the process")
 		
 	
 
@@ -216,7 +218,7 @@ def heartbeat (jobId, retry):
 	global gLog, pid, gLogLock, xmlrpcServer
 	debugOutput ("Flush logs (" + str(len(gLog)) + " bytes)")
 	def func ():
-		global gLog
+		global gLog, pid
 		result = True
 
 		gLogLock.acquire()
@@ -232,9 +234,10 @@ def heartbeat (jobId, retry):
 
 			# Send the kill signal to the process
 			if pid != 0:
-				debugOutput ("kill "+str(pid)+" "+str(signal.SIGKILL))
+				debugOutput ("kill "+str(pid))
 				try:
-					killr (pid, signal.SIGKILL)
+					killr (pid)
+					pid = 0
 				except OSError:
 					debugOutput ("kill failed")
 					pass
