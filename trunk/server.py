@@ -582,9 +582,17 @@ def update (forceResort):
 # Write the DB on disk
 def saveDb ():
 	global State, dataDir
-	fo = open(dataDir + "/master_db", "wb")
-	State.write (fo)
-	fo.close()
+	fo = open(dataDir + "/master_db.part", "wb")
+	try:
+		State.write (fo)
+		fo.close()
+		try:
+			os.remove ('master_db')
+		except OSError:
+			pass
+		os.rename ('master_db.part', 'master_db')
+	except IOError:
+		fo.close()		
 	output ("DB saved")
 
 # Read the DB from disk
