@@ -5,7 +5,9 @@
 Coalition est un service qui permet de répartir différentes tâches sur les ordinateurs qui lui sont attachés. On distingue donc un serveur et des workers.\\
 L’utilisateur ne se préoccupe pas de qui sont le serveur et les workers. Seul l’administrateur les utilise.
 
-{{:accueil:intranet:schema.png?300|Schéma des liens entre worker et Serveur principal}}\\
+[Schéma des liens entre worker et Serveur principal]
+ http://coalition.googlecode.com/files/Schema.png
+
 Coalition est composé d’un serveur principal (Gauss) et de plusieurs workers. Le schéma représente la configuration mise en place ici.
 
 
