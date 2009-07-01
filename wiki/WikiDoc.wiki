@@ -18,3 +18,22 @@ On peut consulter la liste des tâches par une interface web. Lorsqu'on se conne
 Un worker est un ordinateur qui communique avec le serveur. Lorsque le worker est inactif, il demande une tâche au serveur. Si le serveur dispose d’une tâche non attribuée, il la lui confie.\\                                                           
 En pratique, de plus en plus d’ordinateurs disposent de processeurs multicores, voire même de plusieurs processeurs. Dans ce cas, chaque processeur est capable d’exécuter une tâche à lui seul et on peut donc faire tourner autant de workers que de processeurs. C’est le cas sur les serveurs
 d’AgroParisTech (Galileo64, Aristote64, Kuiper64).
+
+
+===== Soumettre une tâche simple =====                
+Une tâche doit consister simplement en une ligne de  commandes qui sera exécutée par n’importe lequel des workers. Comme le compte d’un utilisateur est accessible depuis chacun des ordinateurs (Kuiper64, Galileo64, Aristote64) on peut accéder à n’importe lequel de ses répertoires.
+
+==== Exemple 1. ====
+Je souhaite lister le contenu de mon répertoire TestCoalition. Les workers sont tous sous Linux, on doit donc utiliser la commande ls pour lister le contenu du répertoire. 
+  - Se connecter sur la page http://gauss:8080/, (ou depuis l'extérieur http://gauss.agroparistech.fr:8080/ )
+  - Dans la section Title, donner un nom  à sa tâche, par exemple MaPremiereTache,
+  - Indiquer la commande à effectuer, ici ls,
+  - Indiquer dans quel répertoire exécuter cette commande, ici data/TestCoalition,
+  - Laisser les autres champs libres pour le moment.
+{{:accueil:intranet:screenshot2.jpg?300|Les champs remplis}}
+  - Il suffit de soumettre la tâche en cliquant sur Add job, en bas à gauche.
+La tâche (le job) est alors ajouté à la liste des tâches. Puisque les workers étaient disponibles, la tâche passe directement en exécution. Si on réactualise la page, on voit que le job a été effectué.
+
+La commande ls liste le contenu du répertoire sur la sortie standard. Toutes ce qui est affiché sur la sortie standard se retrouve dans les logs. 
+
+Si on veut sauver les logs dans un fichier plutôt que dans la sortie standard, il suffit de changer un peu la ligne de commandes et de remplacer "ls" par "ls>>monfichier.txt".
