@@ -6,7 +6,7 @@ Coalition est un service qui permet de répartir différentes tâches sur les or
 L’utilisateur ne se préoccupe pas de qui sont le serveur et les workers. Seul l’administrateur les utilise.
 
 [Schéma des liens entre worker et Serveur principal]
- http://coalition.googlecode.com/files/Schema.png
+<img titlz="Schema"> http://coalition.googlecode.com/files/Schema.png </img>
 
 Coalition est composé d’un serveur principal (Gauss) et de plusieurs workers. Le schéma représente la configuration mise en place ici.
 
@@ -14,6 +14,7 @@ Coalition est composé d’un serveur principal (Gauss) et de plusieurs workers.
 == Le serveur ==
 Il est lancé par l’administrateur. Son rôle est de recevoir la liste des tâches à effectuer et de les répartir entre les différents ordinateurs (workers) susceptibles de les exécuter. Ainsi lorsqu’un utilisateur dépose une nouvelle tâche, il la soumet au serveur et ne se préoccupe pas de l’ordinateur sur laquelle elle sera effectivement exécutée.\\
 On peut consulter la liste des tâches par une interface web. Lorsqu'on se connecte au serveur (http://gauss:8080/), la page d'accueil est la suivante:
+
 {{:accueil:intranet:screenshot.jpg?300|Page d'accueil de Coalition}}
 
 == Les workers ==
