@@ -40,7 +40,7 @@ def usage():
 	print ("  -s, --sleep=SLEEPTIME\tSleep time between two heart beats (default: "+str(sleepTime)+"s)")
 	print ("  -a, --affinity=AFFINITY\tAffinity words to jobs (default: \"\"")
 	print ("  -v, --verbose\t\tIncrease verbosity")
-	print ("\nExample : worker -s 30 -v http://localhost:8080")
+	print ("\nExample : worker -s 30 -v http://localhost:19211")
 
 # Parse the options
 try:
