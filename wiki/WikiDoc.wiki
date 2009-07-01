@@ -33,7 +33,7 @@ Je souhaite lister le contenu de mon répertoire TestCoalition. Les workers sont
   - Indiquer la commande à effectuer, ici ls,
   - Indiquer dans quel répertoire exécuter cette commande, ici data/TestCoalition,
   - Laisser les autres champs libres pour le moment.
-{{:accueil:intranet:screenshot2.jpg?300|Les champs remplis}}
+<img src=http://coalition.googlecode.com/files/Screenshot2.jpg title=2 height=400>
   - Il suffit de soumettre la tâche en cliquant sur Add job, en bas à gauche.
 La tâche (le job) est alors ajouté à la liste des tâches. Puisque les workers étaient disponibles, la tâche passe directement en exécution. Si on réactualise la page, on voit que le job a été effectué.
 
