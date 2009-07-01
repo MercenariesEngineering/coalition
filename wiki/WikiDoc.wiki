@@ -1,7 +1,7 @@
 #summary How to use coalition
 
 
-===== Présentation de Coalition =====
+= Présentation de Coalition =
 Coalition est un service qui permet de répartir différentes tâches sur les ordinateurs qui lui sont attachés. On distingue donc un serveur et des workers.\\
 L’utilisateur ne se préoccupe pas de qui sont le serveur et les workers. Seul l’administrateur les utilise.
 
@@ -9,21 +9,21 @@ L’utilisateur ne se préoccupe pas de qui sont le serveur et les workers. Seul
 Coalition est composé d’un serveur principal (Gauss) et de plusieurs workers. Le schéma représente la configuration mise en place ici.
 
 
-==== Le serveur ====
+== Le serveur ==
 Il est lancé par l’administrateur. Son rôle est de recevoir la liste des tâches à effectuer et de les répartir entre les différents ordinateurs (workers) susceptibles de les exécuter. Ainsi lorsqu’un utilisateur dépose une nouvelle tâche, il la soumet au serveur et ne se préoccupe pas de l’ordinateur sur laquelle elle sera effectivement exécutée.\\
 On peut consulter la liste des tâches par une interface web. Lorsqu'on se connecte au serveur (http://gauss:8080/), la page d'accueil est la suivante:
 {{:accueil:intranet:screenshot.jpg?300|Page d'accueil de Coalition}}
 
-==== Les workers ====
+== Les workers ==
 Un worker est un ordinateur qui communique avec le serveur. Lorsque le worker est inactif, il demande une tâche au serveur. Si le serveur dispose d’une tâche non attribuée, il la lui confie.\\                                                           
 En pratique, de plus en plus d’ordinateurs disposent de processeurs multicores, voire même de plusieurs processeurs. Dans ce cas, chaque processeur est capable d’exécuter une tâche à lui seul et on peut donc faire tourner autant de workers que de processeurs. C’est le cas sur les serveurs
 d’AgroParisTech (Galileo64, Aristote64, Kuiper64).
 
 
-===== Soumettre une tâche simple =====                
+= Soumettre une tâche simple =
 Une tâche doit consister simplement en une ligne de  commandes qui sera exécutée par n’importe lequel des workers. Comme le compte d’un utilisateur est accessible depuis chacun des ordinateurs (Kuiper64, Galileo64, Aristote64) on peut accéder à n’importe lequel de ses répertoires.
 
-==== Exemple 1. ====
+== Exemple 1. ==
 Je souhaite lister le contenu de mon répertoire TestCoalition. Les workers sont tous sous Linux, on doit donc utiliser la commande ls pour lister le contenu du répertoire. 
   - Se connecter sur la page http://gauss:8080/, (ou depuis l'extérieur http://gauss.agroparistech.fr:8080/ )
   - Dans la section Title, donner un nom  à sa tâche, par exemple MaPremiereTache,
