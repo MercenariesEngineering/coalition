@@ -15,7 +15,7 @@ Coalition est composé d’un serveur principal (Gauss) et de plusieurs workers.
 Il est lancé par l’administrateur. Son rôle est de recevoir la liste des tâches à effectuer et de les répartir entre les différents ordinateurs (workers) susceptibles de les exécuter. Ainsi lorsqu’un utilisateur dépose une nouvelle tâche, il la soumet au serveur et ne se préoccupe pas de l’ordinateur sur laquelle elle sera effectivement exécutée.\\
 On peut consulter la liste des tâches par une interface web. Lorsqu'on se connecte au serveur (http://gauss:8080/), la page d'accueil est la suivante:
 
-<img {{:accueil:intranet:screenshot.jpg?300|Page d'accueil de Coalition}}>
+<img src=http://coalition.googlecode.com/files/Screenshot.jpg title="Welcome" height=400>
 
 == Les workers ==
 Un worker est un ordinateur qui communique avec le serveur. Lorsque le worker est inactif, il demande une tâche au serveur. Si le serveur dispose d’une tâche non attribuée, il la lui confie.\\                                                           
