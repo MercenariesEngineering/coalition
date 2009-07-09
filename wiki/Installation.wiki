@@ -12,7 +12,9 @@ Be sure to install pyton 2.5 and twisted matrix (for the server)
 A Windows installer is available [http://code.google.com/p/coalition/downloads/list here]. You can install the worker and/or the server. The server is a Windows service and the worker is a command line application. The main
 reason for the worker to not be a service is the services can't access the user's network drives.
 
-Once installed, the services are started and are ready to use.
+Once installed, the server service is started and is ready to use.
+
+The installer can register the worker to be started/stopped when the computer go/leave the idle mode. This is done using the Windows task scheduler. It works good under Vista, seams to need some tweeking under XP task scheduler.
 
 === For the developers ===
 
