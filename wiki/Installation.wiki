@@ -9,7 +9,7 @@ Be sure to install pyton 2.5 and twisted matrix (for the server)
 
 === For the users ===
 
-A Windows installer is available [[http://code.google.com/p/coalition/downloads/list here]]. You can install the worker and/or the server. The server is a Windows service and the worker is a command line appliaction. The main
+A Windows installer is available [http://code.google.com/p/coalition/downloads/list here]. You can install the worker and/or the server. The server is a Windows service and the worker is a command line appliaction. The main
 reason for the worker to not be a service is the services can't access the user's network drives.
 
 Once installed, the services are started and are ready to use.
