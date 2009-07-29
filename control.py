@@ -82,8 +82,8 @@ def output (str):
 server = xmlrpclib.ServerProxy(serverUrl + "/xmlrpc")
 
 if action=="add":
-	server.addjob (title, cmd, dir, priority, retry, affinity, dependencies)
-	print("job added")
+	num=server.addjob (title, cmd, dir, priority, retry, affinity, dependencies)
+	print(num)
 elif action=="list":
 	jobs=server.getjobs()
 	for i in range(len(jobs)):
