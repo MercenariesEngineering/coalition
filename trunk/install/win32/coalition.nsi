@@ -13,7 +13,7 @@ Page instfiles
 
 Section "Common Files" 
 SectionIn RO
-	SetShellVarContext current
+	SetShellVarContext all
 
 	CreateDirectory "$INSTDIR"
 	CreateDirectory "$SMPROGRAMS\Coalition"
@@ -40,7 +40,12 @@ __INSTALL_FILES__
 SectionEnd
 
 Section /o "Server (the master computer)" 
-	SetShellVarContext current
+	SetShellVarContext all
+
+	CreateDirectory "$APPDATA\Coalition"
+
+	; Make the samples directory accessible from everybody
+	AccessControl::GrantOnFile "$APPDATA\Coalition" "(BU)" "FullAccess"
 
 	WriteRegStr HKLM "Software\Mercenaries Engineering\Coalition" "Datadir" "$APPDATA\Coalition"
 
@@ -58,18 +63,18 @@ Section /o "Server (the master computer)"
 SectionEnd
 
 Section "Worker (computers composing the farm)"
-	SetShellVarContext current
+	SetShellVarContext all
 	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Start.lnk" "$INSTDIR\worker.exe" "" "$INSTDIR\worker_start.ico"
 	CreateShortCut "$SMPROGRAMS\Coalition\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
 	CreateShortCut "$DESKTOP\Coalition Worker Start.lnk" "$INSTDIR\worker.exe" "" "$INSTDIR\worker_start.ico"
 SectionEnd
 
-Section "Autorun the worker on idle"
+Section /o "Autorun the worker on idle"
 	ExecWait 'schtasks /Create /TN "Coalition Worker" /SC ONIDLE /IT /I 1 /TR "\"$INSTDIR\worker.exe\""'
 SectionEnd
 
 Section "Uninstall"
-	SetShellVarContext current
+	SetShellVarContext all
 
 	; ** Ask the user for a confirmation
 	IfSilent noUninstallWarning
@@ -92,5 +97,5 @@ noUninstallWarning:
 __REMOVE_FILES__
 Sectionend
 
-Name "Coalition v1.0"
-OutFile "Coalition v1.0.exe"
+Name "Coalition v0.2"
+OutFile "Coalition-Win32-0.2.exe"
