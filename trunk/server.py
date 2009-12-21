@@ -101,7 +101,7 @@ def strToInt (s):
 class Job:
 	"""A farm job"""
 
-	def __init__ (self, id, title, cmd, dir, priority, retry, affinity, user, dependencies):
+	def __init__ (self, id, title, cmd, dir, priority, retry, timeout, affinity, user, dependencies):
 		self.ID = id				# Jod ID
 		self.Title = title			# Job title
 		self.Command = cmd			# Job command to execute
@@ -113,6 +113,7 @@ class Job:
 		self.PingTime = self.StartTime		# Last worker ping time
 		self.Try = 0				# Number of try
 		self.Retry = strToInt (retry)		# Number of try max
+		self.TimeOut = strToInt (timeout)	# Timeout in seconds
 		self.Priority = strToInt (priority)	# Job priority
 		self.Affinity = affinity		# Job affinity
 		self.User = user			# Job user
@@ -254,17 +255,18 @@ class Master(xmlrpc.XMLRPC):
 				dir = request.args.get ("dir", ["."])
 				priority = request.args.get ("priority", ["1000	"])
 				retry = request.args.get ("retry", ["10"])
+				timeout = request.args.get ("timeout", ["0"])
 				affinity = request.args.get ("affinity", [""])
 				dependenciesStr = request.args.get ("dependencies", [""])
 
-				id = self.xmlrpc_addjob(title[0], cmd[0], dir[0], int(priority[0]), int(retry[0]), affinity[0], dependenciesStr[0])
+				id = self.xmlrpc_addjob(title[0], cmd[0], dir[0], int(priority[0]), int(retry[0]), int(timeout[0])*60, affinity[0], dependenciesStr[0])
 				return str(id);
 			else:
 				# return server.NOT_DONE_YET
 				return xmlrpc.XMLRPC.render (self, request)
 		return 'Authorization required!'
 
-	def xmlrpc_addjob(self, title, cmd, dir, priority, retry, affinity, dependencies):
+	def xmlrpc_addjob(self, title, cmd, dir, priority, retry, timeout, affinity, dependencies):
 		"""Show the command list."""
 		global State
 		output ("Add job : " + cmd)
@@ -283,7 +285,7 @@ class Master(xmlrpc.XMLRPC):
 				print ("Error : cycle in dependencies detected.")
 				return -1
 
-		State.Jobs.append (Job(_id, title, cmd, dir, priority, retry, affinity, self.User, dependencies))
+		State.Jobs.append (Job(_id, title, cmd, dir, priority, retry, timeout, affinity, self.User, dependencies))
 		State.Counter = _id + 1
 		return _id
 
@@ -401,6 +403,12 @@ class Workers(xmlrpc.XMLRPC):
 					except IOError:
 						output ("Error in logs")
 				# Continue
+				if job.TimeOut != 0 and job.PingTime - job.StartTime > job.TimeOut:
+					output ("Job " + str(job.ID) + " timeout")
+					job.State = "ERROR"
+					worker.Error = worker.Error+1
+					job.Priority = int(job.Priority)-1
+					update (True)
 				return True
 		# Stop
 		output ("Job " + str(jobId) + " not found for " + hostname)
@@ -415,6 +423,7 @@ class Workers(xmlrpc.XMLRPC):
 		# Ping the worker
 		worker = getWorker (hostname)
 		worker.Load = load
+		worker.Affinity = affinity
 
 		if not worker.Active:
 			return -1,"","",""
