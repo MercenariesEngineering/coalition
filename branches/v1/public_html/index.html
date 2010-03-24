@@ -1,0 +1,73 @@
+<html>	
+<head>
+<title>Coalition Server</title>
+<script src="jquery-1.2.6.min.js"></script>
+<script type="text/javascript" src="/jsolait/jsolait.js"></script>
+<script type="text/javascript">jsolait.baseURI="/jsolait";</script>
+<script src="coalition.js"></script>
+<link href="coalition.css" rel="stylesheet" type="text/css"></link>
+</head>
+<body>
+
+<div id="header">
+<h1>Coalition Server</h1>
+<p>A small but beautiful job manager by Mercenaries Engineering - GPL licence</p>
+<input type='button' name='jobsButton' value='Jobs' onclick='reloadJobs()'>
+<input type='button' name='workersButton' value='Workers' onclick='reloadWorkers()'>
+<input type='button' name='refreshButton' value='Refresh' onclick='refresh()'>
+</div>
+
+<div id="main">
+</div>
+
+<div id="footer">
+<input type='button' name='jobsButton' value='Jobs' onclick='reloadJobs()'>
+<input type='button' name='workersButton' value='Workers' onclick='reloadWorkers()'>
+<input type='button' name='refreshButton' value='Refresh' onclick='refresh()'>
+</div>
+
+
+<div id="addjob">
+Add a job :
+<table>
+<tr>
+<td>Title:</td><td><input type='edit' id='title' name='title' value='Job'></td>
+<td>Job title</td>
+</tr>
+<tr>
+<td>Command:</td><td><input type='edit' id='cmd' name='cmd' value=''></td>
+<td>Command to execute on the worker</td>
+</tr>
+<tr>
+<td>Directory:</td><td><input type='edit' id='dir' name='dir' value='.'></td>
+<td>Worker directory where to execute the command</td>
+</tr>
+<tr>
+<td>Priority:</td><td><input type='edit' id='priority' name='priority' value='1000'></td>
+<td>Job priority</td>
+</tr>
+<tr>
+<td>Affinity:</td><td><input type='edit' id='affinity' name='affinity' value=''></td>
+<td>Job affinity</td>
+</tr>
+<tr>
+<td>Retry:</td><td><input type='edit' id='retry' name='retry' value='10'></td>
+<td>Number of retry to do for this job</td>
+</tr>
+<tr>
+<td>Dependencies:</td><td><input type='edit' id='dependencies' name='dependencies' value=''></td>
+<td>Ids of the job dependencies (exemple : "1,2,3" or "21 22 23") </td>
+</tr>
+</table>
+<input type='button' name='addjobButton' value='Add job' onclick='addjob()'>
+</div>
+<br>
+
+<center>
+<a href="http://code.google.com/p/coalition/">Coalition</a> - 
+<a href="http://www.mercenaries-engineering.com">Mercenaries Engineering</a> - 
+<a href="iphone.html">iPhone</a>
+</center>
+</body>
+</html>
+
