@@ -17,8 +17,11 @@ global coalitionDir
 if sys.platform=="win32":
 	import _winreg
 	# under windows, uses the registry setup by the installer
-	hKey = _winreg.OpenKey (_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Mercenaries Engineering\\Coalition", 0, _winreg.KEY_READ)
-	coalitionDir, type = _winreg.QueryValueEx (hKey, "Installdir")
+	try:
+		hKey = _winreg.OpenKey (_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Mercenaries Engineering\\Coalition", 0, _winreg.KEY_READ)
+		coalitionDir, type = _winreg.QueryValueEx (hKey, "Installdir")
+	except OSError:
+		coalitionDir = "."
 else:
 	coalitionDir = "."
 os.chdir (coalitionDir)
@@ -230,7 +233,7 @@ def heartbeat (jobId, retry):
 		
 			
 		if not result:
-			debugOutput ("Server ask to stop the jod " + str(jobId))
+			debugOutput ("Server ask to stop the job " + str(jobId))
 
 			# Send the kill signal to the process
 			if pid != 0:
@@ -270,7 +273,7 @@ def mainLoop ():
 	debugOutput ("Ask for a job")
 	# Function to ask a job to the server
 	def startFunc ():
-		return xmlrpcServer.pickjobwithaffinity (name, getloadavg(), affinity)
+		return xmlrpcServer.pickjob (name, getloadavg())
 
 	# Block until this message to handled by the server
 	jobId, cmd, dir, user = run (startFunc, True)
@@ -278,7 +281,7 @@ def mainLoop ():
 	if jobId != -1:
 		_cmd = evalEnv (cmd)
 		_dir = evalEnv (dir)
-		debugOutput ("Start jod " + str(jobId) + " in " + _dir + " : " + _cmd)
+		debugOutput ("Start job " + str(jobId) + " in " + _dir + " : " + _cmd)
 
 		# Reset the globals
 		working = True
@@ -299,7 +302,7 @@ def mainLoop ():
 		# Flush for real for the last time
 		heartbeat (jobId, True)
 
-		debugOutput ("Finished jod " + str(jobId) + " (code " + str(errorCode) + ") : " + _cmd)
+		debugOutput ("Finished job " + str(jobId) + " (code " + str(errorCode) + ") : " + _cmd)
 
 		# Function to end the job
 		def endFunc ():

@@ -2,9 +2,11 @@ var xmlrpc;
 var service;
 var timer;
 var page = "jobs";
+var viewJob = 0;
 var logId = 0;
 var jobs = {};
-var jobsSortKey = "Order";
+var parents = {};
+var jobsSortKey = "ID";
 var jobsSortKeyToUpper = true;
 var selectionStart = 0;
 
@@ -40,9 +42,9 @@ $(document).ready(function()
 
 function clearJobs ()
 {
-	if (confirm("Do you really want to clear all the jobs present in the server ?"))
+	if (confirm("Do you really want to clear all the jobs ?"))
 	{
-		service.clearjobs ();
+		service.clearjobs (viewJob);
 		reloadJobs ();
 	}
 }
@@ -80,12 +82,18 @@ function resetJob (jobId)
     }
 }
 
+function goToJob (jobId)
+{
+    viewJob = jobId;
+    reloadJobs ();
+}
+
 function renderLog (jobId)
 {
 	logId = jobId;
 	$("#main").empty ();
 	var _log = service.getlog (jobId);
-	$("#main").append("<pre class='logs'><h2>Logs for jod "+jobId+":</h2>"+_log+"</pre>");
+	$("#main").append("<pre class='logs'><h2>Logs for job "+jobId+":</h2>"+_log+"</pre>");
 
 	page = "logs";
 }
@@ -169,15 +177,22 @@ function renderJobs ()
 	}
 	renderButtons ();
 	$("#main").append("<br/><input size=8 type='edit' id='setPriority' name='setPriority' value='1000'> <input type='button' name='myButton' value='Set Selection Priority' onclick='setPriority()'>");
-	
+
+    $("#main").append("<br/>");
+	for (i=0; i < parents.length; i++)
+	{
+		var parent = parents[i];
+    	$("#main").append((i == 0 ? "" : " > ") + ("<a href='javascript:goToJob("+parent.ID+")'>" + parent.Title + "</a>"));
+	}
+
 	// Returns the HTML code for a job title column
-	function addTitleHTML (attribute)
+	function addTitleHTMLEx (attribute, alias)
 	{
 		table += "<th>";
 		var value = jobs[0];
 		if (value && value[attribute] != null)
 		{
-			table += "<a href='javascript:setJobKey(\""+attribute+"\")'>"+attribute;
+			table += "<a href='javascript:setJobKey(\""+attribute+"\")'>"+alias;
 			if (attribute == jobsSortKey && jobsSortKeyToUpper)
 				table += " &#8595;";
 			if (attribute == jobsSortKey && !jobsSortKeyToUpper)
@@ -189,13 +204,21 @@ function renderJobs ()
 		table += "</th>";
 	}
 
+	function addTitleHTML (attribute)
+	{
+	    addTitleHTMLEx (attribute, attribute)
+	}
+
 	table += "<tr class='title'>";
-	addTitleHTML ("Order");
+	//addTitleHTML ("Order");
 	addTitleHTML ("ID");
 	addTitleHTML ("Title");
 	addTitleHTML ("User");
 	addTitleHTML ("State");
 	addTitleHTML ("Priority");
+	addTitleHTMLEx ("TotalFinished", "Ok");
+	addTitleHTMLEx ("TotalErrors", "Err");
+	addTitleHTML ("Total");
 	addTitleHTML ("Affinity");
 	addTitleHTML ("Worker");
 	addTitleHTML ("Duration");
@@ -215,12 +238,25 @@ function renderJobs ()
 		{
 			table += "<td onMouseDown='onClickList(event,"+i+")'>" + attr + "</td>";
 		}
-		addTD (job.Order);
+		//addTD (job.Order);
 		addTD (job.ID);
-		addTD (job.Title);
+		table += "<td><a href='javascript:goToJob("+job.ID+")'>" + job.Title + "</a></td>\n";
+		//addTD (job.Title);
 		addTD (job.User);
-		table += "<td class='"+job.State+"'>"+job.State+"</td>";
+	    table += "<td class='"+job.State+"'>"+job.State+"</td>";
 		addTD (job.Priority);
+		if (job.Total > 0)
+		{
+		    table += "<td class='"+(job.TotalFinished > 0 ? "FINISHED" : "WAITING")+"' width=30>"+job.TotalFinished+"</td>";
+		    table += "<td class='"+(job.TotalErrors > 0 ? "ERROR" : "WAITING")+"' width=30>"+job.TotalErrors+"</td>";
+		    table += "<td class='"+(job.Total == job.TotalFinished ? "FINISHED" : "WAITING")+"' width=30>"+job.Total+"</td>";
+		}
+		else
+		{
+		    addTD ("");
+		    addTD ("");
+		    addTD ("");
+		}
 		addTD (job.Affinity);
 		addTD (job.Worker);
 		addTD (formatDuration (job.Duration));
@@ -247,7 +283,9 @@ function renderJobs ()
 // Ask the server for the jobs and render them
 function reloadJobs ()
 {
-	jobs = service.getjobs ();
+    var result = service.getjobs (viewJob);
+	jobs = result.Jobs;
+	parents = result.Parents;
 	renderJobs ();
 }
 
@@ -290,13 +328,15 @@ function reloadWorkers ()
 
 function addjob ()
 {
-        service.addjob($('#title').attr("value"), 
-                $('#cmd').attr("value"),
-                $('#dir').attr("value"), 
-                $('#priority').attr("value"), 
-                $('#retry').attr("value"),
-                $('#affinity').attr("value"),
-		$('#dependencies').attr("value"));
+        service.addjob(viewJob,
+                       $('#title').attr("value"), 
+                       $('#cmd').attr("value"),
+                       $('#dir').attr("value"), 
+                       $('#priority').attr("value"), 
+                       $('#retry').attr("value"),
+                       $('#timeout').attr("value"),
+                       $('#affinity').attr("value"),
+		               $('#dependencies').attr("value"));
         reloadJobs ();
 }
 
