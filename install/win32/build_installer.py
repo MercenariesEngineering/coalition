@@ -63,6 +63,7 @@ if buildNsis:
 	addFile ("images\server_stop.ico")
 	addFile ("images\worker_start.ico")
 	addFile ("images\worker_stop.ico")
+	# addFile ("vcredist_x86.exe")
 	addFiles ("dist", True)
 	setOutPath ("public_html", True)
 	addFiles ("public_html", True)

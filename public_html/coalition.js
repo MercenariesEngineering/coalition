@@ -5,6 +5,7 @@ var page = "jobs";
 var viewJob = 0;
 var logId = 0;
 var jobs = {};
+var workers = {};
 var parents = {};
 var jobsSortKey = "ID";
 var jobsSortKeyToUpper = true;
@@ -36,9 +37,43 @@ function get_cookie ( cookie_name )
 $(document).ready(function()
 {
 	xmlrpc = imprt("xmlrpc");
-	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers", "getlog", "addjob", "resetjob", "startworker", "stopworker", "setjobpriority"]);
+	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers",
+	                                              "getlog", "addjob", "resetjob", "startworker", "stopworker", "setjobpriority",
+	                                              "updatejobs", "updateworkers", "pausejob"]);
 	timerCB ();
+
+	tools = new FloatLayer('tools',15,15,1);
+    lay=document.getElementById('tools');
+    lay.style.position = 'absolute';
+    lay.style.top = 15;
+    lay.style.right = 15;
+    tools.initialize();
+    tools.setFloatToRight();
+
+    alignFloatLayers();
 });
+
+function updateTools ()
+{
+    if (page == "jobs")
+    {
+        $("#jobtools").show ();
+        $("#workertools").hide ();
+        alignFloatLayers();
+    }
+    else if (page == "workers")
+    {
+        $("#jobtools").hide ();
+        $("#workertools").show ();
+        alignFloatLayers();
+    }
+    else
+    {
+        $("#jobtools").hide ();
+        $("#workertools").hide ();
+        alignFloatLayers();
+    }
+}
 
 function clearJobs ()
 {
@@ -82,6 +117,12 @@ function resetJob (jobId)
     }
 }
 
+function pauseJob (jobId)
+{
+    service.pausejob (jobId);
+    reloadJobs ();
+}
+
 function goToJob (jobId)
 {
     viewJob = jobId;
@@ -96,12 +137,16 @@ function renderLog (jobId)
 	$("#main").append("<pre class='logs'><h2>Logs for job "+jobId+":</h2>"+_log+"</pre>");
 
 	page = "logs";
+	updateTools ();
 }
 
 function clearWorkers ()
 {
-	service.clearworkers ();
-	reloadWorkers ();
+	if (confirm("Do you really want to clear all the workers?"))
+	{
+	    service.clearworkers ();
+	    reloadWorkers ();
+	}
 }
 
 function formatDuration (secondes)
@@ -169,16 +214,6 @@ function renderJobs ()
 
 	jobs.sort (_sort);
 
-	function renderButtons ()
-	{
-		$("#main").append("<input type='button' name='myButton' value='Clear All Jobs' onclick='clearJobs()'>\n");
-		$("#main").append("<input type='button' name='myButton' value='Remove Selection' onclick='removeSelection()'>\n");
-		$("#main").append("<input type='button' name='myButton' value='Reset Selection' onclick='resetSelection()'>\n");
-	}
-	renderButtons ();
-	$("#main").append("<br/><input size=8 type='edit' id='setPriority' name='setPriority' value='1000'> <input type='button' name='myButton' value='Set Selection Priority' onclick='setPriority()'>");
-
-    $("#main").append("<br/>");
 	for (i=0; i < parents.length; i++)
 	{
 		var parent = parents[i];
@@ -220,6 +255,7 @@ function renderJobs ()
 	addTitleHTMLEx ("TotalErrors", "Err");
 	addTitleHTML ("Total");
 	addTitleHTML ("Affinity");
+	addTitleHTML ("TimeOut");
 	addTitleHTML ("Worker");
 	addTitleHTML ("Duration");
 	addTitleHTML ("Try");
@@ -243,13 +279,13 @@ function renderJobs ()
 		table += "<td><a href='javascript:goToJob("+job.ID+")'>" + job.Title + "</a></td>\n";
 		//addTD (job.Title);
 		addTD (job.User);
-	    table += "<td class='"+job.State+"'>"+job.State+"</td>";
+	    table += "<td class='"+job.State+"' onMouseDown='onClickList(event,"+i+")'>"+job.State+"</td>";
 		addTD (job.Priority);
 		if (job.Total > 0)
 		{
-		    table += "<td class='"+(job.TotalFinished > 0 ? "FINISHED" : "WAITING")+"' width=30>"+job.TotalFinished+"</td>";
-		    table += "<td class='"+(job.TotalErrors > 0 ? "ERROR" : "WAITING")+"' width=30>"+job.TotalErrors+"</td>";
-		    table += "<td class='"+(job.Total == job.TotalFinished ? "FINISHED" : "WAITING")+"' width=30>"+job.Total+"</td>";
+		    table += "<td class='"+(job.TotalFinished > 0 ? "FINISHED" : "WAITING")+"' width=30 onMouseDown='onClickList(event,"+i+")'>"+job.TotalFinished+"</td>";
+		    table += "<td class='"+(job.TotalErrors > 0 ? "ERROR" : "WAITING")+"' width=30 onMouseDown='onClickList(event,"+i+")'>"+job.TotalErrors+"</td>";
+		    table += "<td class='"+(job.Total == job.TotalFinished ? "FINISHED" : "WAITING")+"' width=30 onMouseDown='onClickList(event,"+i+")'>"+job.Total+"</td>";
 		}
 		else
 		{
@@ -258,6 +294,7 @@ function renderJobs ()
 		    addTD ("");
 		}
 		addTD (job.Affinity);
+		addTD (job.TimeOut);
 		addTD (job.Worker);
 		addTD (formatDuration (job.Duration));
 		addTD (job.Try+"/"+job.Retry);
@@ -271,13 +308,14 @@ function renderJobs ()
 			deps += job.Dependencies[j] + " ";
 		}
 		addTD (deps);
-		table += "</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a> <a href='javascript:clearJob("+job.ID+")'>Remove</a> <a href='javascript:resetJob("+job.ID+")'>Reset</a></td></tr>\n";
+		table += "</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a></td></tr>\n";
 	}
 	table += "</table>";
 	$("#main").append(table);
-	renderButtons ();
+    $("#main").append("<br/>");
 
 	page = "jobs";
+	updateTools ();
 }
 
 // Ask the server for the jobs and render them
@@ -286,6 +324,7 @@ function reloadJobs ()
     var result = service.getjobs (viewJob);
 	jobs = result.Jobs;
 	parents = result.Parents;
+	resetjobprops ();
 	renderJobs ();
 }
 
@@ -301,29 +340,198 @@ function stopWorker (workerName)
 	reloadWorkers ();
 }
 
+function startWorkers ()
+{
+	for (j=workers.length-1; j >= 0; j--)
+	{
+		var worker = workers[j];
+		if (worker.Selected)
+           	service.startworker (worker.Name);
+	}
+	reloadWorkers ();
+}
+
+function stopWorkers ()
+{
+	for (j=workers.length-1; j >= 0; j--)
+	{
+		var worker = workers[j];
+		if (worker.Selected)
+           	service.stopworker (worker.Name);
+	}
+	reloadWorkers ();
+}
+
+
+
+
+
+
+var MultipleSelection = {}
+function checkSelectionProperties (list, props)
+{
+    var values = []
+
+	for (i = 0; i < list.length; i++)
+	{
+		var item = list[i];
+		if (item.Selected)
+		{
+    		for (j = 0; j < props.length; ++j)
+    		{
+    		    var value = item[props[j][0]];
+    		    if (values[j] != null && values[j] != value)
+    		        values[j] = MultipleSelection;
+    		    else
+    		        values[j] = value;
+    		}
+		}
+	}
+
+    for (i = 0; i < props.length; ++i)
+    {
+        if (values[i] == MultipleSelection)
+        {
+            // different values
+            $('#'+props[i][1]).css("background-color", "orange");
+            $('#'+props[i][1]).attr("value", "");
+        }
+        else if (values[i] == null)
+        {
+            // default value
+            $('#'+props[i][1]).css("background-color", "white");
+            $('#'+props[i][1]).attr("value", props[i][2]);
+        }
+        else
+        {
+            // unique values
+            $('#'+props[i][1]).css("background-color", "white");
+            $('#'+props[i][1]).attr("value", values[i]);
+        }
+    }
+    return values;
+}
+
+function updateSelectionProp (values, props, prop)
+{
+    for (i = 0; i < props.length; ++i)
+        if (props[i][1] == prop)
+        {
+            values[i] = true;
+            $('#'+props[i][1]).css("background-color", "greenyellow");
+            break;
+        }
+}
+
+function sendSelectionPropChanges (list, id, values, props, command)
+{
+    var uplist = [];
+	for (j=list.length-1; j >= 0; j--)
+	{
+		var item = list[j];
+		if (item.Selected)
+		    uplist.push (item[id]);
+	}
+
+    for (i = 0; i < props.length; ++i)
+        if (values[i] == true)
+        {
+            var value = $('#'+props[i][1]).attr("value");
+            service[command] (uplist, props[i][0], value);
+            props[i][2] = value;
+        }
+}
+
+function setSelectionDefaultProperties (props)
+{
+    for (i = 0; i < props.length; ++i)
+        props[i][2] = $('#'+props[i][1]).attr("value");
+}
+
+var WorkerProps =
+[
+    [ "Affinity", "waffinity", "" ],
+];
+var updatedWorkerProps = {}
+
+function resetworkerprops ()
+{
+    updatedWorkerProps = checkSelectionProperties (workers, WorkerProps);
+}
+
+function onchangeworkerprop (prop)
+{
+    updateSelectionProp (updatedWorkerProps, WorkerProps, prop);
+}
+
+function updateworkers ()
+{
+    sendSelectionPropChanges (workers, 'Name', updatedWorkerProps, WorkerProps, 'updateworkers');
+    reloadWorkers ();
+}
+
 function reloadWorkers ()
+{
+    var result = service.getworkers ();
+	workers = result;
+	resetworkerprops ();
+	renderWorkers ();
+}
+
+function renderWorkers ()
 {
 	$("#main").empty ();
 
-	var workers = service.getworkers ();
 	var table = "<table id='workers'>";
 
-	function renderButtons ()
-	{
-		$("#main").append("<input type='button' name='myButton' value='Clear All Workers' onclick='clearWorkers()'>\n");
-	}
-	renderButtons ();
-	table += "<tr class='title'><th>Name</th><th>Active</th><th>State</th><th>Affinity</th><th>Load</th><th>LastJob</th><th>Finished</th><th>Error</th><th>Tools</th></tr>\n";
+	$("#main").append("<br>");
+	table += "<tr class='title'><th>Name</th><th>Active</th><th>State</th><th>Affinity</th><th>Load</th><th>LastJob</th><th>Finished</th><th>Error</th></tr>\n";
 	for (i=0; i < workers.length; i++)
 	{
 		var worker = workers[i];
-		table += "<tr class='entry"+(i%2)+"'><td>"+worker.Name+"</td><td class='Active"+worker.Active+"'>"+worker.Active+"</td><td class='"+worker.State+"'>"+worker.State+"</td><td>"+worker.Affinity+"</td><td>"+worker.Load+"</td><td>"+worker.LastJob+"</td><td>"+worker.Finished+"</td><td>"+worker.Error+"</td><td><a href='javascript:startWorker(\""+worker.Name+"\")'>Start</a> <a href='javascript:stopWorker(\""+worker.Name+"\")'>Stop</a></td></tr>\n";
+		table += "<tr id='table"+i+"' class='entry"+(i%2)+(worker.Selected?"Selected":"")+"'>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Name+"</td>"+
+		         "<td class='Active"+worker.Active+"' onMouseDown='onClickList(event,"+i+")'>"+worker.Active+"</td>"+
+		         "<td class='"+worker.State+"' onMouseDown='onClickList(event,"+i+")'>"+worker.State+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Affinity+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Load+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.LastJob+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Finished+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Error+"</td>"+
+		         "</tr>\n";
 	}
 	table += "</table>";
 	$("#main").append(table);
-	renderButtons ();
+	$("#main").append("<br>");
 
 	page = "workers";
+	updateTools ();
+}
+
+var JobProps =
+[
+    [ "Command", "cmd", "" ],
+    [ "Dir", "dir", "." ],
+    [ "Priority", "priority", "1000" ],
+    [ "Affinity", "affinity", "" ],
+    [ "TimeOut", "timeout", "0" ]
+];
+var updatedJobProps = {}
+
+function resetjobprops ()
+{
+    updatedJobProps = checkSelectionProperties (jobs, JobProps);
+}
+
+function onchangejobprop (prop)
+{
+    updateSelectionProp (updatedJobProps, JobProps, prop);
+}
+
+function updatejobs ()
+{
+    sendSelectionPropChanges (jobs, 'ID', updatedJobProps, JobProps, 'updatejobs');
+    reloadJobs ();
 }
 
 function addjob ()
@@ -337,19 +545,24 @@ function addjob ()
                        $('#timeout').attr("value"),
                        $('#affinity').attr("value"),
 		               $('#dependencies').attr("value"));
+		setSelectionDefaultProperties (JobProps);
         reloadJobs ();
 }
 
 // List selection handler
 function onClickList (event, i)
 {
+    var thelist;
+    if (page == "jobs")         thelist = jobs;
+    else if (page == "workers") thelist = workers;
+    
 	// Unselect if not ctrl keys
 	if (!event.ctrlKey)
 	{
-		for (j=0; j < jobs.length; j++)
+		for (j=0; j < thelist.length; j++)
 		{
-			var job = jobs[j];
-			job.Selected = false;
+			var item = thelist[j];
+			item.Selected = false;
 		}
 	}
 
@@ -360,13 +573,32 @@ function onClickList (event, i)
 
 	for (j = begin; j <= end; j++)
 	{
-		var job = jobs[j];
-		if (job)
-			job.Selected = event.ctrlKey ? !job.Selected : true;
+		var item = thelist[j];
+		if (item)
+			item.Selected = event.ctrlKey ? !item.Selected : true;
 	}
-	renderJobs ();
-	return false;
-//	if (event.shiftKey)
+	if (page == "jobs")         { renderJobs (); resetjobprops (); }
+    else if (page == "workers") { renderWorkers (); resetworkerprops (); }
+}
+
+function selectAll (state)
+{
+    var thelist
+    if (page == "jobs")
+        thelist = jobs;
+    else if (page == "workers")
+        thelist = workers;
+    else
+        return;
+        
+	for (j=0; j < thelist.length; j++)
+	{
+		var item = thelist[j];
+		item.Selected = state;
+	}
+
+	if (page == "jobs")         { renderJobs (); resetjobprops (); }
+    else if (page == "workers") { renderWorkers (); resetworkerprops (); }
 }
 
 function removeSelection ()
@@ -397,17 +629,13 @@ function resetSelection ()
 	reloadJobs ();
 }
 
-function setPriority ()
+function pauseSelection ()
 {
-	if (confirm("Do you really want to set the priority of the selected jobs ?"))
+	for (j=jobs.length-1; j >= 0; j--)
 	{
-		for (j=jobs.length-1; j >= 0; j--)
-		{
-			var job = jobs[j];
-			if (job.Selected)
-				service.setjobpriority (job.ID, $('#setPriority').attr("value"));
-		}
+		var job = jobs[j];
+		if (job.Selected)
+			service.pausejob (job.ID);
 	}
 	reloadJobs ();
 }
-
