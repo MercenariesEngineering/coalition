@@ -33,20 +33,30 @@ except OSError:
 global TimeOut, port, verbose, config
 config = ConfigParser.SafeConfigParser()
 config.read ("coalition.ini")
-TimeOut = 10
-port = 19211
-if config.has_option('server', 'port'):
-	try:
-		port = int (config.get('server', 'port'))
-	except ValueError:
-		pass
-verbose = False
-service = False
-if config.has_option('server', 'service'):
-	try:
-		service = (int (config.get ('server', 'service')) != 0)
-	except ValueError:
-		pass
+
+def cfgInt (name, defvalue):
+	global config
+	if config.has_option('server', 'port'):
+		try:
+			return int (config.get('server', name))
+		except:
+			pass
+	return defvalue
+
+def cfgBool (name, defvalue):
+	global config
+	if config.has_option('server', 'port'):
+		try:
+			return int (config.get('server', name)) != 0
+		except:
+			pass
+	return defvalue
+
+port = cfgInt ('port', 19211)
+TimeOut = cfgInt ('timeout', 10)
+verbose = cfgBool ('verbose', False)
+service = cfgBool ('service', False)
+
 LDAPServer = ""
 LDAPTemplate = ""
 
@@ -57,8 +67,6 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
-	if sys.platform!="win32":
-		print ("  -n, --noservice\t\tDon't run as a Windows Service")
 	print ("  --ldaphost=HOSTNAME\tLDAP server to use for authentication")
 	print ("  --ldaptemplate=TEMPLATE\tLDAP template used to validate the user, like uid=%login,ou=people,dc=exemple,dc=com")
 	print ("\nExample : server -p 1234")
@@ -66,7 +74,7 @@ def usage():
 if sys.platform!="win32" or not service:
 	# Parse the options
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "hnp:v", ["help", "port=", "noservice", "verbose", "ldaphost=", "ldaptemplate="])
+		opts, args = getopt.getopt(sys.argv[1:], "hp:v", ["help", "port=", "verbose", "ldaphost=", "ldaptemplate="])
 		if len(args) != 0:
 			usage()
 			sys.exit(2)
@@ -83,8 +91,6 @@ if sys.platform!="win32" or not service:
 			verbose = True
 		elif o in ("-p", "--port"):
 			port = float(a)
-		elif o in ("-n", "--noservice"):
-			service = False
 		elif o in ("-lh", "--ldaphost"):
 			LDAPServer = a
 		elif o in ("-lt", "--ldaptemplate"):
@@ -95,15 +101,20 @@ if sys.platform!="win32" or not service:
 	if LDAPServer != "":
 		import ldap
 
-if not verbose:
-	outfile = open(dataDir + '/server.log', 'a')
-	sys.stdout = outfile
-	sys.stderr = outfile
+if not verbose or service:
+	try:
+		outfile = open(dataDir + '/server.log', 'a')
+		sys.stdout = outfile
+		sys.stderr = outfile
+	except:
+		pass
 
 # Log function
 def output (str):
 	if verbose:
 		print (str)
+
+output ("--- Start ------------------------------------------------------------")
 
 if sys.platform!="win32" and service:
 	output ("Running service")
@@ -216,6 +227,8 @@ class CState:
 		self._ActiveJobs = set ()
 		self.addJob (0, Job ("Root", priority=1, retry=0))
 		self._UpdatedDb = True
+		self._StAffinity = {}			# static affinity
+		self._DynAffinity = {}			# dynamic affinity, job affinity concatened to the children jobs affinity
 
 	# Read the state
 	def read (self, fo):
@@ -224,7 +237,8 @@ class CState:
 			self.Counter = pickle.load (fo)
 			self.Jobs = pickle.load (fo)
 			self.Workers = pickle.load (fo)
-			self._refreshActive ()
+			self._refresh ()
+			#self.dump ()
 		else:
 			raise Exception ("Database too old, erase the master_db file")
 			self.clear ()
@@ -232,11 +246,12 @@ class CState:
 	# Write the state
 	def write (self, fo):
 		version = DBVersion
-		pickle.dump(version, fo)
-		pickle.dump(self.Counter, fo)
-		pickle.dump(self.Jobs, fo)
-		pickle.dump(self.Workers, fo)
+		pickle.dump (version, fo)
+		pickle.dump (self.Counter, fo)
+		pickle.dump (self.Jobs, fo)
+		pickle.dump (self.Workers, fo)
 		self._UpdatedDb = False
+		#self.dump ()
 
 	def update (self, forceSaveDb = False) :
 		global	TimeOut
@@ -260,46 +275,13 @@ class CState:
 			except KeyError:
 				refreshActive = True
 		if refreshActive :
-			self._refreshActive ()
+			self._refresh ()
 		# Timeout workers
 		for name, worker in State.Workers.iteritems ():
 			if worker.State != "TIMEOUT" and _time - worker.PingTime > TimeOut:
 				self.updateWorkerState (name, "TIMEOUT")
 		if self._UpdatedDb or forceSaveDb:
 			saveDb ()
-
-	def _refreshActive (self) :
-		active = set ()
-		for id, job in self.Jobs.iteritems ():
-			if job.State == "WORKING":
-				active.add (id)
-		self._ActiveJobs = active
-		def _upChildren (job) :
-			total = 0
-			totalerrors = 0
-			totalfinished = 0
-			for cid in job.Children :
-				try:
-					child = self.Jobs[cid]
-					_upChildren (child)
-					total += child.Total
-					totalerrors += child.TotalErrors
-					totalfinished += child.TotalFinished
-					if child.State == "ERROR":
-						totalerror += 1
-					elif child.State == "FINISHED":
-						totalfinished += 1
-				except KeyError:
-					pass
-			job.Total = total+len (job.Children)
-			job.TotalFinished = totalfinished
-			job.TotalErrors = totalerrors
-		try:
-			_upChildren (self.Jobs[0])
-		except:
-			pass
-			
-
 
 	# -----------------------------------------------------------------------
 	# job handling
@@ -355,6 +337,7 @@ class CState:
 			if job.ID != 0:
 				job.Parent = parent
 				parentJob.Children.append (job.ID)
+				self._updateAffinity (job.ID)
 				self._updateParentState (parent)
 			return job.ID
 		except KeyError:
@@ -378,6 +361,14 @@ class CState:
 				# and unmap
 				try:
 					del self.Jobs[id]
+				except KeyError:
+					pass
+				try:
+					del self._StAffinity[id]
+				except KeyError:
+					pass
+				try:
+					del self._DynAffinity[id]
 				except KeyError:
 					pass
 				try:
@@ -411,7 +402,22 @@ class CState:
 			self._updateParentState (id)
 		except KeyError:
 			pass
-		
+
+	# Reset a job
+	def pauseJob (self, id) :
+		try:
+			job = self.Jobs[id]
+			if job.State != "FINISHED":
+				job.State = "PAUSED"
+				try:
+					self._ActiveJobs.remove (id)
+				except KeyError:
+					pass
+				self._UpdatedDb = True
+				self._updateParentState (id)
+		except KeyError:
+			pass
+
 	# Change a job priority
 	def setPriority (self, id, priority) :
 		try:
@@ -421,10 +427,24 @@ class CState:
 		except KeyError:
 			pass
 
+	# Change job affinity
+	def setAffinity (self, id, affinity) :
+		try:
+			job = self.Jobs[id]
+			job.Affinity = affinity
+			try:
+				del self._StAffinity[id]
+			except KeyError:
+				pass
+			self._UpdatedDb = True
+			self._updateParentState (id)
+		except:
+			pass
+
 	# Can be executed
 	def canExecute (self, id) :
 		job = self.Jobs[id]
-		if job.State == "FINISHED" or job.State == "WORKING" :
+		if job.State == "FINISHED" or job.State == "WORKING" or job.State == "PAUSED" :
 			# Don't execute a finished job or a working job
 			return False
 		else:
@@ -435,6 +455,15 @@ class CState:
 				if dep.State != "FINISHED" :
 					return False
 			return (job.State == "WAITING") or (not job.hasChildren () and job.Try < job.Retry)
+
+	# Can be executed
+	def compatibleAffinities (self, job, worker) :
+		if len (job) == 0:
+			return True
+		for affinity in job:
+			if worker >= affinity:
+				return True
+		return False
 
 	# Pick a job
 	def pickJob (self, id, affinity) :
@@ -448,9 +477,15 @@ class CState:
 				child = self.Jobs[childId]
 				if child.State != "FINISHED" :
 					allFinised = False
-				if self.canExecute (childId) :
-					sumpriority += child.Priority
-					jobs.append (child)
+				# if job can be executed and worker affinity is compatible, add this job as a potential one
+				if self.canExecute (childId):
+					if self.compatibleAffinities (self._DynAffinity[childId], affinity):
+						#output ("++ worker "+str (affinity)+" compatible with job "+str (childId)+" "+str (self._DynAffinity[childId]))
+						sumpriority += child.Priority
+						jobs.append (child)
+					else:
+						#output ("-- worker "+str (affinity)+" NOT compatible with job "+str (childId)+" "+str (self._DynAffinity[childId]))
+						pass
 			if sumpriority > 0 :
 				# there are some children that need execution
 				pick = random.randint (0, sumpriority-1)
@@ -525,13 +560,95 @@ class CState:
 			job.TotalFinished = totalfinished
 			if not jobsToDo and errors > 0 :
 				newState = "ERROR"
-			if newState != job.State:
+			if job.State != "PAUSED" and newState != job.State:
 				job.State = newState
 				self._UpdatedDb = True
+			self._updateAffinity (id)
 			if id != 0:
 				self._updateParentState (job.Parent)
 		except KeyError:
 			pass
+
+	# Update job affinity
+	def _updateAffinity (self, id) :
+		job = self.Jobs[id]
+		if id not in self._StAffinity:
+			if job.Affinity != "" :
+				self._StAffinity[id] = frozenset (re.findall ('([^,]+)', job.Affinity))
+			else:
+				self._StAffinity[id] = None
+		static = self._StAffinity[id]
+		# compute dynamic affinity from all waiting children dynamic affinity
+		# dynamic affinity is a set of children dynamic affinities
+		dyn = set ()
+		allFinished = True
+		for cid in job.Children :
+			child = self.Jobs[cid]
+			if child.State != "FINISHED" :
+				allFinished = False
+			if self.canExecute (cid):
+				cdyn = self._DynAffinity[cid]
+				for aff in cdyn:
+					if static:
+						dyn.add (aff | static)
+					else:
+						dyn.add (aff)
+		if len (dyn) == 0 and static :
+			# no affinity set yet, add default
+			dyn.add (static)
+		self._DynAffinity[id] = dyn
+
+	# Refresh active jobs count
+	def _refresh (self) :
+		def safeInt (v, defvalue):
+			try:
+				return int (v)
+			except:
+				return defvalue
+		def safeStr (v, defvalue):
+			try:
+				return str (v)
+			except:
+				return defvalue
+		active = set ()
+		for id, job in self.Jobs.iteritems ():
+			if job.State == "WORKING":
+				active.add (id)
+			job.Parent = safeInt (job.Parent, 0)
+			job.Command = safeStr (job.Command, "")
+			job.Dir = safeStr (job.Dir, "")
+			job.State = safeStr (job.State, "ERROR")
+			job.Worker = safeStr (job.Worker, "")
+			job.StartTime = safeInt (job.StartTime, time.time ())
+			job.Duration = safeInt (job.Duration, 0)
+			job.PingTime = safeInt (job.PingTime, time.time ())
+			job.Try = safeInt (job.Try, 0)
+			job.Retry = safeInt (job.Retry, 10)
+			job.TimeOut = safeInt (job.Try, 0)
+			job.Priority = safeInt (job.Priority, 1000)
+			job.Affinity = safeStr (job.Affinity, "")
+			job.User = safeStr (job.User, "")
+
+		self._ActiveJobs = active
+		def _upChildren (job) :
+			total = 0
+			totalerrors = 0
+			totalfinished = 0
+			for cid in job.Children :
+				child = self.Jobs[cid]
+				_upChildren (child)
+				total += child.Total
+				totalerrors += child.TotalErrors
+				totalfinished += child.TotalFinished
+				if child.State == "ERROR":
+					totalerror += 1
+				elif child.State == "FINISHED":
+					totalfinished += 1
+			self._updateAffinity (job.ID)
+			job.Total = total+len (job.Children)
+			job.TotalFinished = totalfinished
+			job.TotalErrors = totalerrors
+		_upChildren (self.Jobs[0])
 
 	# -----------------------------------------------------------------------
 	# worker handling
@@ -599,6 +716,13 @@ class CState:
 			try:
 				job = self.Jobs[id]
 				print (" "*(depth*2)) + str (job.ID) + " " + job.Title + " " + job.State + " cmd='" + job.Dir + "/" + job.Command + "' prio=" + str (job.Priority) + " retry=" + str (job.Try) + "/" + str (job.Retry)
+				try:
+					static = self._StAffinity[id]
+					dyn = self._DynAffinity[id]
+					print (" "*(depth*2+1)), "Static:", static
+					print (" "*(depth*2+1)), "Dyn:", dyn
+				except:
+					pass
 				for childId in job.Children :
 					dumpJob (childId, depth+1)
 			except KeyError:
@@ -657,7 +781,6 @@ class Master (xmlrpc.XMLRPC):
 
 	def render (self, request):
 		global State
-		print ("-- recv " + request.path)
 		if authenticate (request):
 			self.User = request.getUser ()
 			# Addjob
@@ -671,24 +794,14 @@ class Master (xmlrpc.XMLRPC):
 				timeout = request.args.get ("timeout", ["0"])
 				affinity = request.args.get ("affinity", [""])
 				dependenciesStr = request.args.get ("dependencies", [""])
-				print ("-- recv parent " + parent[0])
-				print ("-- recv title " + title[0])
-				print ("-- recv cmd " + cmd[0])
-				print ("-- recv dir " + dir[0])
-				print ("-- recv prio " + priority[0])
-				print ("-- recv retry " + retry[0])
-				print ("-- recv timeout " + timeout[0])
-				print ("-- recv aff " + affinity[0])
-				print ("-- recv dep " + dependenciesStr[0])
 				id = self.xmlrpc_addjob(parent[0], title[0], cmd[0], dir[0], int(priority[0]), int(retry[0]), int(timeout[0])*60, affinity[0], dependenciesStr[0])
-				print ("-- send id " + str(id))
 				return str(id);
 			else:
 				# return server.NOT_DONE_YET
 				return xmlrpc.XMLRPC.render (self, request)
 		return 'Authorization required!'
 
-	def xmlrpc_addjob(self, parent, title, cmd, dir, priority, retry, timeout, affinity, dependencies):
+	def xmlrpc_addjob (self, parent, title, cmd, dir, priority, retry, timeout, affinity, dependencies):
 		"""Show the command list."""
 		global State
 		output ("Add job : " + cmd)
@@ -701,9 +814,10 @@ class Master (xmlrpc.XMLRPC):
 				if bypath:
 					parent = bypath
 				else:
+					parenttitle = parent
 					parent = State.findJobByTitle (parent)
 					if parent == None:
-						print ("Error : can't find job " + parent)
+						print ("Error : can't find job " + str (parenttitle))
 						return -1
 		if type(dependencies) is str:
 			# Parse the dependencies string
@@ -714,7 +828,7 @@ class Master (xmlrpc.XMLRPC):
 		State.update ()
 		return id
 
-	def xmlrpc_getjobs(self, id):
+	def xmlrpc_getjobs (self, id):
 		global State
 		output ("Send jobs")
 		jobs = []
@@ -733,38 +847,85 @@ class Master (xmlrpc.XMLRPC):
 					break
 				job = State.Jobs[job.Parent]
 		except KeyError:
-			pass
+			if len (parents) == 0 or parents[0].ID != 0:
+				parents.insert (0, { "ID":0, "Title":"Root" })
 		return { "Jobs":jobs, "Parents":parents }
 
-	def xmlrpc_clearjobs(self, id):
+	def xmlrpc_clearjobs (self, id):
 		global State
 		output ("Clear jobs in " + str (id))
 		State.removeChildren (id)
 		State.update ()
 		return 1
 
-	def xmlrpc_clearjob(self, jobId):
+	def xmlrpc_clearjob (self, jobId):
 		global State
-		output ("Clear job "+str(jobId))
+		output ("Clear job "+str (jobId))
 		State.removeJob (jobId)
 		State.update ()
 		return 1
 
-	def xmlrpc_resetjob(self, jobId):
+	def xmlrpc_resetjob (self, jobId):
 		global State
-		output ("Reset job "+str(jobId))
+		output ("Reset job "+str (jobId))
 		State.resetJob (jobId)
 		State.update ()
 		return 1
 
-	def xmlrpc_setjobpriority(self, jobId, priority):
+	def xmlrpc_pausejob (self, jobId):
+		global State
+		output ("Pause job "+str (jobId))
+		State.pauseJob (jobId)
+		State.update ()
+		return 1
+
+	# update several jobs props at once
+	def xmlrpc_updatejobs (self, ids, prop, value):
+		global State
+		try:
+			output ("Update job "+str (ids)+" "+prop+" "+str(value))
+		except:
+			pass
+		for id in ids:
+			try:
+				job = State.Jobs[id]
+				try:
+					if prop == "Command":
+						job.Command = str (value)
+						State._UpdatedDb = True
+					elif prop == "Dir":
+						job.Dir = str (value)
+						State._UpdatedDb = True
+					elif prop == "Priority":
+						job.Priority = int (value)
+						State._UpdatedDb = True
+					elif prop == "Affinity":
+						State.setAffinity (id, str (value))
+					elif prop == "TimeOut":
+						job.TimeOut = int (value)
+						State._UpdatedDb = True
+				except ValueError:
+					pass
+			except KeyError:
+				pass
+		State.update ()
+		return 1
+
+	def xmlrpc_setjobpriority (self, jobId, priority):
 		global State
 		output ("Set job "+str (jobId)+" priority to "+str (priority))
 		State.setPriority (jobId, priority)
 		State.update ()
 		return 1
 
-	def xmlrpc_getlog(self, jobId):
+	def xmlrpc_setjobaffinity (self, jobId, affinity):
+		global State
+		output ("Set job "+str (jobId)+" affinity to "+str (priority))
+		State.setAffinity (jobId, affinity)
+		State.update ()
+		return 1
+
+	def xmlrpc_getlog (self, jobId):
 		global State
 		output ("Send log "+str (jobId))
 		# Look for the job
@@ -783,7 +944,7 @@ class Master (xmlrpc.XMLRPC):
 			pass
 		return log
 
-	def xmlrpc_getworkers(self):
+	def xmlrpc_getworkers (self):
 		global State
 		output ("Send workers")
 		workers = []
@@ -791,22 +952,43 @@ class Master (xmlrpc.XMLRPC):
 			workers.append (worker)
 		return workers
 
-	def xmlrpc_clearworkers(self):
+	def xmlrpc_clearworkers (self):
 		global State
 		output ("Clear workers")
 		State.Workers = {}
 		State.update ()
 		return 1
 
-	def xmlrpc_stopworker(self, workerName):
+	def xmlrpc_stopworker (self, workerName):
 		global State
 		State.stopWorker (workerName)
 		State.update ()
 		return 1
 
-	def xmlrpc_startworker(self, workerName):
+	def xmlrpc_startworker (self, workerName):
 		global State
 		State.startWorker (workerName)
+		State.update ()
+		return 1
+
+	# update several workers props at once
+	def xmlrpc_updateworkers (self, names, prop, value):
+		global State
+		try:
+			output ("Update name "+str (names)+" "+prop+" "+str(value))
+		except:
+			pass
+		for name in names:
+			try:
+				worker = State.Workers[name]
+				try:
+					if prop == "Affinity":
+						worker.Affinity = str (value)
+						State._UpdatedDb = True
+				except ValueError:
+					pass
+			except KeyError:
+				pass
 		State.update ()
 		return 1
 
@@ -829,6 +1011,7 @@ class Workers(xmlrpc.XMLRPC):
 		try :
 			job = State.Jobs[jobId]
 			if job.State == "WORKING" and job.Worker == hostname :
+				State.updateWorkerState (hostname, "WORKING")
 				workingJob = job
 				job.PingTime = _time
 				if log != "" :
@@ -856,7 +1039,9 @@ class Workers(xmlrpc.XMLRPC):
 		output (hostname + " wants some job")
 		worker = State.getWorker (hostname)
 		if not worker.Active:
+			State.updateWorkerState (hostname, "WAITING")
 			return -1,"","",""
+		affinity = frozenset (re.findall ('([^,]+)', worker.Affinity))
 		jobId = State.pickJob (0, affinity)
 		if jobId != None :
 			job = State.Jobs[jobId]
@@ -867,8 +1052,6 @@ class Workers(xmlrpc.XMLRPC):
 			job.StartTime = job.PingTime
 			job.Duration = 0
 			State.updateJobState (jobId, "WORKING")
-			if affinity != None:
-				worker.Affinity = affinity
 			worker.LastJob = job.ID
 			worker.PingTime = job.PingTime
 			State.updateWorkerState (hostname, "WORKING")
@@ -932,18 +1115,21 @@ def readDb ():
 		fo = open(dataDir + "/master_db", "rb")
 		try:
 			State.read (fo)
-		except IOError:
+		except:
 			fo.close()
 			print ("Error reading master_db, create a new one")
 			State = CState()
-	except IOError:
+	except:
 		output ("No db found, create a new one")
+		State = CState()
 		return
+	output ("DB is OK")
 	# Touch every working job
 	_time = time.time()
 	for id, job in State.Jobs.iteritems () :
 		if job.State == "WORKING":
 			job.PingTime = _time
+	output ("DB is OK")
 	
 # Listen to an UDP socket to respond to workers broadcasts
 def listenUDP():
@@ -986,19 +1172,24 @@ if sys.platform=="win32" and service:
 		_svc_display_name_ = "Coalition Server"
 
 		def __init__(self, args):
+			output ("Service init")
 			win32serviceutil.ServiceFramework.__init__(self, args)
 			self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
 
 		def SvcStop(self):
+			output ("Service stop")
 			self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
 			win32event.SetEvent(self.hWaitStop)
 
 		def SvcDoRun(self):
+			output ("Service running")
 			import servicemanager
 			self.CheckForQuit()
 			main()
+			output ("Service quitting")
 
 		def CheckForQuit(self):
+			output ("Checking for quit...")
 			retval = win32event.WaitForSingleObject(self.hWaitStop, 10)
 			if not retval == win32event.WAIT_TIMEOUT:
 				# Received Quit from Win32
