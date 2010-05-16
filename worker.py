@@ -337,6 +337,8 @@ def main():
 				pass
 		s.close ()
 
+        while serverUrl[-1] == '/':
+            serverUrl = serverUrl[:-1]
 	xmlrpcServer = xmlrpclib.ServerProxy(serverUrl+"/workers")
 
 	print ("Working...")

@@ -39,6 +39,8 @@ try:
 		usage()
 		sys.exit(2)
 	serverUrl = args[0]
+        while serverUrl[-1] == '/':
+            serverUrl = serverUrl[:-1]
 	action = args[1]
 except getopt.GetoptError, err:
 	# print help information and exit:
@@ -82,7 +84,8 @@ def output (str):
 server = xmlrpclib.ServerProxy(serverUrl + "/xmlrpc")
 
 if action=="add":
-	num=server.addjob (title, cmd, dir, priority, retry, affinity, dependencies)
+        timeout = "0"
+	num=server.addjob (title, cmd, dir, priority, retry, timeout, affinity, dependencies)
 	print(num)
 elif action=="list":
 	jobs=server.getjobs()
