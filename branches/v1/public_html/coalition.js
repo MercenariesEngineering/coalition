@@ -203,6 +203,7 @@ function renderJobs ()
 	addTitleHTML ("Command");
 	addTitleHTML ("Dir");
 	addTitleHTML ("Dependencies");
+	addTitleHTML ("Timeout");
 	addTitleHTML ("Tools");
 	table += "</tr>\n";
 
@@ -235,6 +236,7 @@ function renderJobs ()
 			deps += job.Dependencies[j] + " ";
 		}
 		addTD (deps);
+	 	addTD (job.TimeOut);
 		table += "</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a> <a href='javascript:clearJob("+job.ID+")'>Remove</a> <a href='javascript:resetJob("+job.ID+")'>Reset</a></td></tr>\n";
 	}
 	table += "</table>";
@@ -290,13 +292,15 @@ function reloadWorkers ()
 
 function addjob ()
 {
-        service.addjob($('#title').attr("value"), 
-                $('#cmd').attr("value"),
-                $('#dir').attr("value"), 
-                $('#priority').attr("value"), 
-                $('#retry').attr("value"),
-                $('#affinity').attr("value"),
-		$('#dependencies').attr("value"));
+        service.addjob($('#title').attr("value"),
+		       $('#cmd').attr("value"),
+		       $('#dir').attr("value"), 
+		       $('#priority').attr("value"), 
+		       $('#retry').attr("value"),
+		       $('#timeout').attr("value"),
+		       $('#affinity').attr("value"),
+		       $('#dependencies').attr("value")
+		       );
         reloadJobs ();
 }
 
