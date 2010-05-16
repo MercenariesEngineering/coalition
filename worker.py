@@ -2,10 +2,12 @@ import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, sig
 from sys import modules
 from os.path import splitext, abspath
 
-import win32serviceutil
-import win32service
-import win32event
-import win32api
+if sys.platform=="win32":
+	import _winreg
+	import win32serviceutil
+	import win32service
+	import win32event
+	import win32api
 
 
 # Options
@@ -411,6 +413,9 @@ def main ():
 			except timeout:
 				pass
 		s.close ()
+		
+	while serverUrl[-1] == '/':
+		serverUrl = serverUrl[:-1]
 
 	xmlrpcServer = xmlrpclib.ServerProxy (serverUrl + "/workers")
 

@@ -8,6 +8,8 @@ endIndex = 1
 retry = 10
 affinity = ""
 priority = 1000
+timeout = 0
+parent = 0
 dependencies = ""
 id=-1
 
@@ -17,7 +19,7 @@ def usage():
 	print("Actions:")
 	print("  add: add a job, use option -c for command")
 	print("  list: list the jobs on the server")
-	print("  remove: remove job designated by id, option -id is necessary") 
+	print("  remove: remove job designated by id, option -i is necessary") 
 	print ("Options:")
 	print ("  -h, --help\t\tShow this help")
 	print ("  -c, --command=COMMAND\t\tIf action is add, add command to server")
@@ -26,19 +28,23 @@ def usage():
 	print ("  -p, --priority=PRIORITY\tPriority of the job (default: "+str(priority)+")")
 	print ("  -r, --retry=RETRY\tNumber of retry this jobs can do (default: "+str(retry)+")")
 	print ("  -a, --affinity=AFFINITY\tAffinity words to workers, separated by a comma (default: \"\"")
-	print("   -i, --jobid=JOBID\tID of the Job")
-	print("   -D, --dependencies=DEPS\tIDs of the dependent jobs (exemple : \"21 22 23\"")
+	print ("  -i, --jobid=JOBID\tID of the Job")
+	print ("  -T, --timeout=TIMEOUT\ttimeout for the job")
+	print ("  -D, --dependencies=DEPS\tIDs of the dependent jobs (exemple : \"21 22 23\"")
+	print ("  -P, --parent=PARENT\tId of of the parent of the job")
 	print ("  -v, --verbose\t\tIncrease verbosity")
 
 	print ("\nExample : control -t \"Job\" -a \"Linux\" -c \"echo Hello world!\" http://localhost:8080 add")
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "a:d:e:hr:s:t:v:c:i:D:p:", ["affinity=", "directory=", "end=", "help", "retry=", "start=", "title=", "verbose=", "command=", "dependencies=", "priority"])
+	opts, args = getopt.getopt(sys.argv[1:], "a:d:e:h:r:s:t:v:c:i:D:p:T:P:", ["affinity=", "directory=", "end=", "help", "retry=", "start=", "title=", "verbose=", "command=", "dependencies=", "priority", "timeout","parent"])
 	if len(args) != 2 :
 		usage()
 		sys.exit(2)
 	serverUrl = args[0]
+        while serverUrl[-1] == '/':
+            serverUrl = serverUrl[:-1]
 	action = args[1]
 except getopt.GetoptError, err:
 	# print help information and exit:
@@ -71,6 +77,10 @@ for o, a in opts:
 		id=a
 	elif o in ("-D", "--dependencies"):
 		dependencies=a
+	elif o in ("-T", "--timeout"):
+		timeout=int(a)
+	elif o in ("-P", "--parent"):
+		parent=int(a)
 	else:
 		assert False, "unhandled option " + o
 
@@ -79,19 +89,25 @@ def output (str):
 	if verbose:
 		print (str)
 
-server = xmlrpclib.ServerProxy(serverUrl + "/xmlrpc")
+service = xmlrpclib.ServerProxy(serverUrl + "/xmlrpc")
 
 if action=="add":
-	num=server.addjob (title, cmd, dir, priority, retry, affinity, dependencies)
+	num=service.addjob (parent, title, cmd, dir, priority, retry, timeout, affinity, dependencies)
 	print(num)
 elif action=="list":
-	jobs=server.getjobs()
+	jobs=service.getjobs(parent)["Jobs"]
+	parents=service.getjobs(parent)["Parents"]
+	
+	parents_info=''
+	for i in range(len(parents)):
+		parents_info = parents_info+ str(parents[i]["ID"])+" " +str(parents[i]["Title"])+ " > "
+	print(parents_info)
 	for i in range(len(jobs)):
 		print(str(jobs[i]["ID"])+" "+str(jobs[i]["Title"])+" "+str(jobs[i]["State"])+" "+str(jobs[i]["Priority"])+" "+str(jobs[i]["Affinity"])+" "+str(jobs[i]["Worker"])+" "+str(jobs[i]["Duration"])+" "+str(jobs[i]["Try"])+" "+str(jobs[i]["Command"])+" "+str(jobs[i]["Dir"]))
 elif action=="remove":
 	if id<0: 
-		print("Use option -id to specify the job id to remove")
+		print("Use option -i to specify the job id to remove")
 	else:
-		server.clearjob(int(id))
+		service.clearjob(int(id))
 else:
 	print("I don't know what to do with myself. Use another action")

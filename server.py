@@ -624,7 +624,7 @@ class CState:
 			job.PingTime = safeInt (job.PingTime, time.time ())
 			job.Try = safeInt (job.Try, 0)
 			job.Retry = safeInt (job.Retry, 10)
-			job.TimeOut = safeInt (job.Try, 0)
+			job.TimeOut = safeInt (job.TimeOut, 0)
 			job.Priority = safeInt (job.Priority, 1000)
 			job.Affinity = safeStr (job.Affinity, "")
 			job.User = safeStr (job.User, "")
