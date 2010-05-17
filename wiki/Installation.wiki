@@ -1,9 +1,9 @@
 = Installation =
 == Linux ==
 
-There is no distribution but the SVN for the moment. So use the source Tab of google code and follow the instructions to download the source code.
-
+Download the archive file Coalition-Linux-1.0.tar.gz, extract.
 Be sure to install pyton 2.5 and twisted matrix (for the server)
+Follow the instructions on the main page.  
 
 == Windows ==
 
