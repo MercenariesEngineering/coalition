@@ -11,13 +11,15 @@ tar -xzf Coalition-Linux-xxx.0.tar.gz
 Be sure to install pyton 2.5 and twisted matrix (for the server)
 Be sure the user used to run the server as the writing permissions in the coalition directory.
 
-For the server, setup a deamon that executes the command 
-'python server.py' at start up in the coalition directory.
+To start the server, run 'python server.py' in the coalition directory.
 
-For each workers, setup a deamon that executes the command 
-'python worker.py' at start up in the coalition directory.
+To start the workers, run 'python worker.py' in the coalition directory.
 
-Follow the instructions on the main page http://code.google.com/p/coalition/
+The workers should locate the server by them self. If you have multiple servers or if the UDP broadcast doesn't work on your network, you can specify the server url on the command line or in the coalition.ini file.
+
+Use the verbose option (-v) on the server and the worker to get more informations.
+
+Follow the pthers instructions on the main page http://code.google.com/p/coalition/
 
 == Windows ==
 
