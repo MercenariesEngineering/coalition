@@ -1,8 +1,22 @@
 = Installation =
 == Linux ==
 
-Download the archive file Coalition-Linux-1.0.tar.gz, extract.
+Create a coalition directory.
+
+Download the archive file Coalition-Linux-xxx.0.tar.gz in this directory.
+
+Un-tar it :
+tar -xzf Coalition-Linux-xxx.0.tar.gz
+
 Be sure to install pyton 2.5 and twisted matrix (for the server)
+Be sure the user used to run the server as the writing permissions to the coalition directory.
+
+For the server, setup a deamon that executes the command 
+'python server.py' at start up in the coalition directory.
+
+For each workers, setup a deamon that executes the command 
+'python worker.py' at start up in the coalition directory.
+
 Follow the instructions on the main page http://code.google.com/p/coalition/
 
 == Windows ==
