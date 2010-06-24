@@ -15,7 +15,9 @@ To start the server, run 'python server.py' in the coalition directory.
 
 To start the workers, run 'python worker.py' in the coalition directory.
 
-The workers should locate the server by them self. If you have multiple servers or if the UDP broadcast doesn't work on your network, you can specify the server url on the command line or in the coalition.ini file.
+You may have to setup some deamons to do that at the systems startup.
+
+The workers should locate the server by themself. If you have multiple servers or if the UDP broadcast doesn't work on your network, you can specify the server url on the command line or in the coalition.ini file.
 
 Use the verbose option (-v) on the server and the worker to get more informations.
 
