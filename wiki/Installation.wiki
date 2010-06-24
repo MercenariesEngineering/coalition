@@ -19,9 +19,9 @@ You may have to setup some deamons to do that at the systems startup.
 
 The workers should locate the server by themself. If you have multiple servers or if the UDP broadcast doesn't work on your network, you can specify the server url on the command line or in the coalition.ini file.
 
-Use the verbose option (-v) on the server and the worker to get more informations.
+Use the verbose option (-v) on the server and the workers to get more informations.
 
-Follow the pthers instructions on the main page http://code.google.com/p/coalition/
+Follow the others instructions on the main page http://code.google.com/p/coalition/
 
 == Windows ==
 
