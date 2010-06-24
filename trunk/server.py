@@ -442,6 +442,8 @@ class CState:
 
 	# Can be executed
 	def canExecute (self, id) :
+		if id == 0:
+			return False
 		job = self.Jobs[id]
 		if job.State == "FINISHED" or job.State == "WORKING" or job.State == "PAUSED" :
 			# Don't execute a finished job or a working job

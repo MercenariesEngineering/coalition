@@ -189,19 +189,6 @@ def workerGetLoadAvg ():
 	except:
 		return -1
 
-def workerEvalEnv (_str):
-	if platform.system () != 'Windows':
-		def _mapDrive (match):
-			return '$(' + match.group(1).upper () + '_DRIVE)'
-		_str = re.sub ('^([a-zA-Z]):', _mapDrive, _str)
-	def _getenv (match):
-		result = os.getenv (match.group(1))
-		if result == None:
-			info ("Environment variable not found : " + match.group(1))
-			result = ""
-		return result
-	return re.sub ('\$\(([^)]*)\)', _getenv, _str)
-
 # A Singler worker
 class Worker:
 	def __init__ (self, name):
@@ -211,6 +198,19 @@ class Worker:
 		self.ErrorCode = 0						# The process exit error code
 		self.LogLock = thread.allocate_lock()	# Logs lock
 		self.Log = ""							# Logs
+
+	def workerEvalEnv (self, _str):
+		if platform.system () != 'Windows':
+			def _mapDrive (match):
+				return '$(' + match.group(1).upper () + '_DRIVE)'
+			_str = re.sub ('^([a-zA-Z]):', _mapDrive, _str)
+		def _getenv (match):
+			result = os.getenv (match.group(1))
+			if result == None:
+				self.info ("Environment variable not found : " + match.group(1))
+				result = ""
+			return result
+		return re.sub ('\$\(([^)]*)\)', _getenv, _str)
 
 	# Add to the logs
 	def info (self, str):
@@ -230,10 +230,11 @@ class Worker:
 			#os.seteuid (pwd.getpwnam (user)[2])
 			cmd = "su - " + user + " -c \"" + "cd "+ dir + "; " +cmd + "\""
 		else:
-			try:
-				os.chdir (dir)
-			except OSError, err:
-				self.info ("Can't change dir to " + dir + ": " + str (err))
+			if dir != "" :
+				try:
+					os.chdir (dir)
+				except OSError, err:
+					self.info ("Can't change dir to " + dir + ": " + str (err))
 
 		# Serious quoting under windows
 		if sys.platform=="win32":
@@ -344,8 +345,10 @@ class Worker:
 		jobId, cmd, dir, user = workerRun (self, startFunc, True)
 
 		if jobId != -1:
-			_cmd = workerEvalEnv (cmd)
-			_dir = workerEvalEnv (dir)
+			self.Log = ""
+
+			_cmd = self.workerEvalEnv (cmd)
+			_dir = self.workerEvalEnv (dir)
 			debugOutput ("Start job " + str (jobId) + " in " + _dir + " : " + _cmd)
 
 			# Reset the globals
@@ -354,7 +357,6 @@ class Worker:
 			self.PId = 0
 
 			# Launch a new thread to run the process
-			self.Log = ""
 
 			# Set the working directory in the main thead
 			thread.start_new_thread (self.execProcess, (_cmd, _dir, user))
