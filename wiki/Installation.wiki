@@ -9,7 +9,7 @@ Un-tar it :
 tar -xzf Coalition-Linux-xxx.0.tar.gz
 
 Be sure to install pyton 2.5 and twisted matrix (for the server)
-Be sure the user used to run the server as the writing permissions to the coalition directory.
+Be sure the user used to run the server as the writing permissions in the coalition directory.
 
 For the server, setup a deamon that executes the command 
 'python server.py' at start up in the coalition directory.
