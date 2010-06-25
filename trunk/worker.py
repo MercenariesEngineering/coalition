@@ -14,7 +14,7 @@ if sys.platform=="win32":
 global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, xmlrpcServer, workers
 debug = False
 verbose = False
-sleepTime = 2
+sleepTime = 5
 affinity = ""
 name = socket.gethostname()
 broadcastPort = 19211
