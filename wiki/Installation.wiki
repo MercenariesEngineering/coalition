@@ -17,10 +17,6 @@ To start the workers, run 'python worker.py' in the coalition directory.
 
 You may have to setup some deamons to do that at the systems startup.
 
-The workers should locate the server by themself. If you have multiple servers or if the UDP broadcast doesn't work on your network, you can specify the server url on the command line or in the coalition.ini file.
-
-Use the verbose option (-v) on the server and the workers to get more informations.
-
 Follow the others instructions on the main page http://code.google.com/p/coalition/
 
 == Windows ==
@@ -54,8 +50,10 @@ Once the services are up, the workers will try to connect the server. If all the
 
 You can see the connected workers in the worker page on the monitor.
 
-If the workers can't connect the server, you will have to edit the coalition.ini file present in the coalition directory of the workers and setup the option serverUrl like this:
+The workers should locate the server by themself. If you have multiple servers or if the UDP broadcast doesn't work on your network, you can specify the server url on the command line or in the coalition.ini file, like this :
 
 serverUrl=http://servername:19211
 
 Where "servername" is the name of the server and 19211 its port. 19211 is the default port for a coalition server.
+
+Use the verbose option (-v) on the server and the workers to get more informations on what's going on.
