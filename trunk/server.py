@@ -1,10 +1,13 @@
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
-import pickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random
+import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random
 
 # This module is standard in Python 2.2, otherwise get it from
 #   http://www.pythonware.com/products/xmlrpc/
 import xmlrpclib
+
+GErr=0
+GOk=0
 
 # Go to the script directory
 global installDir, dataDir
@@ -225,17 +228,17 @@ class CState:
 		self.Workers = {}
 		self._ActiveJobs = set ()
 		self.addJob (0, Job ("Root", priority=1, retry=0))
-		self._UpdatedDb = True
+		self._UpdatedDb = False
 		self._StAffinity = {}			# static affinity
 		self._DynAffinity = {}			# dynamic affinity, job affinity concatened to the children jobs affinity
 
 	# Read the state
 	def read (self, fo):
-		version = pickle.load(fo)
+		version = cPickle.load(fo)
 		if version == DBVersion:
-			self.Counter = pickle.load (fo)
-			self.Jobs = pickle.load (fo)
-			self.Workers = pickle.load (fo)
+			self.Counter = cPickle.load (fo)
+			self.Jobs = cPickle.load (fo)
+			self.Workers = cPickle.load (fo)
 			self._refresh ()
 			#self.dump ()
 		else:
@@ -245,10 +248,10 @@ class CState:
 	# Write the state
 	def write (self, fo):
 		version = DBVersion
-		pickle.dump (version, fo)
-		pickle.dump (self.Counter, fo)
-		pickle.dump (self.Jobs, fo)
-		pickle.dump (self.Workers, fo)
+		cPickle.dump (version, fo)
+		cPickle.dump (self.Counter, fo)
+		cPickle.dump (self.Jobs, fo)
+		cPickle.dump (self.Workers, fo)
 		self._UpdatedDb = False
 		#self.dump ()
 
@@ -279,7 +282,7 @@ class CState:
 		for name, worker in State.Workers.iteritems ():
 			if worker.State != "TIMEOUT" and _time - worker.PingTime > TimeOut:
 				self.updateWorkerState (name, "TIMEOUT")
-		if self._UpdatedDb or forceSaveDb:
+		if forceSaveDb:
 			saveDb ()
 
 	# -----------------------------------------------------------------------
@@ -506,6 +509,11 @@ class CState:
 
 	# Update job state
 	def updateJobState (self, id, state) :
+		global GErr, GOk
+		if state == "ERROR" :
+			GErr += 1
+		if state == "FINISHED" :
+			GOk += 1
 		try :
 			job = self.Jobs[id]
 			if job.State != state :
@@ -642,7 +650,7 @@ class CState:
 				totalerrors += child.TotalErrors
 				totalfinished += child.TotalFinished
 				if child.State == "ERROR":
-					totalerror += 1
+					totalerrors += 1
 				elif child.State == "FINISHED":
 					totalfinished += 1
 			self._updateAffinity (job.ID)
@@ -880,7 +888,6 @@ class Master (xmlrpc.XMLRPC):
 		State.update ()
 		return 1
 
-	# update several jobs props at once
 	def xmlrpc_updatejobs (self, ids, prop, value):
 		global State
 		try:
@@ -1095,18 +1102,22 @@ class Workers(xmlrpc.XMLRPC):
 # Write the DB on disk
 def saveDb ():
 	global State, dataDir
-	fo = open(dataDir + "/master_db.part", "wb")
-	try:
-		State.write (fo)
-		fo.close()
+	global GErr, GOk
+#	print ("Error : " + str(GErr) + " OK : " + str(GOk))
+	if State._UpdatedDb:
+		fo = open(dataDir + "/master_db.part", "wb")
 		try:
-			os.remove (dataDir + '/master_db')
-		except OSError:
-			pass
-		os.rename (dataDir + '/master_db.part', dataDir + '/master_db')
-	except IOError:
-		fo.close()		
-	output ("DB saved")
+			State.write (fo)
+			fo.close()
+			try:
+				os.remove (dataDir + '/master_db')
+			except OSError:
+				pass
+			os.rename (dataDir + '/master_db.part', dataDir + '/master_db')
+		except IOError:
+			fo.close()		
+		output ("DB saved")
+	reactor.callLater(5, saveDb)
 
 # Read the DB from disk
 def readDb ():
@@ -1116,7 +1127,8 @@ def readDb ():
 		fo = open(dataDir + "/master_db", "rb")
 		try:
 			State.read (fo)
-		except:
+		except Exception as inst:
+			print inst.args
 			fo.close()
 			print ("Error reading master_db, create a new one")
 			State = CState()
@@ -1159,6 +1171,7 @@ def main():
 	root.putChild('workers', workers)
 	output ("Listen on port " + str (port))
 	reactor.listenTCP(port, server.Site(root))
+	reactor.callLater(5, saveDb)
 	reactor.run()
 
 if sys.platform=="win32" and service:
