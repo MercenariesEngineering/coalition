@@ -19,6 +19,13 @@ if compile:
 	os.system ("python setup_py2exe.py py2exe")
 
 if buildNsis:
+	# Get the version number
+	f = open ("coalition.version", "r")
+	version = f.read ()
+	version = re.sub ("\n", "", version)
+	version = re.sub ("\r", "", version)
+	f.close ()
+
 	# Generates the NSIS script
 	f = open ("install/win32/coalition.nsi", "r")
 	script = f.read ()
@@ -72,6 +79,8 @@ if buildNsis:
 	script = re.sub ("__INSTALL_FILES__", installFiles, script)
 	removeFiles = re.sub ("\\\\", "\\\\\\\\", removeFiles)
 	script = re.sub ("__REMOVE_FILES__", removeFiles, script)
+	
+	script = re.sub ("__VERSION__", version, script)
 
 	f = open ("_coalition.nsi", "w")
 	f.write (script)

@@ -114,5 +114,5 @@ noUninstallWarning:
 __REMOVE_FILES__
 Sectionend
 
-Name "Coalition v0.5"
-OutFile "Coalition-Win32-0.5.exe"
+Name "Coalition v__VERSION__"
+OutFile "Coalition-Win32-__VERSION__.exe"

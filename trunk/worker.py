@@ -282,6 +282,16 @@ class Worker:
 		# Signal to the main process the job is finished
 		self.Working = False
 
+	### To kill the current worker job
+	def killJob (self):
+		if self.PId != 0:
+			debugOutput ("kill " + str (self.PId))
+			try:
+				self.killr (self.PId)
+				self.PId = 0
+			except OSError:
+				debugOutput ("kill failed")
+				pass
 
 	### To kill all child process
 	def killr (self, pid): 
@@ -321,16 +331,8 @@ class Worker:
 
 			if not result:
 				debugOutput ("Server ask to stop the job " + str (jobId))
-
 				# Send the kill signal to the process
-				if self.PId != 0:
-					debugOutput ("kill " + str (self.PId))
-					try:
-						self.killr (self.PId)
-						self.PId = 0
-					except OSError:
-						debugOutput ("kill failed")
-						pass
+				self.killJob ()
 		workerRun (self, func, retry)
 
 	# Worker main loop
@@ -436,6 +438,8 @@ def main ():
 					if gogogo:
 						time.sleep (sleepTime)
 		debugOutput ("WORKER " + worker.Name + " is kindly asked to quit.")
+		# kill any job in process
+		worker.killJob ()
 
 	# start each thread
 	for k in range (workers):

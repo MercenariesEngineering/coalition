@@ -1127,7 +1127,7 @@ def readDb ():
 		fo = open(dataDir + "/master_db", "rb")
 		try:
 			State.read (fo)
-		except Exception as inst:
+		except Exception, inst:
 			print inst.args
 			fo.close()
 			print ("Error reading master_db, create a new one")
