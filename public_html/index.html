@@ -31,11 +31,13 @@
 <div id="tools" style="background:#d0d0ff;border:solid black 1px;padding:5px">
 <div id="jobtools" style="padding:0px">
 Select: <input type='button' name='myButton' value='All' onclick='selectAll (true)'>
-        <input type='button' name='myButton' value='None' onclick='selectAll (false)'><hr>
+        <input type='button' name='myButton' value='None' onclick='selectAll (false)'>
+        <input type='button' name='myButton' value='Hide' onclick='showHideTools ()'>
+        <hr>
 Action: <input type='button' name='myButton' value='Remove' onclick='removeSelection()'>
         <input type='button' name='myButton' value='Reset' onclick='resetSelection()'>
         <input type='button' name='myButton' value='Pause' onclick='pauseSelection()'>
-<hr>
+        <hr>
 Add a job :
 <table>
 <tr>
@@ -76,10 +78,13 @@ Add a job :
 </div>
 <div id="workertools" style="padding:0px">
 Select: <input type='button' name='myButton' value='All' onclick='selectAll (true)'>
-        <input type='button' name='myButton' value='None' onclick='selectAll (false)'><hr>
+        <input type='button' name='myButton' value='None' onclick='selectAll (false)'>
+        <input type='button' name='myButton' value='Hide' onclick='showHideTools ()'>
+        <hr>
 Action: <input type='button' name='myButton' value='Clear All' onclick='clearWorkers ()'>
         <input type='button' name='myButton' value='Start' onclick='startWorkers ()'>
-        <input type='button' name='myButton' value='Stop' onclick='stopWorkers ()'><hr>
+        <input type='button' name='myButton' value='Stop' onclick='stopWorkers ()'>
+        <hr>
 <table>
 <tr>
 <td>Affinity:</td><td><input type='edit' id='waffinity' name='waffinity' value='' onchange='onchangeworkerprop ("waffinity")'></td>
@@ -87,6 +92,9 @@ Action: <input type='button' name='myButton' value='Clear All' onclick='clearWor
 </tr>
 </table>
 <input type='button' name='updateworkersButton' value='Update' onclick='updateworkers()'>
+</div>
+<div id="showhidetools" style="padding:0px">
+        <input type='button' name='myButton' value='Show' onclick='showHideTools ()'>
 </div>
 </div>
 

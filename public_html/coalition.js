@@ -9,7 +9,10 @@ var workers = {};
 var parents = {};
 var jobsSortKey = "ID";
 var jobsSortKeyToUpper = true;
+var workersSortKey = "Name";
+var workersSortKeyToUpper = true;
 var selectionStart = 0;
+var showTools = true;
 
 function setJobKey (id)
 {
@@ -22,6 +25,19 @@ function setJobKey (id)
 		jobsSortKeyToUpper = true;
 	}
 	renderJobs ();
+}
+
+function setWorkerKey (id)
+{
+	// Same key ?
+	if (workersSortKey == id)
+		workersSortKeyToUpper = !workersSortKeyToUpper;
+	else
+	{
+		workersSortKey = id;
+		workersSortKeyToUpper = true;
+	}
+	renderWorkers ();
 }
 
 function get_cookie ( cookie_name )
@@ -53,22 +69,40 @@ $(document).ready(function()
     alignFloatLayers();
 });
 
+function showHideTools ()
+{
+    showTools = !showTools;
+    updateTools ();
+}
+
 function updateTools ()
 {
-    if (page == "jobs")
+    if (!showTools)
     {
+        $("#tools").show ();
+        $("#jobtools").hide ();
+        $("#workertools").hide ();
+        $("#showhidetools").show ();
+    }
+    else if (page == "jobs")
+    {
+        $("#tools").show ();
         $("#jobtools").show ();
         $("#workertools").hide ();
+        $("#showhidetools").hide ();
         alignFloatLayers();
     }
     else if (page == "workers")
     {
+        $("#tools").show ();
         $("#jobtools").hide ();
         $("#workertools").show ();
+        $("#showhidetools").hide ();
         alignFloatLayers();
     }
     else
     {
+        $("#tools").hide ();
         $("#jobtools").hide ();
         $("#workertools").hide ();
         alignFloatLayers();
@@ -183,18 +217,18 @@ function refresh ()
 		renderLog (logId);
 }
 
-function compareStrings (a,b)
+function compareStrings (a,b,toupper)
 {
 	if (a < b)
-		return jobsSortKeyToUpper ? -1 : 1;
+		return toupper ? -1 : 1;
 	if (a == b)
 		return 0;
-	return jobsSortKeyToUpper ? 1 : -1;
+	return toupper ? 1 : -1;
 }
 
-function compareNumbers (a,b)
+function compareNumbers (a,b,toupper)
 {
-	return jobsSortKeyToUpper ? a-b : b-a;
+	return toupper ? a-b : b-a;
 }
 
 // Render the current jobs
@@ -207,9 +241,9 @@ function renderJobs ()
 	{
 		var aValue = a[jobsSortKey];
 		if (typeof aValue == 'string')
-			return compareStrings (aValue, b[jobsSortKey]);
+			return compareStrings (aValue, b[jobsSortKey], jobsSortKeyToUpper);
 		else
-			return compareNumbers (aValue, b[jobsSortKey]);
+			return compareNumbers (aValue, b[jobsSortKey], jobsSortKeyToUpper);
 	}
 
 	jobs.sort (_sort);
@@ -485,7 +519,49 @@ function renderWorkers ()
 	var table = "<table id='workers'>";
 
 	$("#main").append("<br>");
-	table += "<tr class='title'><th>Name</th><th>Active</th><th>State</th><th>Affinity</th><th>Load</th><th>LastJob</th><th>Finished</th><th>Error</th></tr>\n";
+	table += "<tr class='title'>\n";
+
+	// Returns the HTML code for a worker title column
+	function addTitleHTML (attribute)
+	{
+		table += "<th>";
+		var value = workers[0];
+		if (value && value[attribute] != null)
+		{
+			table += "<a href='javascript:setWorkerKey(\""+attribute+"\")'>"+attribute;
+			if (attribute == workersSortKey && workersSortKeyToUpper)
+				table += " &#8595;";
+			if (attribute == workersSortKey && !workersSortKeyToUpper)
+				table += " &#8593;";
+			table += "</a>";
+		}
+		else
+			table += attribute;
+		table += "</th>";
+	}
+
+    addTitleHTML ("Name");
+    addTitleHTML ("Active");
+    addTitleHTML ("State");
+    addTitleHTML ("Affinity");
+    addTitleHTML ("Load");
+    addTitleHTML ("LastJob");
+    addTitleHTML ("Finished");
+    addTitleHTML ("Error");
+
+	table += "</tr>\n";
+
+	function _sort (a,b)
+	{
+		var aValue = a[workersSortKey];
+		if (typeof aValue == 'string')
+			return compareStrings (aValue, b[workersSortKey], workersSortKeyToUpper);
+		else
+			return compareNumbers (aValue, b[workersSortKey], workersSortKeyToUpper);
+	}
+
+	workers.sort (_sort);
+
 	for (i=0; i < workers.length; i++)
 	{
 		var worker = workers[i];
