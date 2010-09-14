@@ -8,6 +8,7 @@ To add a job using the HTTP interface, simply GET or POST the url http://host:po
   * priority : the priority of the job
   * affinity : the affinities of the job
   * retry : how many times the job should be retry
+  * parent : parent job number (>= v2)
 
 Example :
 
