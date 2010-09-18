@@ -32,12 +32,16 @@ The installer can register the worker to be started/stopped when the computer go
 
 === For the developers ===
 
-Install python 2.5, and the corresponding twisted and win32api modules.
+Install python 2.6, and the corresponding twisted and win32api modules.
 
   * python : [http://www.python.org/download/windows/]
   * twisted (for the server) : [http://twistedmatrix.com/trac/wiki/Downloads]
   * win32api : [http://sourceforge.net/project/showfiles.php?group_id=78018]
-  * NSIS (to build the installer) : [http://nsis.sourceforge.net/Download]
+
+To build the installer :
+  * py2exe
+  * NSIS : [http://nsis.sourceforge.net/Download]
+  * NSIS AccessControl plug-in : [http://nsis.sourceforge.net/AccessControl_plug-in]
 
 = Setup the farm =
 
