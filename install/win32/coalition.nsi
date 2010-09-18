@@ -17,8 +17,10 @@ SectionIn RO
 
 	ReadRegStr $R1 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Coalition" "UninstallString"
 	StrCmp $R1 "" UninstallMSI_nomsi
-		MessageBox MB_YESNOCANCEL|MB_ICONQUESTION  "A previous version of Coalition was found. It is recommended that you uninstall it first.$\n$\nDo you want to do that now?" IDNO UninstallMSI_nomsi IDYES UninstallMSI_yesmsi
-			Quit
+		IfSilent noUninstallWarning
+			MessageBox MB_YESNOCANCEL|MB_ICONQUESTION  "A previous version of Coalition was found. It is recommended that you uninstall it first.$\n$\nDo you want to do that now?" IDNO UninstallMSI_nomsi IDYES UninstallMSI_yesmsi
+				Quit
+noUninstallWarning:
 	UninstallMSI_yesmsi:
 		ExecWait '$R1 /S _?=$INSTDIR'
 	UninstallMSI_nomsi: 
