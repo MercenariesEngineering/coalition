@@ -57,7 +57,7 @@ def cfgBool (name, defvalue):
 port = cfgInt ('port', 19211)
 TimeOut = cfgInt ('timeout', 10)
 verbose = cfgBool ('verbose', False)
-service = cfgBool ('service', False)
+service = cfgBool ('service', True)
 
 LDAPServer = ""
 LDAPTemplate = ""

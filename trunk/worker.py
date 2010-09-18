@@ -23,7 +23,7 @@ serverUrl = ""
 workers = 1
 cpus = None
 startup = ""
-service = False
+service = True
 install = False
 
 # Go to the script directory
@@ -80,7 +80,7 @@ name = cfgStr ('name', socket.gethostname())
 sleepTime = cfgInt ('sleep', 2)
 cpus = cfgInt ('cpus', None)
 startup = cfgStr ('startup', '')
-service = cfgBool ('service', False)
+service = cfgBool ('service', True)
 verbose = cfgBool ('verbose', False)
 
 def usage():
