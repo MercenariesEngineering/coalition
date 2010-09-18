@@ -39,6 +39,8 @@ Install python 2.6, and the corresponding twisted and win32api modules.
   * win32api : [http://sourceforge.net/project/showfiles.php?group_id=78018]
 
 To build the installer :
+  * setuptools : [http://pypi.python.org/pypi/setuptools]
+  * zope.interface : [http://pypi.python.org/pypi/zope.interface#downloads]
   * py2exe
   * NSIS : [http://nsis.sourceforge.net/Download]
   * NSIS AccessControl plug-in : [http://nsis.sourceforge.net/AccessControl_plug-in]
