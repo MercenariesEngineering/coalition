@@ -52,7 +52,8 @@ noUninstallWarning:
 __INSTALL_FILES__
 
 	; Install msvc redist
-	;ExecWait '"$INSTDIR\vcredist_x86.exe"'
+	ExecWait '"$INSTDIR\vcredist_x86.exe /q"'
+	Delete $INSTDIR\vcredist_x86.exe
 
 SectionEnd
 

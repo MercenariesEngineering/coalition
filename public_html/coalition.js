@@ -1,10 +1,11 @@
 var xmlrpc;
-var service;
 var timer;
 var page = "jobs";
 var viewJob = 0;
 var logId = 0;
 var jobs = {};
+var selectedJobs = {};
+var selectedWorkers = {};
 var workers = {};
 var parents = {};
 var jobsSortKey = "ID";
@@ -52,21 +53,10 @@ function get_cookie ( cookie_name )
 
 $(document).ready(function()
 {
-	xmlrpc = imprt("xmlrpc");
-	service = new xmlrpc.ServerProxy ("/xmlrpc", ["getjobs", "clearjobs", "clearjob", "getworkers", "clearworkers",
-	                                              "getlog", "addjob", "resetjob", "startworker", "stopworker", "setjobpriority",
-	                                              "updatejobs", "updateworkers", "pausejob"]);
-	timerCB ();
-
-	tools = new FloatLayer('tools',15,15,1);
-    lay=document.getElementById('tools');
-    lay.style.position = 'absolute';
-    lay.style.top = 15;
-    lay.style.right = 15;
-    tools.initialize();
-    tools.setFloatToRight();
-
-    alignFloatLayers();
+	reloadJobs ();
+	reloadWorkers ();
+	showJobs ();
+	timer=setTimeout(timerCB,4000);
 });
 
 function showHideTools ()
@@ -89,72 +79,19 @@ function updateTools ()
         $("#tools").show ();
         $("#jobtools").show ();
         $("#workertools").hide ();
-        $("#showhidetools").hide ();
-        alignFloatLayers();
     }
     else if (page == "workers")
     {
         $("#tools").show ();
         $("#jobtools").hide ();
         $("#workertools").show ();
-        $("#showhidetools").hide ();
-        alignFloatLayers();
     }
     else
     {
         $("#tools").hide ();
         $("#jobtools").hide ();
         $("#workertools").hide ();
-        alignFloatLayers();
     }
-}
-
-function clearJobs ()
-{
-	if (confirm("Do you really want to clear all the jobs ?"))
-	{
-		service.clearjobs (viewJob);
-		reloadJobs ();
-	}
-}
-
-function clearJob (jobId)
-{
-	if (confirm("Do you really want to remove the job " + jobId + " ?"))
-	{
-	    service.clearjob (jobId);
-
-	    // Remove from the job list
-	    for (i=0; i < jobs.length; i++)
-	    {
-		    var job = jobs[i];
-		    if (job.ID == jobId)
-		    {
-			    jobs.splice (i,1);
-			    break;
-		    }
-	    }
-    	
-	    // Remove from the DOM
-	    $("#table"+i).remove();
-
-	    // reloadJobs ();
-    }
-}
-
-function resetJob (jobId)
-{
-	if (confirm("Do you really want to reset the job " + jobId + " ?"))
-	{
-	    service.resetjob (jobId);
-	    reloadJobs ();
-    }
-}
-
-function pauseJob (jobId)
-{
-    service.pausejob (jobId);
-    reloadJobs ();
 }
 
 function goToJob (jobId)
@@ -163,23 +100,61 @@ function goToJob (jobId)
     reloadJobs ();
 }
 
-function renderLog (jobId)
+function showLog ()
 {
-	logId = jobId;
-	$("#main").empty ();
-	var _log = service.getlog (jobId);
-	$("#main").append("<pre class='logs'><h2>Logs for job "+jobId+":</h2>"+_log+"</pre>");
+	$("#jobsTab").hide ();
+	$("#workersTab").hide ();
+	$("#logsTab").show ();
+	document.getElementById("jobtab").className = "unactivetab";
+	document.getElementById("workertab").className = "unactivetab";
+	document.getElementById("logtab").className = "activetab";
 
 	page = "logs";
 	updateTools ();
+}
+
+function clearLog ()
+{
+	$("#logs").empty ();
+}
+
+function renderLog (jobId)
+{
+    showLog ();
+	logId = jobId;
+
+    $.ajax({ type: "GET", url: "/json/getlog", data: "id="+str(jobId), dataType: "json", success: 
+        function (data) 
+        {
+	        $("#logs").empty();
+	        $("#logs").append("<pre class='logs'><h2>Logs for job "+jobId+":</h2>"+data+"</pre>");
+
+	        page = "logs";
+	        updateTools ();
+            document.getElementById("refreshbutton").className = "refreshbutton";
+        }
+    });
 }
 
 function clearWorkers ()
 {
 	if (confirm("Do you really want to clear all the workers?"))
 	{
-	    service.clearworkers ();
-	    reloadWorkers ();
+	    var _data = "";
+		for (j=workers.length-1; j >= 0; j--)
+		{
+			var worker = workers[j];
+			if (selectedWorkers[worker.Name])
+			    _data += "id="+str(worker.Name)+"&";
+		}
+        $.ajax({ type: "GET", url: "/json/clearworkers", data: _data, dataType: "json", success: 
+            function () 
+            {
+    	        selectedWorkers = {}
+	            reloadWorkers ();
+    	        updateWorkerProps ();
+            }
+        });
 	}
 }
 
@@ -201,14 +176,16 @@ function formatDuration (secondes)
 // Timer callback
 function timerCB ()
 {
-	refresh ();
+    if (document.getElementById("autorefresh").checked)
+	    refresh ();
 
 	// Fire a new time event
-	// timer=setTimeout("timerCB ()",4000);
+	timer=setTimeout(timerCB,4000);
 }
 
 function refresh ()
 {
+    document.getElementById("refreshbutton").className = "refreshing";
 	if (page == "jobs")
 		reloadJobs ();
 	else if (page == "workers") 
@@ -231,11 +208,25 @@ function compareNumbers (a,b,toupper)
 	return toupper ? a-b : b-a;
 }
 
+function showJobs ()
+{
+	$("#jobsTab").show ();
+	$("#workersTab").hide ();
+	$("#logsTab").hide ();
+	document.getElementById("jobtab").className = "activetab";
+	document.getElementById("workertab").className = "unactivetab";
+	document.getElementById("logtab").className = "unactivetab";
+
+	page = "jobs";
+	updateTools ();
+}
+
 // Render the current jobs
 function renderJobs ()
 {
-	$("#main").empty ();
-	var table = "<table id='jobs' border=0 cellspacing=1 cellpadding=0>";
+	$("#jobs").empty ();
+	$("#parents").empty ();
+	var table = "<table id='jobsTable'>";
 
 	function _sort (a,b)
 	{
@@ -251,22 +242,21 @@ function renderJobs ()
 	for (i=0; i < parents.length; i++)
 	{
 		var parent = parents[i];
-    	$("#main").append((i == 0 ? "" : " > ") + ("<a href='javascript:goToJob("+parent.ID+")'>" + parent.Title + "</a>"));
+    	$("#parents").append((i == 0 ? "" : " > ") + ("<a href='javascript:goToJob("+parent.ID+")'>" + parent.Title + "</a>"));
 	}
 
 	// Returns the HTML code for a job title column
 	function addTitleHTMLEx (attribute, alias)
 	{
-		table += "<th>";
+		table += "<th class='headerCell' onclick='"+"setJobKey(\""+attribute+"\")'>";
 		var value = jobs[0];
 		if (value && value[attribute] != null)
 		{
-			table += "<a href='javascript:setJobKey(\""+attribute+"\")'>"+alias;
+			table += alias;
 			if (attribute == jobsSortKey && jobsSortKeyToUpper)
 				table += " &#8595;";
 			if (attribute == jobsSortKey && !jobsSortKeyToUpper)
 				table += " &#8593;";
-			table += "</a>";
 		}
 		else
 			table += attribute;
@@ -288,6 +278,7 @@ function renderJobs ()
 	addTitleHTMLEx ("TotalFinished", "Ok");
 	addTitleHTMLEx ("TotalErrors", "Err");
 	addTitleHTML ("Total");
+	addTitleHTML ("Progress");
 	addTitleHTML ("Affinity");
 	addTitleHTML ("TimeOut");
 	addTitleHTML ("Worker");
@@ -296,30 +287,31 @@ function renderJobs ()
 	addTitleHTML ("Command");
 	addTitleHTML ("Dir");
 	addTitleHTML ("Dependencies");
-	addTitleHTML ("Tools");
 	table += "</tr>\n";
 
 	for (i=0; i < jobs.length; i++)
 	{
 		var job = jobs[i];
 
-		table += "<tr id='table"+i+"' class='entry"+(i%2)+(job.Selected?"Selected":"")+"'>";
+        var mouseDownEvent = "onMouseDown='onClickList(event,"+i+")' onDblClick='onDblClickList(event,"+i+")'";
+        
+		table += "<tr id='jobtable"+i+"' "+mouseDownEvent+" class='entry"+(i%2)+(selectedJobs[job.ID]?"Selected":"")+"'>";
 		function addTD (attr)
 		{
-			table += "<td onMouseDown='onClickList(event,"+i+")'>" + attr + "</td>";
+			table += "<td>" + attr + "</td>";
 		}
 		//addTD (job.Order);
 		addTD (job.ID);
-		table += "<td><a href='javascript:goToJob("+job.ID+")'>" + job.Title + "</a></td>\n";
+		table += "<td>" + job.Title + "</td>\n";
 		//addTD (job.Title);
 		addTD (job.User);
-	    table += "<td class='"+job.State+"' onMouseDown='onClickList(event,"+i+")'>"+job.State+"</td>";
+	    table += "<td class='"+job.State+"'>"+job.State+"</td>";
 		addTD (job.Priority);
 		if (job.Total > 0)
 		{
-		    table += "<td class='"+(job.TotalFinished > 0 ? "FINISHED" : "WAITING")+"' width=30 onMouseDown='onClickList(event,"+i+")'>"+job.TotalFinished+"</td>";
-		    table += "<td class='"+(job.TotalErrors > 0 ? "ERROR" : "WAITING")+"' width=30 onMouseDown='onClickList(event,"+i+")'>"+job.TotalErrors+"</td>";
-		    table += "<td class='"+(job.Total == job.TotalFinished ? "FINISHED" : "WAITING")+"' width=30 onMouseDown='onClickList(event,"+i+")'>"+job.Total+"</td>";
+		    table += "<td class='"+(job.TotalFinished > 0 ? "FINISHED" : "WAITING")+"' width=30>"+job.TotalFinished+"</td>";
+		    table += "<td class='"+(job.TotalErrors > 0 ? "ERROR" : "WAITING")+"' width=30>"+job.TotalErrors+"</td>";
+		    table += "<td class='"+(job.Total == job.TotalFinished ? "FINISHED" : "WAITING")+"' width=30>"+job.Total+"</td>";
 		}
 		else
 		{
@@ -327,6 +319,42 @@ function renderJobs ()
 		    addTD ("");
 		    addTD ("");
 		}
+		
+		// *** Progress bar
+        var progress = ""
+		if (job.Total > 0)
+		{
+            // A bar div
+	        progress = "<div class='progress'>";
+            progress += "<div class='lprogressbar' style='width:" + Math.floor((job.TotalFinished / job.Total)*100.0) + "%' />";
+            progress += "<div class='progresslabel'>" + Math.floor((job.TotalFinished / job.Total)*100.0) + "%</div>";
+	        progress += "</div>";
+		}
+		else
+		{
+		    var lProgressValue = job.State == "FINISHED"  ? 
+		                    1.0 :
+		                    ( 
+    		                        job.LocalProgress == null ? 
+    		                            0.0 : 
+    		                            parseFloat(job.LocalProgress)
+                            );
+		    var gProgressValue = job.State == "FINISHED"  ? 
+		                    1.0 :
+		                    ( 
+    		                        job.GlobalProgress == null ? 
+    		                            0.0 : 
+    		                            parseFloat(job.GlobalProgress)
+                            );
+            // A bar div
+	        progress = "<div class='progress'>";
+            progress += "<div class='lprogressbar' style='width:" + Math.floor(lProgressValue*100.0) + "%; height:8px' />";
+            progress += "<div class='gprogressbar' style='width:" + Math.floor(gProgressValue*100.0) + "%; height:8px' />";
+            progress += "<div class='progresslabel'>" + Math.floor(lProgressValue*100.0) + "%|" + Math.floor(gProgressValue*100.0) + "%</div>";
+	        progress += "</div>";
+        }
+        		
+		addTD (progress);
 		addTD (job.Affinity);
 		addTD (job.TimeOut);
 		addTD (job.Worker);
@@ -342,74 +370,91 @@ function renderJobs ()
 			deps += job.Dependencies[j] + " ";
 		}
 		addTD (deps);
-		table += "</td><td><a href='javascript:renderLog("+job.ID+")'>Log</a></td></tr>\n";
+		table += "</td></tr>\n";
 	}
-	table += "</table>";
-	$("#main").append(table);
-    $("#main").append("<br/>");
+	table += "</table></div>";
+	$("#jobs").append(table);
+}
 
-	page = "jobs";
-	updateTools ();
+function logSelection ()
+{
+	for (j=jobs.length-1; j >= 0; j--)
+	{
+		var job = jobs[j];
+		if (selectedJobs[job.ID])
+			renderLog (job.ID);
+	}
 }
 
 // Ask the server for the jobs and render them
 function reloadJobs ()
 {
-    var result = service.getjobs (viewJob);
-	jobs = result.Jobs;
-	parents = result.Parents;
-	resetjobprops ();
-	renderJobs ();
-}
-
-function startWorker (workerName)
-{
-	service.startworker (workerName);
-	reloadWorkers ();
-}
-
-function stopWorker (workerName)
-{
-	service.stopworker (workerName);
-	reloadWorkers ();
+    var tag = document.getElementById("filterJobs").value;
+    tag = tag == "NONE" ? "" : tag;
+    $.ajax({ type: "GET", url: "/json/getjobs", data: "filter="+tag+"&id="+str(viewJob), dataType: "json", success: 
+        function(data) 
+        {
+	        jobs = []
+	        for (j = 0; j < data.Jobs.length; ++j)
+	        {
+	            var job = data.Jobs[j];
+	            var nj = {};
+	            for (i = 0; i < data.Vars.length; ++i)
+	            {
+	                nj[data.Vars[i]] = job[i];
+	            }
+	            jobs.push (nj);
+	        }
+	        parents = data.Parents;
+	        renderJobs ();
+            document.getElementById("refreshbutton").className = "refreshbutton";
+        }
+    });
 }
 
 function startWorkers ()
 {
+    var _data = "";
 	for (j=workers.length-1; j >= 0; j--)
 	{
 		var worker = workers[j];
-		if (worker.Selected)
-           	service.startworker (worker.Name);
+		if (selectedWorkers[worker.Name])
+           	_data += "id="+worker.Name+"&";
 	}
-	reloadWorkers ();
+    $.ajax({ type: "GET", url: "/json/startworkers", data: _data, dataType: "json", success: 
+        function () 
+        {
+        	reloadWorkers ();
+        }
+    });
 }
 
 function stopWorkers ()
 {
+    var _data = "";
 	for (j=workers.length-1; j >= 0; j--)
 	{
 		var worker = workers[j];
-		if (worker.Selected)
-           	service.stopworker (worker.Name);
+		if (selectedWorkers[worker.Name])
+           	_data += "id="+worker.Name+"&";
 	}
-	reloadWorkers ();
+    $.ajax({ type: "GET", url: "/json/stopworkers", data: _data, dataType: "json", success: 
+        function () 
+        {
+        	reloadWorkers ();
+        }
+    });
 }
 
-
-
-
-
-
 var MultipleSelection = {}
-function checkSelectionProperties (list, props)
+function checkSelectionProperties (list, props, selectedList, idName)
 {
     var values = []
 
 	for (i = 0; i < list.length; i++)
 	{
 		var item = list[i];
-		if (item.Selected)
+		if (selectedList[item[idName]])
 		{
     		for (j = 0; j < props.length; ++j)
     		{
@@ -457,23 +502,36 @@ function updateSelectionProp (values, props, prop)
         }
 }
 
-function sendSelectionPropChanges (list, id, values, props, command)
+function sendSelectionPropChanges (list, idName, values, props, _url, selectedList, func)
 {
-    var uplist = [];
+    var _data = "";
 	for (j=list.length-1; j >= 0; j--)
 	{
-		var item = list[j];
-		if (item.Selected)
-		    uplist.push (item[id]);
+		var id = list[j][idName];
+		if (selectedList[id])
+		    _data += "id="+str(id)+"&";
 	}
 
     for (i = 0; i < props.length; ++i)
         if (values[i] == true)
         {
+            var prop = props[i][0];
             var value = $('#'+props[i][1]).attr("value");
-            service[command] (uplist, props[i][0], value);
-            props[i][2] = value;
+            _data += "prop="+prop+"&value="+value+"&";
         }
+
+    // One single call
+    $.ajax({ type: "GET", url: _url, data: _data, dataType: "json", success:
+        function () 
+        {
+            for (i = 0; i < props.length; ++i)
+                if (values[i] == true)
+                {
+                    props[i][2] = value;
+                }
+            func ();
+        }
+    });
 }
 
 function setSelectionDefaultProperties (props)
@@ -488,9 +546,9 @@ var WorkerProps =
 ];
 var updatedWorkerProps = {}
 
-function resetworkerprops ()
+function updateWorkerProps ()
 {
-    updatedWorkerProps = checkSelectionProperties (workers, WorkerProps);
+    updatedWorkerProps = checkSelectionProperties (workers, WorkerProps, selectedWorkers, "Name");
 }
 
 function onchangeworkerprop (prop)
@@ -500,40 +558,68 @@ function onchangeworkerprop (prop)
 
 function updateworkers ()
 {
-    sendSelectionPropChanges (workers, 'Name', updatedWorkerProps, WorkerProps, 'updateworkers');
-    reloadWorkers ();
+    sendSelectionPropChanges (workers, 'Name', updatedWorkerProps, WorkerProps, "/json/updateworkers", selectedWorkers,
+        function ()
+        {
+            reloadWorkers ();
+        }
+    );
 }
 
 function reloadWorkers ()
 {
-    var result = service.getworkers ();
-	workers = result;
-	resetworkerprops ();
-	renderWorkers ();
+    $.ajax({ type: "GET", url: "/json/getworkers", dataType: "json", success: 
+        function (data) 
+        {
+	        workers = [];
+	        for (j = 0; j < data.Workers.length; ++j)
+	        {
+	            var worker = data.Workers[j];
+	            var nw = {};
+	            for (i = 0; i < data.Vars.length; ++i)
+	            {
+	                nw[data.Vars[i]] = worker[i];
+	            }
+	            workers.push (nw);
+	        }
+	        renderWorkers ();
+            document.getElementById("refreshbutton").className = "refreshbutton";
+        }
+    });
+}
+
+function showWorkers ()
+{
+	$("#jobsTab").hide ();
+	$("#workersTab").show ();
+	$("#logsTab").hide ();
+	document.getElementById("jobtab").className = "unactivetab";
+	document.getElementById("workertab").className = "activetab";
+	document.getElementById("logtab").className = "unactivetab";
+
+	page = "workers";
+	updateTools ();
 }
 
 function renderWorkers ()
 {
-	$("#main").empty ();
+	$("#workers").empty ();
 
-	var table = "<table id='workers'>";
-
-	$("#main").append("<br>");
+	var table = "<table id='workersTable'>";
 	table += "<tr class='title'>\n";
 
 	// Returns the HTML code for a worker title column
 	function addTitleHTML (attribute)
 	{
-		table += "<th>";
+        table += "<th class='headerCell' onclick='"+"setWorkerKey(\""+attribute+"\")'>";	
 		var value = workers[0];
 		if (value && value[attribute] != null)
 		{
-			table += "<a href='javascript:setWorkerKey(\""+attribute+"\")'>"+attribute;
+			table += attribute;
 			if (attribute == workersSortKey && workersSortKeyToUpper)
 				table += " &#8595;";
 			if (attribute == workersSortKey && !workersSortKeyToUpper)
 				table += " &#8593;";
-			table += "</a>";
 		}
 		else
 			table += attribute;
@@ -545,6 +631,7 @@ function renderWorkers ()
     addTitleHTML ("State");
     addTitleHTML ("Affinity");
     addTitleHTML ("Load");
+    addTitleHTML ("Memory");
     addTitleHTML ("LastJob");
     addTitleHTML ("Finished");
     addTitleHTML ("Error");
@@ -565,39 +652,71 @@ function renderWorkers ()
 	for (i=0; i < workers.length; i++)
 	{
 		var worker = workers[i];
-		table += "<tr id='table"+i+"' class='entry"+(i%2)+(worker.Selected?"Selected":"")+"'>"+
+
+        // *** Build the load tab for this worker		
+        // A global div
+	    var load = "<div class='load'>";
+	        // Add each CPU load
+	        var loadValue = 0;
+    	    for (j=0; j < worker.Load.length; j++)
+    	    {
+        	    load += "<div class='loadbar' style='width:" + worker.Load[j] + "%;height:" + 16/worker.Load.length + "' />";
+    	        loadValue += worker.Load[j]
+            }
+
+            // Add the numerical value of the load
+   	        load += "<div class='loadlabel'>" + Math.floor(loadValue/worker.Load.length) + "%</div>";
+	    load += "</div>";
+    
+        // *** Build the memory tab for this worker		
+	    var memory = "<div class='mem'>";
+   	    memory += "<div class='membar' style='width:" + 100*(worker.TotalMemory-worker.FreeMemory)/worker.TotalMemory + "%' />";
+
+        function formatMem (a)
+        {
+            if (a > 1024)
+                return Math.round(a/1024*100)/100 + " GB";
+            else
+                return str(a) + " Mo";
+        }
+        
+        memLabel = formatMem (worker.TotalMemory-worker.FreeMemory);
+        memLabel += " / ";
+        memLabel += formatMem (worker.TotalMemory);
+
+        // Add the numerical value of the mem
+        memory += "<div class='memlabel'>" + memLabel + "</div>";
+	    memory += "</div>";
+	    
+		table += "<tr id='workertable"+i+"' class='entry"+(i%2)+(selectedWorkers[worker.Name]?"Selected":"")+"'>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Name+"</td>"+
 		         "<td class='Active"+worker.Active+"' onMouseDown='onClickList(event,"+i+")'>"+worker.Active+"</td>"+
 		         "<td class='"+worker.State+"' onMouseDown='onClickList(event,"+i+")'>"+worker.State+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Affinity+"</td>"+
-		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Load+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+load+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+memory+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.LastJob+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Finished+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Error+"</td>"+
 		         "</tr>\n";
 	}
 	table += "</table>";
-	$("#main").append(table);
-	$("#main").append("<br>");
-
-	page = "workers";
-	updateTools ();
+	$("#workers").append(table);
+	$("#workers").append("<br>");
 }
 
 var JobProps =
 [
+    [ "Title", "title", "" ],
     [ "Command", "cmd", "" ],
     [ "Dir", "dir", "." ],
     [ "Priority", "priority", "1000" ],
     [ "Affinity", "affinity", "" ],
-    [ "TimeOut", "timeout", "0" ]
+    [ "TimeOut", "timeout", "0" ],
+    [ "Dependencies", "dependencies", "" ],
+    [ "Retry", "retry", "10" ]
 ];
 var updatedJobProps = {}
-
-function resetjobprops ()
-{
-    updatedJobProps = checkSelectionProperties (jobs, JobProps);
-}
 
 function onchangejobprop (prop)
 {
@@ -606,112 +725,235 @@ function onchangejobprop (prop)
 
 function updatejobs ()
 {
-    sendSelectionPropChanges (jobs, 'ID', updatedJobProps, JobProps, 'updatejobs');
-    reloadJobs ();
+    sendSelectionPropChanges (jobs, 'ID', updatedJobProps, JobProps, "/json/updatejobs", selectedJobs,
+        function ()
+        {
+            reloadJobs ();
+            updateJobProps ();
+        }
+    );
 }
 
 function addjob ()
 {
-        service.addjob(viewJob,
-                       $('#title').attr("value"), 
-                       $('#cmd').attr("value"),
-                       $('#dir').attr("value"), 
-                       $('#priority').attr("value"), 
-                       $('#retry').attr("value"),
-                       $('#timeout').attr("value"),
-                       $('#affinity').attr("value"),
-		               $('#dependencies').attr("value"));
-		setSelectionDefaultProperties (JobProps);
-        reloadJobs ();
+    var _data = {
+        title:$('#title').attr("value"),
+        cmd:$('#cmd').attr("value"),
+        dir:$('#dir').attr("value"), 
+        priority:$('#priority').attr("value"), 
+        retry:$('#retry').attr("value"),
+        timeout:$('#timeout').attr("value"),
+        affinity:$('#affinity').attr("value"),
+        dependencies:$('#dependencies').attr("value")
+    };
+    $.ajax({ type: "GET", url: "/xmlrpc/addjob", data: _data, dataType: "json", success: 
+        function () 
+        {
+    		setSelectionDefaultProperties (JobProps);
+            reloadJobs ();
+        }
+    });
+}
+
+function selectJobs ()
+{
+    var tag = document.getElementById("selectJobs").value;
+    if (tag == "CUSTOM")
+        ;
+    else if (tag == "NONE")
+        selectAll (false);
+    else if (tag == "ALL")
+        selectAll (true);
+    else
+        selectAll (true, tag);
+}
+
+function onDblClickList (e, i)
+{
+    var job = jobs[i];
+	job.Total == 0 ? renderLog (job.ID) : goToJob (job.ID);
 }
 
 // List selection handler
-function onClickList (event, i)
+function onClickList (e, i)
 {
-    var thelist;
-    if (page == "jobs")         thelist = jobs;
-    else if (page == "workers") thelist = workers;
+    if (!e) var e = window.event
+    
+    document.getElementById("selectJobs").value = "CUSTOM";
     
 	// Unselect if not ctrl keys
-	if (!event.ctrlKey)
+	if (!e.ctrlKey)
+	{
+        if (page == "jobs")
+            selectedJobs = {};
+        else if (page == "workers")
+            selectedWorkers = {};
+    }
+
+    var thelist;
+    var selectedList;
+    var idName;
+    var tableId;
+    if (page == "jobs")
+    {
+        thelist = jobs;
+        selectedList = selectedJobs;
+        idName = "ID";
+        tableId = "jobtable";
+    }
+    else if (page == "workers")
+    {
+        thelist = workers;
+        selectedList = selectedWorkers;
+        idName = "Name";
+        tableId = "workertable";
+    }
+    else
+        return;
+    
+	// Unselect if not ctrl keys
+	if (!e.ctrlKey)
 	{
 		for (j=0; j < thelist.length; j++)
-		{
-			var item = thelist[j];
-			item.Selected = false;
-		}
+			document.getElementById(tableId+j).className = "entry"+(j%2);
 	}
 
-	var begin = event.shiftKey ? Math.min (selectionStart, i) : i
-	var end = event.shiftKey ? Math.max (selectionStart, i) : i
+	var begin = e.shiftKey ? Math.min (selectionStart, i) : i
+	var end = e.shiftKey ? Math.max (selectionStart, i) : i
 
-	selectionStart = event.shiftKey ? selectionStart : i;
+	selectionStart = e.shiftKey ? selectionStart : i;
 
 	for (j = begin; j <= end; j++)
 	{
 		var item = thelist[j];
 		if (item)
-			item.Selected = event.ctrlKey ? !item.Selected : true;
+		{
+			var selected = e.ctrlKey ? !selectedList[item[idName]] : true;
+			selectedList[item[idName]] = selected;
+			document.getElementById(tableId+j).className = "entry"+(j%2)+(selected?"Selected":"");
+		}
 	}
-	if (page == "jobs")         { renderJobs (); resetjobprops (); }
-    else if (page == "workers") { renderWorkers (); resetworkerprops (); }
+	
+    if (page == "jobs")         { updateJobProps (); }
+    else if (page == "workers") { updateWorkerProps (); }
+
+    // Remove selection
+    window.getSelection ().removeAllRanges();
 }
 
-function selectAll (state)
+function selectAll (state, filter)
 {
-    var thelist
+    var thelist;
+    var selectedList;
+    var idName;
+    var tableId;
     if (page == "jobs")
+    {
         thelist = jobs;
+        selectedJobs = {};
+        selectedList = selectedJobs;
+        idName = "ID";
+        tableId = "jobtable";
+    }
     else if (page == "workers")
+    {
         thelist = workers;
+        selectedWorkers = {};
+        selectedList = selectedWorkers;
+        idName = "Name";
+        tableId = "workertable";
+    }
     else
         return;
         
-	for (j=0; j < thelist.length; j++)
-	{
-		var item = thelist[j];
-		item.Selected = state;
-	}
-
-	if (page == "jobs")         { renderJobs (); resetjobprops (); }
-    else if (page == "workers") { renderWorkers (); resetworkerprops (); }
+    if (!state)
+    {
+	    for (j=0; j < thelist.length; j++)
+   			document.getElementById(tableId+j).className = "entry"+(j%2);
+    }
+    else
+    {        
+	    for (j=0; j < thelist.length; j++)
+	    {
+		    var item = thelist[j];
+		    if (filter == null || item.State == filter)
+		    {
+		        selectedList[item[idName]] = true;
+   			    document.getElementById(tableId+j).className = "entry"+(j%2)+"Selected";
+   			}
+   			else
+   			{
+		        selectedList[item[idName]] = false;
+   			    document.getElementById(tableId+j).className = "entry"+(j%2);
+   			}
+	    }
+    }
+    
+    if (page == "jobs")         { updateJobProps (); }
+    else if (page == "workers") { updateWorkerProps (); }
 }
 
 function removeSelection ()
 {
 	if (confirm("Do you really want to remove the selected jobs ?"))
 	{
+	    var _data = "";
 		for (j=jobs.length-1; j >= 0; j--)
 		{
 			var job = jobs[j];
-			if (job.Selected)
-				service.clearjob (job.ID);
+			if (selectedJobs[job.ID])
+			    _data += "id="+str(job.ID)+"&";
 		}
+        $.ajax({ type: "GET", url: "/json/clearjobs", data: _data, dataType: "json", success: 
+            function () 
+            {
+        		selectedJobs = {};
+        	    reloadJobs ();
+        	    updateJobProps ();
+            }
+        });
 	}
-	reloadJobs ();
 }
 
 function resetSelection ()
 {
 	if (confirm("Do you really want to reset the selected jobs ?"))
 	{
+	    var _data = "";
 		for (j=jobs.length-1; j >= 0; j--)
 		{
 			var job = jobs[j];
-			if (job.Selected)
-				service.resetjob (job.ID);
+			if (selectedJobs[job.ID])
+			    _data += "id="+str(job.ID)+"&";
 		}
+        $.ajax({ type: "GET", url: "/json/resetjobs", data: _data, dataType: "json", success: 
+            function () 
+            {
+        	    reloadJobs ();
+            }
+        });
 	}
-	reloadJobs ();
 }
 
 function pauseSelection ()
 {
+    var _data = "";
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
-		if (job.Selected)
-			service.pausejob (job.ID);
+		if (selectedJobs[job.ID])
+		    _data += "id="+str(job.ID)+"&";
 	}
-	reloadJobs ();
+    $.ajax({ type: "GET", url: "/json/pausejobs", data: _data, dataType: "json", success: 
+        function () 
+        {
+    	    reloadJobs ();
+        }
+    });
 }
+
+function updateJobProps ()
+{
+    updatedJobProps = checkSelectionProperties (jobs, JobProps, selectedJobs, "ID");
+}
+

@@ -1,4 +1,4 @@
-import xmlrpclib, sys, getopt
+import sys, getopt, urllib, httplib, re
 
 global cmd, serverUrl, dir, title, action,id
 dir = "."
@@ -89,25 +89,45 @@ def output (str):
 	if verbose:
 		print (str)
 
-service = xmlrpclib.ServerProxy(serverUrl + "/xmlrpc")
-
 if action=="add":
-	num=service.addjob (parent, title, cmd, dir, priority, retry, timeout, affinity, dependencies)
-	print(num)
+	params = urllib.urlencode({'parent':parent, 'title':title, 'cmd':cmd, 'dir':dir, 'priority':priority, 'retry':retry, 'timeout':timeout, 'affinity':affinity, 'dependencies':dependencies})
+	conn = httplib.HTTPConnection(re.sub("^http://", "", serverUrl))
+	conn.request("GET", "/json/addjob?"+params)
+	response = conn.getresponse()
+	data = response.read()
+	conn.close()
+	print data
+	
 elif action=="list":
-	jobs=service.getjobs(parent)["Jobs"]
-	parents=service.getjobs(parent)["Parents"]
+	params = urllib.urlencode({'id':parent})
+	conn = httplib.HTTPConnection(re.sub("^http://", "", serverUrl))
+	conn.request("GET", "/json/getjobs?"+params)
+	response = conn.getresponse()
+	data = response.read()
+	conn.close()
+
+	data = eval (data)
+	vars=data["Vars"]
+	print (vars)
+	jobs=data["Jobs"]
+	parents=data["Parents"]
 	
 	parents_info=''
 	for i in range(len(parents)):
 		parents_info = parents_info+ str(parents[i]["ID"])+" " +str(parents[i]["Title"])+ " > "
 	print(parents_info)
 	for i in range(len(jobs)):
-		print(str(jobs[i]["ID"])+" "+str(jobs[i]["Title"])+" "+str(jobs[i]["State"])+" "+str(jobs[i]["Priority"])+" "+str(jobs[i]["Affinity"])+" "+str(jobs[i]["Worker"])+" "+str(jobs[i]["Duration"])+" "+str(jobs[i]["Try"])+" "+str(jobs[i]["Command"])+" "+str(jobs[i]["Dir"]))
+		for j in range(len(vars)):
+			print (jobs[i])
 elif action=="remove":
 	if id<0: 
 		print("Use option -i to specify the job id to remove")
 	else:
-		service.clearjob(int(id))
+		params = urllib.urlencode({'id':id})
+		conn = httplib.HTTPConnection(re.sub("^http://", "", serverUrl))
+		conn.request("GET", "/json/clearjobs?"+params)
+		response = conn.getresponse()
+		data = response.read()
+		conn.close()
 else:
 	print("I don't know what to do with myself. Use another action")

@@ -2,10 +2,6 @@ from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random
 
-# This module is standard in Python 2.2, otherwise get it from
-#   http://www.pythonware.com/products/xmlrpc/
-import xmlrpclib
-
 GErr=0
 GOk=0
 
@@ -47,7 +43,7 @@ def cfgInt (name, defvalue):
 
 def cfgBool (name, defvalue):
 	global config
-	if config.has_option('server', 'port'):
+	if config.has_option('server', name):
 		try:
 			return int (config.get('server', name)) != 0
 		except:
@@ -134,10 +130,50 @@ def strToInt (s):
 	except:
 		return 0
 
+class LogFilter:
+	"""A log filter object. The log pattern must include a '%percent' or a '%one' key word."""
+	
+	def __init__ (self, pattern):
+		# 0~100 or 0~1 ?
+		self.IsPercent = re.match (".*%percent.*", pattern) != None
+		
+		# Build the final pattern for the RE
+		if self.IsPercent:
+			pattern = re.sub ("%percent", "([0-9.]+)", pattern)
+		else:
+			pattern = re.sub ("%one", "([0-9.]+)", pattern)
+			
+		# Final progress filter
+		self.RE = re.compile(pattern)
+		
+		# Put it in the cache
+		global LogFilterCache
+		LogFilterCache[pattern] = self
+
+	def filterLogs (self, log):
+		"""Return the filtered log and the last progress, if any"""
+		progress = None
+		for m in self.RE.finditer (log):
+			capture = m.group(1)
+			progress = float(capture) / (self.IsPercent and 100.0 or 1.0)
+		return self.RE.sub ("", log), progress
+		
+LogFilterCache = {}
+
+def getLogFilter (pattern):
+	"""Get the pattern filter from the cache or add one"""
+	global LogFilterCache
+	try:	
+		filter = LogFilterCache[pattern]
+	except KeyError:
+		filter = LogFilter (pattern)
+		LogFilterCache[pattern] = filter
+	return filter
+
 class Job:
 	"""A farm job"""
 
-	def __init__ (self, title, cmd = "", dir = "", priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", dependencies = []):
+	def __init__ (self, title, cmd = "", dir = "", priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", dependencies = [], localprogress = None, globalprogress = None):
 		self.ID = None						# Jod ID
 		self.Parent = None					# Parent Job ID
 		self.Children = []					# Children Jobs IDs
@@ -155,16 +191,21 @@ class Job:
 		self.Priority = strToInt (priority)	# Job priority
 		self.Affinity = affinity			# Job affinity
 		self.User = user					# Job user
-		self.Order = 0						# Job order
 		self.Finished = 0					# Number of finished children
 		self.Errors = 0						# Number of error children
 		self.Total = 0						# Total number of (grand)children
 		self.TotalFinished = 0				# Total number of (grand)children finished
 		self.TotalErrors = 0				# Total number of (grand)children in error
 		self.Dependencies = dependencies	# Job dependencies
+		if localprogress != None:
+			self.LocalProgressPattern = localprogress
+		if globalprogress != None:
+			self.GlobalProgressPattern = globalprogress
+		# self.LocalProgress				# Progress of the job
+		# self.GlobalProgress				# Progress of the job
 
 	# Has this job some children
-	def hasChildren (self) :
+	def hasChildren (self):
 		return len (self.Children) > 0
 
 def compareJobs (self, other):
@@ -207,7 +248,9 @@ class Worker:
 		self.Finished = 0				# Number of finished
 		self.Error = 0					# Number of fault
 		self.LastJob = -1				# Last job done
-		self.Load = 0					# Load of the worker
+		self.Load = []					# Load of the worker
+		self.FreeMemory = 0				# Free memory of the worker system
+		self.TotalMemory = 0			# Total memory of the worker system
 		self.Active = True				# Is the worker enabled
 
 # State of the master
@@ -390,12 +433,31 @@ class CState:
 			self.removeJob (job.Children[0], False)
 		self._updateParentState (id)
 
+	# Change job affinity
+	def setAffinity (self, id, affinity) :
+		try:
+			job = self.Jobs[id]
+			job.Affinity = affinity
+			try:
+				del self._StAffinity[id]
+			except KeyError:
+				pass
+			self._UpdatedDb = True
+			self._updateParentState (id)
+		except:
+			pass
+
 	# Reset a job
 	def resetJob (self, id) :
 		try:
 			job = self.Jobs[id]
 			job.State = "WAITING"
 			job.Try = 0
+			job.Worker = ""
+			if getattr(job, "LocalProgress", False):
+				job.LocalProgress = 0
+			if getattr(job, "GlobalProgress", False):
+				job.GlobalProgress = 0
 			try:
 				self._ActiveJobs.remove (id)
 			except KeyError:
@@ -418,29 +480,6 @@ class CState:
 				self._UpdatedDb = True
 				self._updateParentState (id)
 		except KeyError:
-			pass
-
-	# Change a job priority
-	def setPriority (self, id, priority) :
-		try:
-			job = self.Jobs[id]
-			job.Priority = priority
-			self._UpdatedDb = True
-		except KeyError:
-			pass
-
-	# Change job affinity
-	def setAffinity (self, id, affinity) :
-		try:
-			job = self.Jobs[id]
-			job.Affinity = affinity
-			try:
-				del self._StAffinity[id]
-			except KeyError:
-				pass
-			self._UpdatedDb = True
-			self._updateParentState (id)
-		except:
 			pass
 
 	# Can be executed
@@ -591,17 +630,29 @@ class CState:
 		# dynamic affinity is a set of children dynamic affinities
 		dyn = set ()
 		allFinished = True
+		someChildrenEmpty = False
 		for cid in job.Children :
 			child = self.Jobs[cid]
 			if child.State != "FINISHED" :
 				allFinished = False
 			if self.canExecute (cid):
 				cdyn = self._DynAffinity[cid]
+				empty = True
 				for aff in cdyn:
+					dynIsEmpty = False
+					empty = False
 					if static:
 						dyn.add (aff | static)
 					else:
 						dyn.add (aff)
+
+				# One child without affinity
+				someChildrenEmpty |= len(cdyn) == 0
+		
+		# If some children are empty, but the set is not empty, add an empty set
+		if someChildrenEmpty and len(dyn) > 0:
+			dyn.add (frozenset ())
+			
 		if len (dyn) == 0 and static :
 			# no affinity set yet, add default
 			dyn.add (static)
@@ -777,12 +828,13 @@ class Root (static.File):
 			return static.File.render (self, request)
 		return 'Authorization required!'
 
-
-
-
-
-
-
+def toJSON (value):
+	"""Simple python value to JSON function"""
+	if isinstance (value, bool):
+		return value and "true" or "false";
+	else:
+		return repr (value);
+		
 class Master (xmlrpc.XMLRPC):
 	"""    """
 
@@ -793,147 +845,179 @@ class Master (xmlrpc.XMLRPC):
 		if authenticate (request):
 			self.User = request.getUser ()
 			# Addjob
-			if request.path == "/xmlrpc/addjob":
-				parent = request.args.get ("parent", ["0"])
-				title = request.args.get ("title", ["New job"])
-				cmd = request.args.get ("cmd", [""])
-				dir = request.args.get ("dir", ["."])
-				priority = request.args.get ("priority", ["1000"])
-				retry = request.args.get ("retry", ["10"])
-				timeout = request.args.get ("timeout", ["0"])
-				affinity = request.args.get ("affinity", [""])
-				dependenciesStr = request.args.get ("dependencies", [""])
-				id = self.xmlrpc_addjob(parent[0], title[0], cmd[0], dir[0], int(priority[0]), int(retry[0]), int(timeout[0])*60, affinity[0], dependenciesStr[0])
-				return str(id);
+			def getArg (name, default):
+				value = request.args.get (name, [default])
+				return value[0]
+
+			if request.path == "/xmlrpc/addjob" or request.path == "/json/addjob":
+
+				parent = getArg ("parent", "0")
+				title = getArg ("title", "New job")
+				cmd = getArg ("cmd", "")
+				dir = getArg ("dir", ".")
+				priority = getArg ("priority", "1000")
+				retry = getArg ("retry", "10")
+				timeout = getArg ("timeout", "0")
+				affinity = getArg ("affinity", "")
+				dependencies = getArg ("dependencies", "")
+				localprogress = getArg ("localprogress", None)
+				globalprogress = getArg ("globalprogress", None)
+
+				output ("Add job : " + cmd)
+				if isinstance (parent, str):
+					try:
+						# try as an int
+						parent = int (parent)
+					except ValueError:
+						bypath = State.findJobByPath (parent)
+						if bypath:
+							parent = bypath
+						else:
+							parenttitle = parent
+							parent = State.findJobByTitle (parent)
+							if parent == None:
+								print ("Error : can't find job " + str (parenttitle))
+								return -1
+				if type(dependencies) is str:
+					# Parse the dependencies string
+					dependencies = re.findall ('(\d+)', dependencies)
+				for i, dep in enumerate (dependencies) :
+					dependencies[i] = int (dep)
+				
+				id = State.addJob (parent, Job (str (title), str (cmd), str (dir), int (priority), int (retry), int (timeout), str (affinity), str (self.User), dependencies, localprogress, globalprogress))
+				
+				State.update ()
+				return str(id)
+			elif request.path == "/json/getjobs":
+				return self.json_getjobs (int(getArg ("id", 0)), getArg ("filter", ""))
+			elif request.path == "/json/clearjobs":
+				return self.json_clearjobs (request.args.get ("id"))
+			elif request.path == "/json/resetjobs":
+				return self.json_resetjobs (request.args.get ("id"))
+			elif request.path == "/json/pausejobs":
+				return self.json_pausejobs (request.args.get ("id"))
+			elif request.path == "/json/updatejobs":
+				return self.json_updatejobs (request.args.get ("id"), request.args.get ("prop"),request.args.get ("value"))
+			elif request.path == "/json/getlog":
+				return self.json_getlog (int(getArg ("id", 0)))
+			elif request.path == "/json/getworkers":
+				return self.json_getworkers ()
+			elif request.path == "/json/clearworkers":
+				return self.json_clearworkers (request.args.get ("id"))
+			elif request.path == "/json/stopworkers":
+				print (str(request.args.get ("id")))
+				return self.json_stopworkers (request.args.get ("id"))
+			elif request.path == "/json/startworkers":
+				return self.json_startworkers (request.args.get ("id"))
+			elif request.path == "/json/updateworkers":
+				return self.json_updateworkers (request.args.get ("id"), request.args.get ("prop"),request.args.get ("value"))
 			else:
 				# return server.NOT_DONE_YET
 				return xmlrpc.XMLRPC.render (self, request)
 		return 'Authorization required!'
 
-	def xmlrpc_addjob (self, parent, title, cmd, dir, priority, retry, timeout, affinity, dependencies):
-		"""Show the command list."""
-		global State
-		output ("Add job : " + cmd)
-		if isinstance (parent, str):
-			try:
-				# try as an int
-				parent = int (parent)
-			except ValueError:
-				bypath = State.findJobByPath (parent)
-				if bypath:
-					parent = bypath
-				else:
-					parenttitle = parent
-					parent = State.findJobByTitle (parent)
-					if parent == None:
-						print ("Error : can't find job " + str (parenttitle))
-						return -1
-		if type(dependencies) is str:
-			# Parse the dependencies string
-			dependencies = re.findall ('(\d+)', dependencies)
-		for i, dep in enumerate (dependencies) :
-			dependencies[i] = int (dep)
-		id = State.addJob (parent, Job (str (title), str (cmd), str (dir), int (priority), int (retry), int (timeout), str (affinity), str (self.User), dependencies))
-		State.update ()
-		return id
-
-	def xmlrpc_getjobs (self, id):
+	def json_getjobs (self, id, filter):
 		global State
 		output ("Send jobs")
-		jobs = []
-		parents = []
+
+		vars = ["ID","Title","Command","Dir","State","Worker","StartTime","Duration","Try","Retry","TimeOut","Priority","Affinity","User","Finished","Errors","Total","TotalFinished","TotalErrors","Dependencies","LocalProgress","GlobalProgress"];
+
+		# Get the job
 		try:
 			job = State.Jobs[id]
-			for childId in job.Children :
-				try:
-					child = State.Jobs[childId]
-					jobs.append (child)
-				except KeyError:
-					pass
-			while True:
-				parents.insert (0, { "ID":job.ID, "Title":job.Title })
-				if job.ID == 0:
-					break
-				job = State.Jobs[job.Parent]
 		except KeyError:
-			if len (parents) == 0 or parents[0].ID != 0:
-				parents.insert (0, { "ID":0, "Title":"Root" })
-		return { "Jobs":jobs, "Parents":parents }
-
-	def xmlrpc_clearjobs (self, id):
-		global State
-		output ("Clear jobs in " + str (id))
-		State.removeChildren (id)
-		State.update ()
-		return 1
-
-	def xmlrpc_clearjob (self, jobId):
-		global State
-		output ("Clear job "+str (jobId))
-		State.removeJob (jobId)
-		State.update ()
-		return 1
-
-	def xmlrpc_resetjob (self, jobId):
-		global State
-		output ("Reset job "+str (jobId))
-		State.resetJob (jobId)
-		State.update ()
-		return 1
-
-	def xmlrpc_pausejob (self, jobId):
-		global State
-		output ("Pause job "+str (jobId))
-		State.pauseJob (jobId)
-		State.update ()
-		return 1
-
-	def xmlrpc_updatejobs (self, ids, prop, value):
-		global State
-		try:
-			output ("Update job "+str (ids)+" "+prop+" "+str(value))
-		except:
-			pass
-		for id in ids:
+			job = State.Jobs[0]
+			
+		# Build the children
+		jobs = "["
+		for childId in job.Children :
 			try:
-				job = State.Jobs[id]
-				try:
-					if prop == "Command":
-						job.Command = str (value)
-						State._UpdatedDb = True
-					elif prop == "Dir":
-						job.Dir = str (value)
-						State._UpdatedDb = True
-					elif prop == "Priority":
-						job.Priority = int (value)
-						State._UpdatedDb = True
-					elif prop == "Affinity":
-						State.setAffinity (id, str (value))
-					elif prop == "TimeOut":
-						job.TimeOut = int (value)
-						State._UpdatedDb = True
-				except ValueError:
-					pass
+				child = State.Jobs[childId]
+				if filter == "" or child.State == filter:
+					childparams = "["
+					for var in vars:
+						try:
+							childparams += toJSON (getattr (child, var)) + ','
+						except AttributeError:
+							pass
+					childparams += "],\n"
+					jobs += childparams
 			except KeyError:
 				pass
-		State.update ()
-		return 1
+		jobs += "]"
 
-	def xmlrpc_setjobpriority (self, jobId, priority):
+		parents = []
+		# Build the parents
+		while True:
+			parents.insert (0, { "ID":job.ID, "Title":job.Title })
+			if job.ID == 0:
+				break
+			job = State.Jobs[job.Parent]
+		
+		return '{ "Vars":'+repr(vars)+', "Jobs":'+jobs+', "Parents":'+repr(parents)+' }'
+
+	def json_clearjobs (self, ids):
 		global State
-		output ("Set job "+str (jobId)+" priority to "+str (priority))
-		State.setPriority (jobId, priority)
+		for jobId in ids:
+			output ("Clear job "+str (jobId))
+			State.removeJob (int(jobId))
 		State.update ()
-		return 1
+		return "1"
 
-	def xmlrpc_setjobaffinity (self, jobId, affinity):
+	def json_resetjobs (self, ids):
 		global State
-		output ("Set job "+str (jobId)+" affinity to "+str (priority))
-		State.setAffinity (jobId, affinity)
+		for jobId in ids:
+			output ("Reset job "+str (jobId))
+			State.resetJob (int(jobId))
 		State.update ()
-		return 1
+		return "1"
 
-	def xmlrpc_getlog (self, jobId):
+	def json_pausejobs (self, ids):
+		global State
+		for jobId in ids:
+			output ("Pause job "+str (jobId))
+			State.pauseJob (int(jobId))
+		State.update ()
+		return "1"
+
+	def json_updatejobs (self, ids, props, values):
+		global State
+		output ("Update job "+str (ids)+" "+str(props)+" "+str(values))
+		if props == None or values == None or len(props) != len(values):
+			return "0"
+		for i in range(0,len(props)):
+			prop = props[i]
+			value = values[i]
+			for id in ids:
+				id = int(id)
+				try:
+					job = State.Jobs[id]
+					try:
+						if prop == "Command":
+							job.Command = str (value)
+						elif prop == "Dir":
+							job.Dir = str (value)
+						elif prop == "Priority":
+							job.Priority = int (value)
+						elif prop == "Affinity":
+							State.setAffinity (job.ID, str (value))
+						elif prop == "TimeOut":
+							job.TimeOut = int (value)
+						elif prop == "Title":
+							job.Title = str (value)
+						elif prop == "Retry":
+							job.Retry = int (value)
+						elif prop == "Dependencies":
+							job.Dependencies = str (value)
+						State._UpdatedDb = True
+					except ValueError:
+						pass
+				except KeyError:
+					pass
+		State.update ()
+		return "1"
+
+	def json_getlog (self, jobId):
 		global State
 		output ("Send log "+str (jobId))
 		# Look for the job
@@ -950,72 +1034,115 @@ class Master (xmlrpc.XMLRPC):
 			logFile.close ()
 		except IOError:
 			pass
-		return log
+		return repr (log)
 
-	def xmlrpc_getworkers (self):
+	def json_getworkers (self):
 		global State
 		output ("Send workers")
-		workers = []
+
+		vars = ["Name","Affinity","State","Finished","Error","LastJob","Load","FreeMemory","TotalMemory","Active"]
+
+		# Build the children
+		workers = "["
 		for name, worker in State.Workers.iteritems () :
-			workers.append (worker)
-		return workers
+			childparams = "["
+			for var in vars:
+				childparams += toJSON (getattr (worker, var)) + ','
+			childparams += "],\n"
+			workers += childparams
+		workers += "]"
+		
+		result = ('{ "Vars":'+repr(vars)+', "Workers":'+workers+'}')
+		return result
 
-	def xmlrpc_clearworkers (self):
+	def json_clearworkers (self, names):
 		global State
-		output ("Clear workers")
-		State.Workers = {}
-		State.update ()
-		return 1
-
-	def xmlrpc_stopworker (self, workerName):
-		global State
-		State.stopWorker (workerName)
-		State.update ()
-		return 1
-
-	def xmlrpc_startworker (self, workerName):
-		global State
-		State.startWorker (workerName)
-		State.update ()
-		return 1
-
-	# update several workers props at once
-	def xmlrpc_updateworkers (self, names, prop, value):
-		global State
-		try:
-			output ("Update name "+str (names)+" "+prop+" "+str(value))
-		except:
-			pass
 		for name in names:
+			output ("Clear worker "+str (name))
 			try:
-				worker = State.Workers[name]
-				try:
-					if prop == "Affinity":
-						worker.Affinity = str (value)
-						State._UpdatedDb = True
-				except ValueError:
-					pass
+				State.Workers.pop (name)
+				State._UpdatedDb = True
 			except KeyError:
 				pass
 		State.update ()
-		return 1
+		return "1"
 
+	def json_stopworkers (self, names):
+		global State
+		for name in names:
+			State.stopWorker (name)
+		State.update ()
+		return "1"
 
+	def json_startworkers (self, names):
+		global State
+		for name in names:
+			State.startWorker (name)
+		State.update ()
+		return "1"
 
+	# update several workers props at once
+	def json_updateworkers (self, names, props, values):
+		global State
+		try:
+			output ("Update workers "+str (names)+" "+str(props)+" "+str(values))
+		except:
+			pass
+		if len(props) != len(values):
+			return "0"
+		for i in range(0,len(props)):
+			prop = props[i]
+			value = values[i]
+			for name in names:
+				try:
+					worker = State.Workers[name]
+					try:
+						if prop == "Affinity":
+							worker.Affinity = str (value)
+						State._UpdatedDb = True
+					except ValueError:
+						pass
+				except KeyError:
+					pass
+		State.update ()
+		return "1"
 
 # Unauthenticated connection for workers
 class Workers(xmlrpc.XMLRPC):
 	"""    """
 
-	def xmlrpc_heartbeat(self, hostname, jobId, log, load):
-		"""Add some logs."""
+	def render (self, request):
+		global State
+
+		def getArg (name, default):
+			value = request.args.get (name, [default])
+			return value[0]
+
+		if request.path == "/workers/heartbeat":
+			return self.json_heartbeat (getArg ('hostname', ''), getArg ('jobId', '-1'), getArg ('log', ''), getArg ('load', '[0]'), getArg ('freeMemory', '0'), getArg ('totalMemory', '0'))
+		elif request.path == "/workers/pickjob":
+			return self.json_pickjob (getArg ('hostname', ''), getArg ('load', '[0]'), getArg ('freeMemory', '0'), getArg ('totalMemory', '0'))
+		elif request.path == "/workers/endjob":
+			return self.json_endjob (getArg ('hostname', ''), getArg ('jobId', '1'), getArg ('errorCode', '0'))
+		else:
+			# return server.NOT_DONE_YET
+			return xmlrpc.XMLRPC.render (self, request)
+
+	def json_heartbeat (self, hostname, jobId, log, load, freeMemory, totalMemory):
+		"""Get infos from the workers."""
 		global State
 		_time = time.time ()
-		output ("Heart beat for " + str(jobId))
+		output ("Heart beat for " + str(jobId) + " " + str(load))
 		# Update the worker load and ping time
 		worker = State.getWorker (hostname)
-		worker.Load = load
+		try:
+			worker.Load = eval (load)
+		except SyntaxError:
+			worker.Load = [0]
+		worker.FreeMemory = int(freeMemory)
+		worker.TotalMemory = int(totalMemory)
 		workingJob = None
+		jobId = int(jobId)
 		try :
 			job = State.Jobs[jobId]
 			if job.State == "WORKING" and job.Worker == hostname :
@@ -1025,30 +1152,60 @@ class Workers(xmlrpc.XMLRPC):
 				if log != "" :
 					try:
 						logFile = open (getLogFilename (jobId), "a")
-						logFile.write (base64.decodestring(log))
+						log = base64.decodestring(log)
+						
+						# Filter the log progression message
+						progress = None
+						localProgress = getattr(job, "LocalProgressPattern", None)
+						globalProgress = getattr(job, "GlobalProgressPattern", None)
+						if localProgress or globalProgress:
+							output ("progressPattern : \n" + str(localProgress) + " " + str(globalProgress))
+							lp = None
+							gp = None
+							if localProgress:
+								lFilter = getLogFilter (localProgress)
+								log, lp = lFilter.filterLogs (log)
+							if globalProgress:
+								gFilter = getLogFilter (globalProgress)
+								log, gp = gFilter.filterLogs (log)
+							if lp != None:
+								output ("lp : "+ str(lp)+"\n")
+								job.LocalProgress = lp
+							if gp != None:
+								output ("gp : "+ str(gp)+"\n")
+								job.GlobalProgress = gp
+						
+						logFile.write (log)
 						logFile.close ()
 					except IOError:
 						output ("Error in logs")
 		except KeyError:
 			pass
 		State.update ()
+		print (worker.State, jobId)
 		if worker.State == "WORKING" and workingJob != None and workingJob.State == "WORKING":
-			return True
+			return "true"
 		# Stop
 		output ("Error at " + hostname + " heartbeat, set to WAITING")
 		State.updateWorkerState (hostname, "WAITING")
 		if workingJob:
 			State.updateJobState (jobId, "WAITING")
-		return False
+		return "false"
 
-	def xmlrpc_pickjobwithaffinity(self, hostname, load, affinity):
+	def json_pickjob (self, hostname, load, freeMemory, totalMemory):
 		"""A worker ask for a job."""
 		global State
-		output (hostname + " wants some job")
+		output (hostname + " wants some job" + " " + load)
 		worker = State.getWorker (hostname)
+		try:
+			worker.Load = eval (load)
+		except SyntaxError:
+			worker.Load = [0]
+		worker.FreeMemory = int(freeMemory)
+		worker.TotalMemory = int(totalMemory)
 		if not worker.Active:
 			State.updateWorkerState (hostname, "WAITING")
-			return -1,"","",""
+			return '-1,"","",""'
 		affinity = frozenset (re.findall ('([^,]+)', worker.Affinity))
 		jobId = State.pickJob (0, affinity)
 		if jobId != None :
@@ -1066,25 +1223,24 @@ class Workers(xmlrpc.XMLRPC):
 			State.update ()
 			output (hostname + " picked job " + str (jobId) + " " + worker.State)
 			if LDAPServer != "":
-				return job.ID, job.Command, job.Dir, job.User
+				return repr (job.ID)+","+repr (job.Command)+","+repr (job.Dir)+","+repr (job.User)
 			else:
-				return job.ID, job.Command, job.Dir, ""
+				return repr (job.ID)+","+repr (job.Command)+","+repr (job.Dir)+","+'""'
 
 		State.updateWorkerState (hostname, "WAITING")
 		State.update ()
-		return -1,"","",""
+		return '-1,"","",""'
 
-	def xmlrpc_pickjob(self, hostname, load):
-		"""A worker ask for a job."""
-		return self.xmlrpc_pickjobwithaffinity(hostname, load, None)
-
-	def xmlrpc_endjob(self, hostname, jobId, errorCode):
+	def json_endjob (self, hostname, jobId, errorCode):
 		"""A worker finished a job."""
 		global State
 		worker = State.getWorker (hostname)
 		output ("End job " + str(jobId) + " with code " + str (errorCode))
+		jobId = int(jobId)
+		errorCode = int(errorCode)
 		try:
 			job = State.Jobs[jobId]
+			print ("end", job.State, job.Worker, hostname)
 			if job.State == "WORKING" and job.Worker == hostname :
 				result = "FINISHED"
 				if errorCode != 0 :
@@ -1094,10 +1250,7 @@ class Workers(xmlrpc.XMLRPC):
 		except KeyError:
 			pass
 		State.update ()
-		return 1
-
-
-
+		return "1"
 
 # Write the DB on disk
 def saveDb ():
@@ -1164,10 +1317,11 @@ def main():
 	from twisted.internet import reactor
 	from twisted.web import server
 	root = Root("public_html")
-	xmlrpc = Master()
+	webService = Master()
 	readDb ()
 	workers = Workers()
-	root.putChild('xmlrpc', xmlrpc)
+	root.putChild('xmlrpc', webService)
+	root.putChild('json', webService)
 	root.putChild('workers', workers)
 	output ("Listen on port " + str (port))
 	reactor.listenTCP(port, server.Site(root))
