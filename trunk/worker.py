@@ -1,6 +1,8 @@
-import xmlrpclib, socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser
+import socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser, httplib, urllib
 from sys import modules
 from os.path import splitext, abspath
+
+import host_cpu
 
 if sys.platform=="win32":
 	import _winreg
@@ -9,9 +11,10 @@ if sys.platform=="win32":
 	import win32event
 	import win32api
 
+import psutil
 
 # Options
-global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, xmlrpcServer, workers
+global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, workers
 debug = False
 verbose = False
 sleepTime = 5
@@ -25,6 +28,7 @@ cpus = None
 startup = ""
 service = True
 install = False
+Headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
 
 # Go to the script directory
 global coalitionDir, dataDir
@@ -171,23 +175,23 @@ debugOutput ("Running with " + str (workers) + " workers.")
 def workerRun (worker, func, retry):
 	global sleepTime, gogogo
 	while (gogogo):
+		serverConn = None
 		try:
-			return func ()
-		except socket.error:
+			serverConn = httplib.HTTPConnection (re.sub ('^http://', '', serverUrl))
+			result = func (serverConn)
+			serverConn.close ()
+			return result
+		except (socket.error,httplib.HTTPException),err:
+			print ("Error sending to the server : ", str (err))
 			pass
+		if serverConn != None:
+			serverConn.close ()
 		if not retry:
 			debugOutput ("Server down, continue...")
 			break
 		debugOutput ("No server")
 		if gogogo:
 			time.sleep (sleepTime)
-
-# LoadAvg
-def workerGetLoadAvg ():
-	try:
-		return os.getloadavg ()
-	except:
-		return -1
 
 # A Singler worker
 class Worker:
@@ -198,6 +202,14 @@ class Worker:
 		self.ErrorCode = 0						# The process exit error code
 		self.LogLock = thread.allocate_lock()	# Logs lock
 		self.Log = ""							# Logs
+		self.HostCPU = host_cpu.HostCPU ()
+		self.TotalMemory = psutil.TOTAL_PHYMEM
+
+
+	# LoadAvg
+	def workerGetLoadAvg (self):
+		self.HostCPU
+		return self.HostCPU.getUsage ()
 
 	def workerEvalEnv (self, _str):
 		if platform.system () != 'Windows':
@@ -317,19 +329,29 @@ class Worker:
 
 	# Flush the logs to the server
 	def heartbeat (self, jobId, retry):
-		global xmlrpcServer
+		print ("hb")
 		debugOutput ("Flush logs (" + str (len (self.Log)) + " bytes)")
-		def func ():
+		def func (serverConn):
 			result = True
 
 			self.LogLock.acquire()
    			try:
-				result = xmlrpcServer.heartbeat (self.Name, jobId, base64.b64encode (self.Log), workerGetLoadAvg ())
+				params = urllib.urlencode ({
+					'hostname':self.Name, 
+					'jobId':jobId, 
+					'log':base64.b64encode (self.Log), 
+					'load':self.workerGetLoadAvg (), 
+					'freeMemory':int(psutil.avail_phymem()/1024/1024), 
+					'totalMemory':int(self.TotalMemory/1024/1024)
+				})
+				serverConn.request ("POST", "/workers/heartbeat", params, Headers)
+				response = serverConn.getresponse()
+				result = response.read()
 				self.Log = ""
    			finally:
 				self.LogLock.release()
 
-			if not result:
+			if result == "False":
 				debugOutput ("Server ask to stop the job " + str (jobId))
 				# Send the kill signal to the process
 				self.killJob ()
@@ -337,12 +359,25 @@ class Worker:
 
 	# Worker main loop
 	def mainLoop (self):
-		global sleepTime, xmlrpcServer
+		global sleepTime
 		debugOutput ("Ask for a job")
 		# Function to ask a job to the server
-		def startFunc ():
-			return xmlrpcServer.pickjob (self.Name, workerGetLoadAvg())
-
+		def startFunc (serverConn):
+			params = urllib.urlencode ({
+				'hostname':self.Name, 
+				'load':self.workerGetLoadAvg (), 
+				'freeMemory':int(psutil.avail_phymem()/1024/1024), 
+				'totalMemory':int(self.TotalMemory/1024/1024)
+			})
+			print ("1")
+			serverConn.request ("POST", "/workers/pickjob", params, Headers)
+			print ("1")
+			response = serverConn.getresponse()
+			print ("1")
+			result = response.read()
+			print (result)
+			return eval (result)
+				
 		# Block until this message to handled by the server
 		jobId, cmd, dir, user = workerRun (self, startFunc, True)
 
@@ -374,8 +409,15 @@ class Worker:
 			debugOutput ("Finished job " + str (jobId) + " (code " + str (self.ErrorCode) + ") : " + _cmd)
 
 			# Function to end the job
-			def endFunc ():
-				xmlrpcServer.endjob (self.Name, jobId, self.ErrorCode)
+			def endFunc (serverConn):
+				params = urllib.urlencode ({
+					'hostname':self.Name, 
+					'jobId':jobId, 
+					'errorCode':self.ErrorCode, 
+				})
+				serverConn.request ("POST", "/workers/endjob", params, Headers)
+				serverConn.getresponse()
+				print ("end")
 
 			# Block until this message to handled by the server
 			workerRun (self, endFunc, True)
@@ -383,7 +425,7 @@ class Worker:
 		time.sleep (sleepTime)
 
 def main ():
-	global	name, serverUrl, sleepTime, broadcastPort, gogogo, xmlrpcServer, workers, startup
+	global	name, serverUrl, sleepTime, broadcastPort, gogogo, workers, startup
 
 	print ("Startup command is '" + str (startup) + "'")
 	if startup != "":
@@ -420,8 +462,6 @@ def main ():
 		
 	while serverUrl[-1] == '/':
 		serverUrl = serverUrl[:-1]
-
-	xmlrpcServer = xmlrpclib.ServerProxy (serverUrl + "/workers")
 
 	print ("Working...")
 

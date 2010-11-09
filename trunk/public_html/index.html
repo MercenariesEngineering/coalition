@@ -5,106 +5,122 @@
 <script type="text/javascript" src="/jsolait/jsolait.js"></script>
 <script type="text/javascript">jsolait.baseURI="/jsolait";</script>
 <script src="coalition.js"></script>
-<!-- floatlayer.js is copyright Robert Quince http://www.fiendish.demon.co.uk/html/javascript/layerfloat.html -->
-<script src="floatlayer.js"></script>
 <link href="coalition.css" rel="stylesheet" type="text/css"></link>
 </head>
-<body onresize="alignFloatLayers()" onscroll="alignFloatLayers()">
 
+<body>
 <div id="header">
-<h1>Coalition Server</h1>
-<p>A small but beautiful job manager by Mercenaries Engineering - GPL licence</p>
-<input type='button' name='jobsButton' value='Jobs' onclick='reloadJobs()'>
-<input type='button' name='workersButton' value='Workers' onclick='reloadWorkers()'>
-<input type='button' name='refreshButton' value='Refresh' onclick='refresh()'>
+    <div id="maintitle"><a href="http://code.google.com/p/coalition/">Coalition</a></div>
+    <div id="subtitle">- A small but beautiful job manager by <a href="http://www.mercenaries-engineering.com">Mercenaries Engineering</a> - GPL licence - <a href="iphone.html">iPhone</a></div>
+
+    <div id="tabs">
+            <div id="jobtab" class="activetab" onclick='showJobs()'>Jobs</div>
+            <div id="workertab" class="unactivetab" onclick='showWorkers()'>Workers</div>
+            <div id="logtab" class="unactivetab" onclick='showLog ()'>Log</div>
+    </div>
+
+    <div class="refreshtools">
+        <input id="autorefresh" class="auto" type="checkbox">auto</input>
+        <input type="button" id="refreshbutton" class="refreshbutton" onclick='refresh()' value='Refresh'/>
+    </div>
+        
 </div>
 
 <div id="main">
+    <div id="jobsTab">
+        <div id="jobtools">
+            <div class='button' id='Div1'><img src='icon_select.png' /> Filter
+                <select id='filterJobs' onchange='javascript:reloadJobs ()'>
+                    <option value='NONE'>NONE</option>
+                    <option value='WORKING'>WORKING</option>
+                    <option value='ERROR'>ERROR</option>
+                    <option value='WAITING'>WAITING</option>
+                    <option value='FINISHED'>FINISHED</option>
+                    <option value='PAUSED'>PAUSED</option>
+                </select></div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b01''><img src='icon_select.png' /> Select
+                <select id='selectJobs' onchange='javascript:selectJobs ()' value='CUSTOM'>
+                    <option value='NONE'>NONE</option>
+                    <option value='ALL'>ALL</option>
+                    <option value='WORKING'>WORKING</option>
+                    <option value='ERROR'>ERROR</option>
+                    <option value='WAITING'>WAITING</option>
+                    <option value='FINISHED'>FINISHED</option>
+                    <option value='PAUSED'>PAUSED</option>
+                    <option value='CUSTOM'>CUSTOM</option>
+                </select></div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b03' onclick='removeSelection()'><img src='icon_remove.png' /> Remove Selection</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b04' onclick='resetSelection()'><img src='icon_refresh.png' /> Reset Selection</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b05' onclick='pauseSelection()'><img src='icon_pause.png' /> Pause Selection</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b11' onclick='logSelection()'><img src='icon_logs.png' /> Log Selection</div>
+        </div>
+        <div id="parents">
+        </div>
+        <div id="jobs">
+        </div>
+
+        <table id="toolstable">
+        <tr>
+        <td class="ttr1">Title:</td><td class="ttr2"><input type='edit' class="ttedit" id='title' name='title' value='Job' onchange='onchangejobprop ("title")'></td>
+        <td class="ttr3">Priority:</td><td class="ttr4"><input type='edit' class="ttedit" id='priority' name='priority' value='1000' onchange='onchangejobprop ("priority")'></td>
+        <td rowspan=4 id="toolbuttons">
+            <div>
+                <input type='button' class='toolbutton' name='updatejobsButton' value='Update' onclick='updatejobs()' />
+                <input type='button' class='toolbutton' name='addjobButton' value='Add job' onclick='addjob()' />
+            </div>
+        </td></tr>
+        <tr>
+        <td class="ttr1">Command:</td><td><input type='edit' class="ttedit" id='cmd' name='cmd' value='' onchange='onchangejobprop ("cmd")'></td>
+        <td class="ttr3">TimeOut:</td><td><input type='edit' class="ttedit" id='timeout' name='timeout' value='0' onchange='onchangejobprop ("timeout")'></td>
+        <tr>
+        <td class="ttr1">Directory:</td><td><input type='edit' class="ttedit" id='dir' name='dir' value='.' onchange='onchangejobprop ("dir")'></td>
+        <td class="ttr3">Affinity:</td><td><input type='edit' class="ttedit" id='affinity' name='affinity' value='' onchange='onchangejobprop ("affinity")'></td>
+        </tr>
+        <tr>
+        <td class="ttr1">Dependencies:</td><td><input type='edit' class="ttedit" id='dependencies' name='dependencies' value='' onchange='onchangejobprop ("dependencies")'></td>
+        <td class="ttr3">Retry:</td><td><input type='edit' class="ttedit" id='retry' name='retry' value='10' onchange='onchangejobprop ("retry")'></td>
+        </tr>
+        </table>
+    </div>
+    <div id="workersTab">
+        <div id="workertools">
+            <div class='button' id='b06' onclick='selectAll (true)'><img src='icon_select.png' /> Select All</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b07' onclick='selectAll (false)'><img src='icon_none.png' /> Select None</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b08' onclick='clearWorkers ()'><img src='icon_remove.png' /> Remove Selection</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b09' onclick='startWorkers ()'><img src='icon_play.png' /> Start Selection</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b10' onclick='stopWorkers ()'><img src='icon_pause.png' /> Stop Selection</div>
+        </div>
+        <div id="workers">
+        </div>
+
+        <table id="workertoolstable">
+        <tr>
+        <td class="ttr3">Affinity:</td><td><input type='edit' class="ttedit" id='waffinity' name='waffinity' value='' onchange='onchangeworkerprop ("waffinity")'></td>
+        <td rowspan=4>
+            <div>
+                <input type='button' class='toolbutton' name='updatejobsButton' value='Update' onclick='updateworkers()' />
+            </div>
+        </td></tr>
+        </table>
+    </div>
+    <div id="logsTab">
+        <div id="logtools">
+            <div class='button' id='b12' onclick='clearLog()'><img src='icon_remove.png' /> Clear</div>
+        </div>
+        <div id="logs">
+        </div>
+    </div>
 </div>
 
-<div id="footer">
-<input type='button' name='jobsButton' value='Jobs' onclick='reloadJobs()'>
-<input type='button' name='workersButton' value='Workers' onclick='reloadWorkers()'>
-<input type='button' name='refreshButton' value='Refresh' onclick='refresh()'>
-</div>
-
-<div id="tools" style="background:#d0d0ff;border:solid black 1px;padding:5px">
-<div id="jobtools" style="padding:0px">
-Select: <input type='button' name='myButton' value='All' onclick='selectAll (true)'>
-        <input type='button' name='myButton' value='None' onclick='selectAll (false)'>
-        <input type='button' name='myButton' value='Hide' onclick='showHideTools ()'>
-        <hr>
-Action: <input type='button' name='myButton' value='Remove' onclick='removeSelection()'>
-        <input type='button' name='myButton' value='Reset' onclick='resetSelection()'>
-        <input type='button' name='myButton' value='Pause' onclick='pauseSelection()'>
-        <hr>
-Add a job :
-<table>
-<tr>
-<td>Title:</td><td><input type='edit' id='title' name='title' value='Job'></td>
-<!--<td>Job title</td>-->
-</tr>
-<tr>
-<td>Command:</td><td><input type='edit' id='cmd' name='cmd' value='' onchange='onchangejobprop ("cmd")'></td>
-<!--<td>Command to execute on the worker</td>-->
-</tr>
-<tr>
-<td>Directory:</td><td><input type='edit' id='dir' name='dir' value='.' onchange='onchangejobprop ("dir")'></td>
-<!--<td>Worker directory where to execute the command</td>-->
-</tr>
-<tr>
-<td>Priority:</td><td><input type='edit' id='priority' name='priority' value='1000' onchange='onchangejobprop ("priority")'></td>
-<!--<td>Job priority</td>-->
-</tr>
-<tr>
-<td>Affinity:</td><td><input type='edit' id='affinity' name='affinity' value='' onchange='onchangejobprop ("affinity")'></td>
-<!--<td>Job affinity</td>-->
-</tr>
-<tr>
-<td>TimeOut:</td><td><input type='edit' id='timeout' name='timeout' value='0' onchange='onchangejobprop ("timeout")'></td>
-<!--<td>Job Time Out in minutes</td>-->
-</tr>
-<tr>
-<td>Retry:</td><td><input type='edit' id='retry' name='retry' value='10'></td>
-<!--<td>Number of retry to do for this job</td>-->
-</tr>
-<tr>
-<td>Dependencies:</td><td><input type='edit' id='dependencies' name='dependencies' value=''></td>
-<!--<td>Ids of the job dependencies (exemple : "1,2,3" or "21 22 23") </td>-->
-</tr>
-</table>
-<input type='button' name='addjobButton' value='Add job' onclick='addjob()'>
-<input type='button' name='updatejobsButton' value='Update' onclick='updatejobs()'>
-</div>
-<div id="workertools" style="padding:0px">
-Select: <input type='button' name='myButton' value='All' onclick='selectAll (true)'>
-        <input type='button' name='myButton' value='None' onclick='selectAll (false)'>
-        <input type='button' name='myButton' value='Hide' onclick='showHideTools ()'>
-        <hr>
-Action: <input type='button' name='myButton' value='Clear All' onclick='clearWorkers ()'>
-        <input type='button' name='myButton' value='Start' onclick='startWorkers ()'>
-        <input type='button' name='myButton' value='Stop' onclick='stopWorkers ()'>
-        <hr>
-<table>
-<tr>
-<td>Affinity:</td><td><input type='edit' id='waffinity' name='waffinity' value='' onchange='onchangeworkerprop ("waffinity")'></td>
-<!--<td>Worker affinity</td>-->
-</tr>
-</table>
-<input type='button' name='updateworkersButton' value='Update' onclick='updateworkers()'>
-</div>
-<div id="showhidetools" style="padding:0px">
-        <input type='button' name='myButton' value='Show' onclick='showHideTools ()'>
-</div>
-</div>
-
-<br>
-
-<center>
-<a href="http://code.google.com/p/coalition/">Coalition</a> - 
-<a href="http://www.mercenaries-engineering.com">Mercenaries Engineering</a> - 
-<a href="iphone.html">iPhone</a>
-</center>
 </body>
 </html>
 
