@@ -174,12 +174,12 @@ class Job:
 	"""A farm job"""
 
 	def __init__ (self, title, cmd = "", dir = "", priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", dependencies = [], localprogress = None, globalprogress = None):
-		self.ID = None						# Jod ID
+		self.ID = None						# Job ID
 		self.Parent = None					# Parent Job ID
 		self.Children = []					# Children Jobs IDs
 		self.Title = title					# Job title
 		self.Command = cmd					# Job command to execute
-		self.Dir = dir						# Jod working directory
+		self.Dir = dir						# Job working directory
 		self.State = "WAITING"				# Job state, can be WAITING, WORKING, FINISHED or ERROR
 		self.Worker = ""					# Worker hostname
 		self.StartTime = time.time()		# Start working time 
@@ -253,6 +253,11 @@ class Worker:
 		self.TotalMemory = 0			# Total memory of the worker system
 		self.Active = True				# Is the worker enabled
 
+def writeJobLog (jobId, log):
+	logFile = open (getLogFilename (jobId), "a")
+	logFile.write (log)
+	logFile.close ()	
+			
 # State of the master
 # Rules for picking a job:
 # If the job has children, they must be finished before
@@ -311,11 +316,13 @@ class CState:
 						output ("Job " + str(job.ID) + " is AWOL")
 						self.updateJobState (id, "ERROR")
 						self.updateWorkerState (job.Worker, "TIMEOUT")
+						writeJobLog (job.ID, "SERVER: Worker "+job.Worker+" doesn't respond, timeout.")
 					elif job.TimeOut > 0 and _time - job.StartTime > job.TimeOut:
 						# job exceeded run time
 						output ("Job " + str(job.ID) + " timeout, exceeded run time")
 						self.updateJobState (id, "ERROR")
 						self.updateWorkerState (job.Worker, "ERROR")
+						writeJobLog (job.ID, "SERVER: Job " + str(job.ID) + " timeout, exceeded run time")
 					job.Duration = _time - job.StartTime
 			except KeyError:
 				refreshActive = True
@@ -905,7 +912,6 @@ class Master (xmlrpc.XMLRPC):
 			elif request.path == "/json/clearworkers":
 				return self.json_clearworkers (request.args.get ("id"))
 			elif request.path == "/json/stopworkers":
-				print (str(request.args.get ("id")))
 				return self.json_stopworkers (request.args.get ("id"))
 			elif request.path == "/json/startworkers":
 				return self.json_startworkers (request.args.get ("id"))
@@ -920,6 +926,8 @@ class Master (xmlrpc.XMLRPC):
 		global State
 		output ("Send jobs")
 
+		State.update ()
+		
 		vars = ["ID","Title","Command","Dir","State","Worker","StartTime","Duration","Try","Retry","TimeOut","Priority","Affinity","User","Finished","Errors","Total","TotalFinished","TotalErrors","Dependencies","LocalProgress","GlobalProgress"];
 
 		# Get the job
@@ -1039,6 +1047,8 @@ class Master (xmlrpc.XMLRPC):
 	def json_getworkers (self):
 		global State
 		output ("Send workers")
+
+		State.update ()
 
 		vars = ["Name","Affinity","State","Finished","Error","LastJob","Load","FreeMemory","TotalMemory","Active"]
 
@@ -1182,7 +1192,6 @@ class Workers(xmlrpc.XMLRPC):
 		except KeyError:
 			pass
 		State.update ()
-		print (worker.State, jobId)
 		if worker.State == "WORKING" and workingJob != None and workingJob.State == "WORKING":
 			return "true"
 		# Stop
@@ -1240,7 +1249,6 @@ class Workers(xmlrpc.XMLRPC):
 		errorCode = int(errorCode)
 		try:
 			job = State.Jobs[jobId]
-			print ("end", job.State, job.Worker, hostname)
 			if job.State == "WORKING" and job.Worker == hostname :
 				result = "FINISHED"
 				if errorCode != 0 :
