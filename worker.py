@@ -2,7 +2,7 @@ import socket, time, subprocess, thread, getopt, sys, os, base64, signal, string
 from sys import modules
 from os.path import splitext, abspath
 
-import host_cpu
+import host_cpu, host_mem
 
 if sys.platform=="win32":
 	import _winreg
@@ -11,15 +11,15 @@ if sys.platform=="win32":
 	import win32event
 	import win32api
 
-import psutil
-
 # Options
 global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, workers
 debug = False
 verbose = False
 sleepTime = 5
 affinity = ""
+
 name = socket.gethostname()
+
 broadcastPort = 19211
 gogogo = True
 serverUrl = ""
@@ -203,7 +203,7 @@ class Worker:
 		self.LogLock = thread.allocate_lock()	# Logs lock
 		self.Log = ""							# Logs
 		self.HostCPU = host_cpu.HostCPU ()
-		self.TotalMemory = psutil.TOTAL_PHYMEM
+		self.TotalMemory = host_mem.getTotalMem ()
 
 
 	# LoadAvg
@@ -227,10 +227,10 @@ class Worker:
 	# Add to the logs
 	def info (self, str):
 		self.LogLock.acquire()
-   		try:
+		try:
 			self.Log = self.Log + "WORKER " + self.Name + ": " + str + "\n";
 			debugOutput (str)
-  		finally:
+		finally:
 			self.LogLock.release()
 
 	# Thread function to execute the job process
@@ -270,10 +270,10 @@ class Worker:
 
 			debugRaw (line)
 			self.LogLock.acquire()
-   			try:
-        			self.Log = self.Log + line
-   			finally:
-         			self.LogLock.release()
+			try:
+					self.Log = self.Log + line
+			finally:
+ 					self.LogLock.release()
 
 		# Get the error code of the job
 		self.ErrorCode = process.wait ()
@@ -329,29 +329,28 @@ class Worker:
 
 	# Flush the logs to the server
 	def heartbeat (self, jobId, retry):
-		print ("hb")
 		debugOutput ("Flush logs (" + str (len (self.Log)) + " bytes)")
 		def func (serverConn):
 			result = True
 
 			self.LogLock.acquire()
-   			try:
+			try:
 				params = urllib.urlencode ({
 					'hostname':self.Name, 
 					'jobId':jobId, 
 					'log':base64.b64encode (self.Log), 
 					'load':self.workerGetLoadAvg (), 
-					'freeMemory':int(psutil.avail_phymem()/1024/1024), 
+					'freeMemory':int(host_mem.getAvailableMem()/1024/1024), 
 					'totalMemory':int(self.TotalMemory/1024/1024)
 				})
 				serverConn.request ("POST", "/workers/heartbeat", params, Headers)
 				response = serverConn.getresponse()
 				result = response.read()
 				self.Log = ""
-   			finally:
+			finally:
 				self.LogLock.release()
 
-			if result == "False":
+			if result == "false":
 				debugOutput ("Server ask to stop the job " + str (jobId))
 				# Send the kill signal to the process
 				self.killJob ()
@@ -366,16 +365,12 @@ class Worker:
 			params = urllib.urlencode ({
 				'hostname':self.Name, 
 				'load':self.workerGetLoadAvg (), 
-				'freeMemory':int(psutil.avail_phymem()/1024/1024), 
+				'freeMemory':int(host_mem.getAvailableMem()/1024/1024), 
 				'totalMemory':int(self.TotalMemory/1024/1024)
 			})
-			print ("1")
 			serverConn.request ("POST", "/workers/pickjob", params, Headers)
-			print ("1")
 			response = serverConn.getresponse()
-			print ("1")
 			result = response.read()
-			print (result)
 			return eval (result)
 				
 		# Block until this message to handled by the server
@@ -417,7 +412,6 @@ class Worker:
 				})
 				serverConn.request ("POST", "/workers/endjob", params, Headers)
 				serverConn.getresponse()
-				print ("end")
 
 			# Block until this message to handled by the server
 			workerRun (self, endFunc, True)
