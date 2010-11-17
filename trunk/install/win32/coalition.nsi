@@ -31,6 +31,7 @@ noUninstallWarning:
 	AccessControl::GrantOnFile "$APPDATA\Coalition" "(BU)" "FullAccess"
 
 	ExecWait 'net stop CoalitionServer'
+	ExecWait 'net stop CoalitionWorker'
 
 	; Write the registry
 	WriteRegStr HKLM "Software\Mercenaries Engineering\Coalition" "Installdir" $INSTDIR
@@ -68,7 +69,7 @@ Section /o "Server (the master computer)"
 	CreateShortCut "$DESKTOP\Coalition Server Start.lnk" "net" "start CoalitionServer" "$INSTDIR\server_start.ico"
 	CreateShortCut "$DESKTOP\Coalition Server Stop.lnk" "net" "stop CoalitionServer" "$INSTDIR\server_stop.ico"
 
-	ExecWait '"$INSTDIR\server" remove'
+	ExecWait '"$INSTDIR\server" -remove'
 	ExecWait '"$INSTDIR\server" -install -auto'
 	ExecWait 'net start CoalitionServer'
 SectionEnd
@@ -82,7 +83,7 @@ Section "Worker (computers composing the farm)"
 	CreateShortCut "$DESKTOP\Coalition Worker Start.lnk" "net" "start CoalitionWorker" "$INSTDIR\worker_start.ico"
 	CreateShortCut "$DESKTOP\Coalition Worker Stop.lnk" "net" "stop CoalitionWorker" "$INSTDIR\worker_stop.ico"
 
-	ExecWait '"$INSTDIR\worker" remove'
+	ExecWait '"$INSTDIR\worker" -remove'
 	ExecWait '"$INSTDIR\worker" -install -auto'
 	ExecWait 'net start CoalitionWorker'
 SectionEnd

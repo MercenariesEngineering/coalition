@@ -38,30 +38,31 @@ def cpuCount():
 
 class HostCPU:
 	"""This class returns the per CPU"""
-	def __init__(self):
-		if sys.platform=="win32":
-			self.base = win32pdh.OpenQuery()
-			self.Counters = []
-			cpucount = cpuCount()
-			for cpuid in range(0,cpucount):
-				self.Counters.append (win32pdh.AddCounter(self.base, win32pdh.MakeCounterPath((None, pdhTranslateEnglishCounter ("Processor"),str(cpuid),None, -1, pdhTranslateEnglishCounter ("% Processor Time")))))
-			win32pdh.CollectQueryData(self.base)
+#	def __init__(self):
+#		if sys.platform=="win32":
+#			self.base = win32pdh.OpenQuery()
+#			self.Counters = []
+#			cpucount = cpuCount()
+#			for cpuid in range(0,cpucount):
+#				self.Counters.append (win32pdh.AddCounter(self.base, win32pdh.MakeCounterPath((None, pdhTranslateEnglishCounter ("Processor"),str(cpuid),None, -1, pdhTranslateEnglishCounter ("% Processor Time")))))
+#				#self.Counters.append (win32pdh.AddCounter(self.base, win32pdh.MakeCounterPath((None, "Processor",str(cpuid),None, -1, "% Processor Time"))))
+#			win32pdh.CollectQueryData(self.base)
 	
 	def getUsage(self):
 		''' Return a list with the usage of each CPU '''
-		if sys.platform=="win32":
-			result = []
-			win32pdh.CollectQueryData(self.base)
-			for counter in self.Counters:
-				try:
-					load = win32pdh.GetFormattedCounterValue(counter,win32pdh.PDH_FMT_DOUBLE)[1]
-				except:
-					load = 0
-					pass
-				result.append (load)
-			return result 
-		else:
-			result = []
-			for cpuid in range(0,cpucount):			
-				result.append (0)
-
+#		if sys.platform=="win32":
+#			result = []
+#			win32pdh.CollectQueryData(self.base)
+#			for counter in self.Counters:
+#				try:
+#					load = win32pdh.GetFormattedCounterValue(counter,win32pdh.PDH_FMT_DOUBLE)[1]
+#				except:
+#					load = 0
+#					pass
+#				result.append (load)
+#			return result 
+#		else:
+#			result = []
+#			for cpuid in range(0,cpucount):			
+#				result.append (0)
+		return [0]
