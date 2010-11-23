@@ -1,4 +1,4 @@
-import sys,os
+import sys,os,re
 
 if sys.platform=="win32":
 	import win32pdh
@@ -36,6 +36,11 @@ def cpuCount():
 
 	return num
 
+gUser = 0
+gNice = 0
+gSystem = 0
+gIdle = 0
+
 class HostCPU:
 	"""This class returns the per CPU"""
 #	def __init__(self):
@@ -65,4 +70,32 @@ class HostCPU:
 #			result = []
 #			for cpuid in range(0,cpucount):			
 #				result.append (0)
+		if sys.platform!="win32":
+			global gUser
+			global gNice
+			global gSystem
+			global gIdle
+			user = 0
+			nice = 0
+			system = 0
+			idle = 0
+			file = open ("/proc/stat", "r")
+			for line in file:
+				words = re.split ('\W+', line)
+				if len(words) >= 5:
+					if words[0] == 'cpu':
+						user = int(words[1])
+						nice = int(words[2])
+						system = int(words[3])
+						idle = int(words[4])
+			usage = (user-gUser)+(nice-gNice)+(system-gSystem)
+			total = usage+(idle-gIdle)
+			gUser = user
+			gNice = nice
+			gSystem = system
+			gIdle = idle
+			if total > 0:
+				return [100*usage/total]
+			return [0]
+			
 		return [0]
