@@ -69,7 +69,10 @@ def usage():
 	print ("  --ldaptemplate=TEMPLATE\tLDAP template used to validate the user, like uid=%login,ou=people,dc=exemple,dc=com")
 	print ("\nExample : server -p 1234")
 
-if sys.platform!="win32" or not service:
+# Service only on Windows
+service = service and sys.platform == "win32"
+
+if not service:
 	# Parse the options
 	try:
 		opts, args = getopt.getopt(sys.argv[1:], "hp:v", ["help", "port=", "verbose", "ldaphost=", "ldaptemplate="])
@@ -114,7 +117,7 @@ def output (str):
 
 output ("--- Start ------------------------------------------------------------")
 
-if sys.platform!="win32" and service:
+if service:
 	output ("Running service")
 else:
 	output ("Running standard console")

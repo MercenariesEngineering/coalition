@@ -104,7 +104,10 @@ def usage():
 	print ("  -i, --install\t\tInstall service (Windows only)")
 	print ("\nExample : worker -s 30 -v http://localhost:19211")
 
-if sys.platform!="win32" or not service:
+# Service only on Windows
+service = service and sys.platform == "win32"
+
+if not service:
 	# Parse the options
 	try:
 		opts, args = getopt.getopt(sys.argv[1:], "a:c:dhin:s:u:vw:", ["affinity=", "cpus=", "debug", "help", "install", "name=", "sleep=", "startup=", "verbose", "workers="])
