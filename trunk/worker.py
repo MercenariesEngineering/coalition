@@ -240,7 +240,7 @@ class Worker:
 	def _execProcess (self, cmd, dir, user):
 
 		# Change the user ?
-		if user != "":
+		if user != "" and sys.platform != "win32":
 			debugOutput ("Run the command using login " + user)
 			#os.seteuid (pwd.getpwnam (user)[2])
 			cmd = "su - " + user + " -c \"" + "cd "+ dir + "; " +cmd + "\""
