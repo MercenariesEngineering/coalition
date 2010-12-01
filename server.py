@@ -1234,7 +1234,7 @@ class Workers(xmlrpc.XMLRPC):
 			State.updateWorkerState (hostname, "WORKING")
 			State.update ()
 			output (hostname + " picked job " + str (jobId) + " " + worker.State)
-			if LDAPServer != "":
+			if job.User != None and job.User != "":
 				return repr (job.ID)+","+repr (job.Command)+","+repr (job.Dir)+","+repr (job.User)
 			else:
 				return repr (job.ID)+","+repr (job.Command)+","+repr (job.Dir)+","+'""'
