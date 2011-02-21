@@ -276,12 +276,14 @@ function renderJobs ()
 	addTitleHTML ("State");
 	addTitleHTML ("Priority");
 	addTitleHTMLEx ("TotalFinished", "Ok");
+	addTitleHTMLEx ("TotalWorking", "Wrk");
 	addTitleHTMLEx ("TotalErrors", "Err");
 	addTitleHTML ("Total");
 	addTitleHTML ("Progress");
 	addTitleHTML ("Affinity");
 	addTitleHTML ("TimeOut");
 	addTitleHTML ("Worker");
+	addTitleHTML ("StartTime");
 	addTitleHTML ("Duration");
 	addTitleHTML ("Try");
 	addTitleHTML ("Command");
@@ -310,11 +312,13 @@ function renderJobs ()
 		if (job.Total > 0)
 		{
 		    table += "<td class='"+(job.TotalFinished > 0 ? "FINISHED" : "WAITING")+"' width=30>"+job.TotalFinished+"</td>";
+		    table += "<td class='"+(job.TotalWorking > 0 ? "WORKING" : "WAITING")+"' width=30>"+job.TotalWorking+"</td>";
 		    table += "<td class='"+(job.TotalErrors > 0 ? "ERROR" : "WAITING")+"' width=30>"+job.TotalErrors+"</td>";
 		    table += "<td class='"+(job.Total == job.TotalFinished ? "FINISHED" : "WAITING")+"' width=30>"+job.Total+"</td>";
 		}
 		else
 		{
+		    addTD ("");
 		    addTD ("");
 		    addTD ("");
 		    addTD ("");
@@ -358,6 +362,8 @@ function renderJobs ()
 		addTD (job.Affinity);
 		addTD (job.TimeOut);
 		addTD (job.Worker);
+		var start = new Date(job.StartTime*1000)
+		addTD (start.getFullYear() + '/' + start.getMonth() + '/' + start.getDate() + ' ' + start.getHours () + ':' + start.getMinutes () + ':' + start.getSeconds());
 		addTD (formatDuration (job.Duration));
 		addTD (job.Try+"/"+job.Retry);
 		addTD (job.Command);
@@ -372,6 +378,52 @@ function renderJobs ()
 		addTD (deps);
 		table += "</td></tr>\n";
 	}
+
+	// Footer
+	table += "<tr class='title'>";
+
+	// Returns the HTML code for a job title column
+	function addSumEmpty (attribute, str)
+	{
+		if (str == undefined)
+			table += "<td></td>";
+		else
+			table += "<td class='headerCell'>" + str + "</td>";
+	}
+
+	// Returns the HTML code for a job title column
+	function addSum (attribute)
+	{
+		var sum = 0;
+		for (i=0; i < jobs.length; i++)
+		{
+			var job = jobs[i];
+			sum += job[attribute];
+		}
+		table += "<td class='headerCell'>" + sum + "</td>";
+	}
+
+	addSumEmpty ("ID");
+	addSumEmpty ("Title", "TOTAL");
+	addSumEmpty ("User");
+	addSumEmpty ("State");
+	addSumEmpty ("Priority");
+	addSum ("TotalFinished", "Ok");
+	addSum ("TotalWorking", "Wrk");
+	addSum ("TotalErrors", "Err");
+	addSum ("Total");
+	addSumEmpty ("Progress");
+	addSumEmpty ("Affinity");
+	addSumEmpty ("TimeOut");
+	addSumEmpty ("Worker");
+	addSumEmpty ("StartTime");
+	addSumEmpty ("Duration");
+	addSumEmpty ("Try");
+	addSumEmpty ("Command");
+	addSumEmpty ("Dir");
+	addSumEmpty ("Dependencies");
+	table += "</tr>\n";
+
 	table += "</table></div>";
 	$("#jobs").append(table);
 }
@@ -955,5 +1007,10 @@ function pauseSelection ()
 function updateJobProps ()
 {
     updatedJobProps = checkSelectionProperties (jobs, JobProps, selectedJobs, "ID");
+}
+
+function exportCSV()
+{
+	window.open('csv.html?id=' + viewJob);
 }
 

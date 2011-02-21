@@ -1,0 +1,8 @@
+3.6:
+Added : the database is backuped
+Added : working column
+Added : start time column
+Added : CSV export of the jobs
+Changed : if the database is corrupted, the server quits with an error
+Fixed : variable timeout was not properly read from the config file
+

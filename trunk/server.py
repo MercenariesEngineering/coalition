@@ -1,9 +1,12 @@
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random
+import atexit
 
 GErr=0
 GOk=0
+
+print (time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(time.time ())))
 
 # Go to the script directory
 global installDir, dataDir
@@ -34,7 +37,7 @@ config.read ("coalition.ini")
 
 def cfgInt (name, defvalue):
 	global config
-	if config.has_option('server', 'port'):
+	if config.has_option('server', name):
 		try:
 			return int (config.get('server', name))
 		except:
@@ -54,6 +57,10 @@ port = cfgInt ('port', 19211)
 TimeOut = cfgInt ('timeout', 10)
 verbose = cfgBool ('verbose', False)
 service = cfgBool ('service', True)
+
+BackupTime = cfgInt ('backuptime', 60*60)	# Backup timing in secondes, 1H
+BackupMax = cfgInt ('backupmax', 24)		# Maximum backup files, 24
+BackupLastTime = time.time ()	# Last backup date
 
 LDAPServer = ""
 LDAPTemplate = ""
@@ -107,8 +114,13 @@ if not verbose or service:
 		outfile = open(dataDir + '/server.log', 'a')
 		sys.stdout = outfile
 		sys.stderr = outfile
+		def exit ():
+			print ("exit")
+			outfile.close ()
+		atexit.register (exit)
 	except:
 		pass
+
 
 # Log function
 def output (str):
@@ -196,9 +208,11 @@ class Job:
 		self.User = user					# Job user
 		self.Finished = 0					# Number of finished children
 		self.Errors = 0						# Number of error children
+		self.Working = 0					# Number of children working
 		self.Total = 0						# Total number of (grand)children
 		self.TotalFinished = 0				# Total number of (grand)children finished
 		self.TotalErrors = 0				# Total number of (grand)children in error
+		self.TotalWorking = 0				# Total number of children working
 		self.Dependencies = dependencies	# Job dependencies
 		if localprogress != None:
 			self.LocalProgressPattern = localprogress
@@ -266,7 +280,7 @@ def writeJobLog (jobId, log):
 # If the job has children, they must be finished before
 # If no child can be ran (exceeded retries count), then the job cannot be ran
 # Children are picked according to their priority
-DBVersion = 5
+DBVersion = 6
 class CState:
 
 	def __init__ (self):
@@ -286,11 +300,17 @@ class CState:
 	# Read the state
 	def read (self, fo):
 		version = cPickle.load(fo)
-		if version == DBVersion:
+		if version == DBVersion or version == 5:
 			self.Counter = cPickle.load (fo)
 			self.Jobs = cPickle.load (fo)
 			self.Workers = cPickle.load (fo)
 			self._refresh ()
+			if version <= 5:
+				# Add Working, TotalWorking
+				print ("Translate DB to version 6")
+				for id, job in self.Jobs.iteritems () :
+					job.Working = 0
+					job.TotalWorking = 0				
 			#self.dump ()
 		else:
 			raise Exception ("Database too old, erase the master_db file")
@@ -593,8 +613,10 @@ class CState:
 			total = 0
 			totalfinished = 0
 			totalerrors = 0
+			totalworking = 0
 			finished = 0
 			errors = 0
+			working = 0
 			for childId in job.Children :
 				if self.canExecute (childId):
 					jobsToDo = True
@@ -603,19 +625,25 @@ class CState:
 				total += child.Total or 0
 				totalerrors += child.TotalErrors or 0
 				totalfinished += child.TotalFinished or 0
+				totalworking += child.TotalWorking or 0
 				if state == "ERROR":
 					errors += 1
 				elif state == "FINISHED":
 					finished += 1
+				elif state == "WORKING":
+					working += 1
 			total += len (job.Children)
 			totalerrors += errors
 			totalfinished += finished
+			totalworking += working
 			newState = "WAITING"
 			job.Finished = finished
 			job.Errors = errors
+			job.Working = working
 			job.Total = total
 			job.TotalErrors = totalerrors
 			job.TotalFinished = totalfinished
+			job.TotalWorking = totalworking
 			if not jobsToDo and errors > 0 :
 				newState = "ERROR"
 			if job.State != "PAUSED" and newState != job.State:
@@ -855,6 +883,7 @@ class Master (xmlrpc.XMLRPC):
 		if authenticate (request):
 			self.User = request.getUser ()
 			# Addjob
+
 			def getArg (name, default):
 				value = request.args.get (name, [default])
 				return value[0]
@@ -931,7 +960,7 @@ class Master (xmlrpc.XMLRPC):
 
 		State.update ()
 		
-		vars = ["ID","Title","Command","Dir","State","Worker","StartTime","Duration","Try","Retry","TimeOut","Priority","Affinity","User","Finished","Errors","Total","TotalFinished","TotalErrors","Dependencies","LocalProgress","GlobalProgress"];
+		vars = ["ID","Title","Command","Dir","State","Worker","StartTime","Duration","Try","Retry","TimeOut","Priority","Affinity","User","Finished","Errors","Working","Total","TotalFinished","TotalErrors","TotalWorking","Dependencies","LocalProgress","GlobalProgress"];
 
 		# Get the job
 		try:
@@ -1263,12 +1292,43 @@ class Workers(xmlrpc.XMLRPC):
 		State.update ()
 		return "1"
 
+# Backup the DB
+# Erase master_db.maxBackup
+# Rename master_db.N in master_db.N+1
+# Copy master_db in master_db.1
+def backup ():
+	global BackupTime, BackupLastTime, BackupMax
+	if time.time() - BackupLastTime > BackupTime:
+		# Remove the last backup
+		try:
+			os.remove (dataDir + "/master_db." + str(BackupMax))
+			output ('remove ' + dataDir + "/master_db." + str(BackupMax))
+		except OSError:
+			pass
+
+		# Rename the backups
+		for i in range (BackupMax,1,-1):
+			try:
+				os.rename (dataDir + "/master_db." + str(i-1), dataDir + "/master_db." + str(i))
+				output ('rename ' + dataDir + "/master_db." + str(i-1) + ' in ' + dataDir + "/master_db." + str(i))
+			except OSError:
+				pass
+
+		# Copy the last db
+		try:
+			os.rename (dataDir + "/master_db", dataDir + "/master_db.1")
+			output ('rename ' + dataDir + "/master_db in " + dataDir + "/master_db.1")
+		except OSError:	
+			pass
+		BackupLastTime = time.time()
+
 # Write the DB on disk
 def saveDb ():
 	global State, dataDir
 	global GErr, GOk
 #	print ("Error : " + str(GErr) + " OK : " + str(GOk))
 	if State._UpdatedDb:
+		backup ()
 		fo = open(dataDir + "/master_db.part", "wb")
 		try:
 			State.write (fo)
@@ -1288,18 +1348,16 @@ def readDb ():
 	global State, dataDir
 	output ("Read DB")
 	try:
-		fo = open(dataDir + "/master_db", "rb")
 		try:
-			State.read (fo)
-		except Exception, inst:
-			print inst.args
-			fo.close()
-			print ("Error reading master_db, create a new one")
+			fo = open(dataDir + "/master_db", "rb")
+		except IOError:
+			output ("No db found, create a new one")
 			State = CState()
+			return
+		State.read (fo)
 	except:
-		output ("No db found, create a new one")
-		State = CState()
-		return
+		print ("Error reading " + dataDir + "/master_db" + " ! Quit !")
+		sys.exit (1)
 	output ("DB is OK")
 	# Touch every working job
 	_time = time.time()
