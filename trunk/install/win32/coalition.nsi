@@ -74,17 +74,27 @@ Section /o "Server (the master computer)"
 	ExecWait 'net start CoalitionServer'
 SectionEnd
 
-Section "Worker (computers composing the farm)"
+Section "Worker Command Line (slave)"
 	SetShellVarContext all
 
-	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Start.lnk" "net" "start CoalitionWorker" "$INSTDIR\worker_start.ico"
-	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Stop.lnk" "net" "stop CoalitionWorker" "$INSTDIR\worker_stop.ico"
+	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker.lnk" "$INSTDIR\worker.exe" "" "$INSTDIR\worker_start.ico"
 	CreateShortCut "$SMPROGRAMS\Coalition\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
-	CreateShortCut "$DESKTOP\Coalition Worker Start.lnk" "net" "start CoalitionWorker" "$INSTDIR\worker_start.ico"
-	CreateShortCut "$DESKTOP\Coalition Worker Stop.lnk" "net" "stop CoalitionWorker" "$INSTDIR\worker_stop.ico"
+	CreateShortCut "$DESKTOP\Coalition Worker.lnk" "$INSTDIR\worker.exe" "" "$INSTDIR\worker_start.ico"
 
-	ExecWait '"$INSTDIR\worker" -remove'
-	ExecWait '"$INSTDIR\worker" -install -auto'
+	ExecWait 'net start CoalitionWorker'
+SectionEnd
+
+Section /o "Worker Service (slave)"
+	SetShellVarContext all
+
+	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Service Start.lnk" "net" "start CoalitionWorker" "$INSTDIR\worker_start.ico"
+	CreateShortCut "$SMPROGRAMS\Coalition\Coalition Worker Service Stop.lnk" "net" "stop CoalitionWorker" "$INSTDIR\worker_stop.ico"
+	CreateShortCut "$SMPROGRAMS\Coalition\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
+	CreateShortCut "$DESKTOP\Coalition Worker Service Start.lnk" "net" "start CoalitionWorker" "$INSTDIR\worker_start.ico"
+	CreateShortCut "$DESKTOP\Coalition Worker Service Stop.lnk" "net" "stop CoalitionWorker" "$INSTDIR\worker_stop.ico"
+
+	ExecWait '"$INSTDIR\worker_service" -remove'
+	ExecWait '"$INSTDIR\worker_service" -install -auto'
 	ExecWait 'net start CoalitionWorker'
 SectionEnd
 
@@ -106,13 +116,16 @@ noUninstallWarning:
 	ExecWait 'net stop CoalitionServer'
 	ExecWait '"$INSTDIR\server" -remove'
 	ExecWait 'net stop CoalitionWorker'
-	ExecWait '"$INSTDIR\worker" -remove'
+	ExecWait '"$INSTDIR\worker_service" -remove'
 	Delete $INSTDIR\uninstall.exe ; delete self (see explanation below why this works) 
 	RMDir /r "$SMPROGRAMS\Coalition"
 	Delete "$DESKTOP\Coalition Server Monitor.lnk"
 	Delete "$DESKTOP\Coalition Server Start.lnk"
 	Delete "$DESKTOP\Coalition Server Stop.lnk"
-	Delete "$DESKTOP\Coalition Worker Start.lnk"
+	Delete "$DESKTOP\Coalition Worker Service Start.lnk"
+	Delete "$DESKTOP\Coalition Worker Service Stop.lnk"
+	Delete "$DESKTOP\Coalition Worker.lnk"
+
 	DeleteRegKey HKLM "Software\Mercenaries Engineering\Coalition"
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Coalition"
 __REMOVE_FILES__
