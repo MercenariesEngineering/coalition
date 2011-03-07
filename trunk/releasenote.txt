@@ -1,3 +1,6 @@
+3.7
+Fixed : bad json code generation with big numbers
+
 3.6
 Added : command line worker on windows
 Added : the database is backuped
