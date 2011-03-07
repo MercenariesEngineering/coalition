@@ -1,7 +1,7 @@
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random
-import atexit
+import atexit, json
 
 GErr=0
 GOk=0
@@ -866,13 +866,6 @@ class Root (static.File):
 			return static.File.render (self, request)
 		return 'Authorization required!'
 
-def toJSON (value):
-	"""Simple python value to JSON function"""
-	if isinstance (value, bool):
-		return value and "true" or "false";
-	else:
-		return repr (value);
-		
 class Master (xmlrpc.XMLRPC):
 	"""    """
 
@@ -977,7 +970,7 @@ class Master (xmlrpc.XMLRPC):
 					childparams = "["
 					for var in vars:
 						try:
-							childparams += toJSON (getattr (child, var)) + ','
+							childparams += json.dumps (getattr (child, var)) + ','
 						except AttributeError:
 							pass
 					childparams += "],\n"
@@ -1089,7 +1082,7 @@ class Master (xmlrpc.XMLRPC):
 		for name, worker in State.Workers.iteritems () :
 			childparams = "["
 			for var in vars:
-				childparams += toJSON (getattr (worker, var)) + ','
+				childparams += json.dumps (getattr (worker, var)) + ','
 			childparams += "],\n"
 			workers += childparams
 		workers += "]"
@@ -1437,7 +1430,7 @@ if sys.platform=="win32" and service:
 	if __name__=='__main__':
 		win32serviceutil.HandleCommandLine(WindowsService)
 else:
-
+	print ('toto')
 	# Simple server
 	if __name__ == '__main__':
 		main()
