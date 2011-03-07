@@ -1430,7 +1430,7 @@ if sys.platform=="win32" and service:
 	if __name__=='__main__':
 		win32serviceutil.HandleCommandLine(WindowsService)
 else:
-	print ('toto')
+
 	# Simple server
 	if __name__ == '__main__':
 		main()
