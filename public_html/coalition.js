@@ -460,6 +460,11 @@ function reloadJobs ()
 	        parents = data.Parents;
 	        renderJobs ();
             document.getElementById("refreshbutton").className = "refreshbutton";
+        },
+        error : 
+        function (jqXHR, textStatus, errorThrown) 
+        { 
+            alert("JQuery error : " + textStatus); 
         }
     });
 }
