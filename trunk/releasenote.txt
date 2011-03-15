@@ -1,3 +1,16 @@
+3.8
+Added : Emails sent to the user
+Added : activities list
+Fixed : it is now possible to add a jobs in any parent job from the ui
+Fixed : parent job state is now correct
+Fixed : sort by progress works
+Added : sum of jobs
+Fixed : month in date was wrong
+Added : show the average duration
+Changed : sequentiel mode (no more random)
+Added : cut and paste jobs
+
+
 3.7
 Fixed : bad json code generation with big numbers
 
