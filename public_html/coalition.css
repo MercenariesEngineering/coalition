@@ -45,13 +45,13 @@ h2
 	font-weight: bold;
 }
 
-#jobs, #workers, #logs
+#jobs, #workers, #logs, #activities
 {
 	position: fixed;
 	left: 10px;
 	right: 10px;
 	top: 110px;
-	bottom: 98px;
+	bottom: 122px;
 	overflow: auto;
 	border-top:1px solid #888888;
 	border-left:1px solid #888888;
@@ -59,7 +59,7 @@ h2
 	border-bottom:1px solid #000000;
 }
 
-#workers, #logs
+#workers, #logs, #activities
 {
 	top: 95px;
 	bottom: 58px;
@@ -75,24 +75,24 @@ h2
 {
 }
 
-#jobsTable, #workersTable
+#jobsTable, #workersTable, #activitiesTable
 {
 	width:100%;
 	border-collapse:  collapse;
 	text-align: right;
 }
 
-#jobsTable td, #workersTable td
+#jobsTable td, #workersTable td, #activitiesTable td
 {
 	border-right:1px solid black;
 }
 
-#jobsTable td a:link, #workersTable td a:link
+#jobsTable td a:link, #workersTable td a:link, #activitiesTable td a:link
 {
 	color: #DDDDDD;
 }
 
-#jobsTable th, #workersTable th
+#jobsTable th, #workersTable th, #activitiesTable th
 {
 	text-align: center;
 	border-right:1px solid black;
@@ -298,7 +298,7 @@ h2
 	background: #00F000;
 }
 
-#jobtools, #workertools, #logtools
+#jobtools, #workertools, #logtools, #activitiestools
 {
 	position: fixed;
 	left: 10px;

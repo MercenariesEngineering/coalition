@@ -2,8 +2,8 @@
 import time, sys
 
 for i in range(1000) :
-	print (i)
+	# print (i)
 	sys.stdout.flush()
-	time.sleep (0.01)
+	# time.sleep (0.01)
 
 sys.exit (0)

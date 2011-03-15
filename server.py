@@ -2,6 +2,8 @@ from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random
 import atexit, json
+import smtplib
+from email.mime.text import MIMEText
 
 GErr=0
 GOk=0
@@ -53,10 +55,24 @@ def cfgBool (name, defvalue):
 			pass
 	return defvalue
 
+def cfgStr (name, defvalue):
+	global config
+	if config.has_option('server', name):
+		try:
+			return str (config.get('server', name))
+		except:
+			pass
+	return defvalue
+
 port = cfgInt ('port', 19211)
-TimeOut = cfgInt ('timeout', 10)
+TimeOut = cfgInt ('timeout', 60)
 verbose = cfgBool ('verbose', False)
 service = cfgBool ('service', True)
+notifyafter = cfgInt ('notifyafter', 10)
+decreasepriorityafter = cfgInt ('decreasepriorityafter', 10)
+smtphost = cfgStr ('smtphost', "")
+smtplogin = cfgStr ('smtplogin', "")
+smtppasswd = cfgStr ('smtppasswd', "")
 
 BackupTime = cfgInt ('backuptime', 60*60)	# Backup timing in secondes, 1H
 BackupMax = cfgInt ('backupmax', 24)		# Maximum backup files, 24
@@ -185,6 +201,18 @@ def getLogFilter (pattern):
 		LogFilterCache[pattern] = filter
 	return filter
 
+class Activity:
+	"""A farm event"""
+
+	def __init__ (self, worker, job, jobTitle, id):
+		self.Worker = worker
+		self.JobID = job
+		self.JobTitle = jobTitle
+		self.State = "WORKING"
+		self.Start = time.time ()
+		self.Duration = 0
+		self.ID = id
+		
 class Job:
 	"""A farm job"""
 
@@ -214,6 +242,7 @@ class Job:
 		self.TotalErrors = 0				# Total number of (grand)children in error
 		self.TotalWorking = 0				# Total number of children working
 		self.Dependencies = dependencies	# Job dependencies
+		self.URL = ""						# URL to open
 		if localprogress != None:
 			self.LocalProgressPattern = localprogress
 		if globalprogress != None:
@@ -265,6 +294,7 @@ class Worker:
 		self.Finished = 0				# Number of finished
 		self.Error = 0					# Number of fault
 		self.LastJob = -1				# Last job done
+		self.CurrentActivity = -1		# Current activity
 		self.Load = []					# Load of the worker
 		self.FreeMemory = 0				# Free memory of the worker system
 		self.TotalMemory = 0			# Total memory of the worker system
@@ -280,7 +310,7 @@ def writeJobLog (jobId, log):
 # If the job has children, they must be finished before
 # If no child can be ran (exceeded retries count), then the job cannot be ran
 # Children are picked according to their priority
-DBVersion = 6
+DBVersion = 7
 class CState:
 
 	def __init__ (self):
@@ -289,6 +319,8 @@ class CState:
 	# Clear the whole database
 	def clear (self) :
 		self.Counter = 0
+		self.ActivityCounter = 0
+		self.Activities = {}
 		self.Jobs = {}
 		self.Workers = {}
 		self._ActiveJobs = set ()
@@ -300,10 +332,25 @@ class CState:
 	# Read the state
 	def read (self, fo):
 		version = cPickle.load(fo)
-		if version == DBVersion or version == 5:
+		if version >= 5:
 			self.Counter = cPickle.load (fo)
+			if version >= 7 :
+				self.ActivityCounter = cPickle.load (fo)
+				self.Activities = cPickle.load (fo)
+			else :
+				print ("Translate DB to version 7")
+				self.ActivityCounter = 0
+				self.Activities = {}
 			self.Jobs = cPickle.load (fo)
 			self.Workers = cPickle.load (fo)
+
+			# Translate Workers from 6 -> 7
+			if version < 7 :
+				for id, worker in self.Workers.iteritems () :
+					worker.CurrentActivity = -1
+				for id, job in self.Jobs.iteritems () :
+					job.URL = ""
+					
 			self._refresh ()
 			if version <= 5:
 				# Add Working, TotalWorking
@@ -321,6 +368,8 @@ class CState:
 		version = DBVersion
 		cPickle.dump (version, fo)
 		cPickle.dump (self.Counter, fo)
+		cPickle.dump (self.ActivityCounter, fo)
+		cPickle.dump (self.Activities, fo)
 		cPickle.dump (self.Jobs, fo)
 		cPickle.dump (self.Workers, fo)
 		self._UpdatedDb = False
@@ -346,7 +395,15 @@ class CState:
 						self.updateJobState (id, "ERROR")
 						self.updateWorkerState (job.Worker, "ERROR")
 						writeJobLog (job.ID, "SERVER: Job " + str(job.ID) + " timeout, exceeded run time")
-					job.Duration = _time - job.StartTime
+					if not job.hasChildren () :
+						job.Duration = _time - job.StartTime
+						try:
+							worker = State.getWorker (job.Worker)
+							activity = self.Activities[worker.CurrentActivity]
+							if activity.JobID == job.ID:
+								activity.Duration = job.Duration
+						except KeyError:
+							pass
 			except KeyError:
 				refreshActive = True
 		if refreshActive :
@@ -493,41 +550,94 @@ class CState:
 			except KeyError:
 				pass
 			self._UpdatedDb = True
-			self._updateParentState (id)
+			self._updateParentState (job.Parent)
+			for cid in job.Children :
+				self.resetJob (cid)
 		except KeyError:
 			pass
 
 	# Reset a job
-	def pauseJob (self, id) :
+	def startJob (self, id) :
 		try:
 			job = self.Jobs[id]
-			if job.State != "FINISHED":
-				job.State = "PAUSED"
-				try:
-					self._ActiveJobs.remove (id)
-				except KeyError:
-					pass
+			job.State = "WAITING"
+			job.Try = 0
+			job.Worker = ""
+			if getattr(job, "LocalProgress", False):
+				job.LocalProgress = 0
+			if getattr(job, "GlobalProgress", False):
+				job.GlobalProgress = 0
+			try:
+				self._ActiveJobs.remove (id)
+			except KeyError:
+				pass
+			self._UpdatedDb = True
+			self._updateParentState (id)
+		except KeyError:
+			pass
+
+	# Start a paused job
+	def startJob (self, id) :
+		try:
+			job = self.Jobs[id]
+			if job.State == "PAUSED" :
+				job.State = "WAITING"
 				self._UpdatedDb = True
 				self._updateParentState (id)
 		except KeyError:
 			pass
 
+	# Pause a job
+	def pauseJob (self, id) :
+		try:
+			job = self.Jobs[id]
+			job.State = "PAUSED"
+			try:
+				self._ActiveJobs.remove (id)
+			except KeyError:
+				pass
+			self._UpdatedDb = True
+			self._updateParentState (id)
+		except KeyError:
+			pass
+
+	# Move a job
+	def moveJob (self, id, dest) :
+		try:
+			if id != dest:
+				job = self.Jobs[id]
+				oldParent = self.Jobs[job.Parent]
+				parent = self.Jobs[dest]
+				oldParent.Children.remove (id)
+				parent.Children.append (id)
+				job.Parent = dest
+				self._UpdatedDb = True
+				self._updateParentState (dest)
+				self._updateParentState (oldParent.ID)
+		except KeyError:
+			output ("moveJob key error")
+			pass
+
 	# Can be executed
 	def canExecute (self, id) :
+		# Root
 		if id == 0:
 			return False
 		job = self.Jobs[id]
-		if job.State == "FINISHED" or job.State == "WORKING" or job.State == "PAUSED" :
-			# Don't execute a finished job or a working job
+
+		# Don't execute a finished job or a working job
+		if job.State == "FINISHED" or job.State == "PAUSED" :
 			return False
-		else:
-			# Waiting jobs can be executed only if all dependencies are finished
-			# Error jobs can be ran only if they have no children and tries left
-			for depId in job.Dependencies :
-				dep = self.Jobs[depId]
-				if dep.State != "FINISHED" :
-					return False
-			return (job.State == "WAITING") or (not job.hasChildren () and job.Try < job.Retry)
+
+		# Waiting jobs can be executed only if all dependencies are finished
+		# Error jobs can be ran only if they have no children and tries left
+		for depId in job.Dependencies :
+			dep = self.Jobs[depId]
+			if dep.State != "FINISHED" :
+				return False
+
+		# Visit parents, or waiting jobs or error jobs with enough retry
+		return job.hasChildren () or (not job.hasChildren () and (job.State == "WAITING" or (job.State == "ERROR" and job.Try < job.Retry)))
 
 	# Can be executed
 	def compatibleAffinities (self, job, worker) :
@@ -537,9 +647,42 @@ class CState:
 			if worker >= affinity:
 				return True
 		return False
-
-	# Pick a job
+		
 	def pickJob (self, id, affinity) :
+		return self.pickJobSequencial (id, affinity)
+
+	# Pick a job sequencial
+	def pickJobSequencial (self, id, affinity) :
+		try:
+			job = self.Jobs[id]
+			nextChild = None
+			nextJobID = None
+
+			# Look for the next job
+			allFinished = True
+			for childId in job.Children :
+				child = self.Jobs[childId]
+				if child.State != "FINISHED" :
+					allFinished = False
+				# if job can be executed and worker affinity is compatible, add this job as a potential one
+				if self.canExecute (childId):
+					if self.compatibleAffinities (self._DynAffinity[childId], affinity):
+						#output ("++ worker "+str (affinity)+" compatible with job "+str (childId)+" "+str (self._DynAffinity[childId]))
+						if nextChild == None or child.Priority > nextChild.Priority or (child.Priority == nextChild.Priority and (child.TotalWorking+child.TotalFinished < nextChild.TotalWorking+nextChild.TotalFinished)) :
+							tryJobId = None
+							if child.hasChildren () :
+								tryJobId = self.pickJob (child.ID, affinity)
+							else :
+								tryJobId = child.ID
+							if tryJobId != None:
+								nextChild = child
+								nextJobID = tryJobId
+			return nextJobID
+		except KeyError:
+			pass
+
+	# Pick a job in random
+	def pickJobRandom (self, id, affinity) :
 		try:
 			job = self.Jobs[id]
 			sumpriority = 0
@@ -549,7 +692,7 @@ class CState:
 			for childId in job.Children :
 				child = self.Jobs[childId]
 				if child.State != "FINISHED" :
-					allFinised = False
+					allFinished = False
 				# if job can be executed and worker affinity is compatible, add this job as a potential one
 				if self.canExecute (childId):
 					if self.compatibleAffinities (self._DynAffinity[childId], affinity):
@@ -572,6 +715,7 @@ class CState:
 					sumpriority += child.Priority
 			elif allFinished and State.canExecute (id) :
 				# all children were successfully executed, execute this job
+				output ("job.Command : " + job.Command)
 				return id
 		except KeyError:
 			pass
@@ -588,14 +732,32 @@ class CState:
 			if job.State != state :
 				self._UpdatedDb = True
 				job.State = state
+				
+				# Update the event
+				activity = None
+				try :
+					worker = self.getWorker (job.Worker)
+					activity = self.Activities[worker.CurrentActivity]
+					if activity.JobID == id:
+						activity.State = state
+				except KeyError:
+					pass
+				
 				if state == "WORKING" :
 					job.Try += 1
 					job.StartTime = time.time ()
 					self._ActiveJobs.add (id)
 				elif state == "ERROR" or state == "FINISHED":
-					if state == "ERROR":
+					if state == "ERROR" :
 						job.Priority = max (job.Priority-1, 0)
-					job.Duration = time.time() - job.StartTime
+						notifyError (job)
+					if state == "FINISHED" :
+						notifyFinished (job)
+					if not job.hasChildren () :
+						_time = time.time()
+						job.Duration = _time - job.StartTime
+						if activity:
+							activity.Duration = job.Duration
 					try:
 						self._ActiveJobs.remove (id)
 					except KeyError:
@@ -605,8 +767,11 @@ class CState:
 			pass
 
 	# Update parent state
-	def _updateParentState (self, id) :																																			
+	def _updateParentState (self, id) :
+		if id == 0 :
+			return																																			
 		try:
+			output ("_updateParentState " + str(id))
 			job = self.Jobs[id]
 			jobsToDo = False
 			hasError = False
@@ -617,26 +782,46 @@ class CState:
 			finished = 0
 			errors = 0
 			working = 0
+			durationAvg = 0;
+			durationCount = 0;
 			for childId in job.Children :
 				if self.canExecute (childId):
 					jobsToDo = True
 				child = self.Jobs[childId]
 				state = child.State
-				total += child.Total or 0
-				totalerrors += child.TotalErrors or 0
-				totalfinished += child.TotalFinished or 0
-				totalworking += child.TotalWorking or 0
-				if state == "ERROR":
-					errors += 1
-				elif state == "FINISHED":
-					finished += 1
-				elif state == "WORKING":
-					working += 1
-			total += len (job.Children)
+				if child.hasChildren () :
+					total += child.Total or 0
+					totalerrors += child.TotalErrors or 0
+					totalfinished += child.TotalFinished or 0
+					totalworking += child.TotalWorking or 0
+					durationAvg += child.Duration * child.Total;
+					durationCount += child.Total;
+				else :
+					total += 1
+					if state == "ERROR":
+						errors += 1
+					elif state == "FINISHED":
+						finished += 1
+					elif state == "WORKING":
+						working += 1
+					durationAvg += child.Duration;
+					durationCount += 1;
+			if durationCount > 0 :
+				durationAvg /= durationCount
+			else :
+				durationAvg = 0
 			totalerrors += errors
 			totalfinished += finished
 			totalworking += working
-			newState = "WAITING"
+
+			# If this parent job has finished the notifyafter first jobs, notify the user
+			if job.Finished < notifyafter and finished >= notifyafter :
+				notifyFirstFinished (job)
+
+			# If this parent job has finished the notifyafter first jobs, notify the user
+			if job.Errors < decreasepriorityafter and errors >= decreasepriorityafter :
+				job.Priority = max (job.Priority-1, 0)
+
 			job.Finished = finished
 			job.Errors = errors
 			job.Working = working
@@ -644,14 +829,26 @@ class CState:
 			job.TotalErrors = totalerrors
 			job.TotalFinished = totalfinished
 			job.TotalWorking = totalworking
-			if not jobsToDo and errors > 0 :
+			job.Duration = durationAvg
+			
+			# New job state
+			newState = "WAITING"
+			if job.TotalWorking > 0 :
+				newState = "WORKING"
+			elif job.TotalErrors > 0 :
 				newState = "ERROR"
+			elif job.Total > 0 and job.Total == job.TotalFinished :
+				newState = "FINISHED"
+			
 			if job.State != "PAUSED" and newState != job.State:
+				if newState == "FINISHED" :
+					notifyFinished (job)
+				if newState == "ERROR" :
+					notifyError (job)
 				job.State = newState
 				self._UpdatedDb = True
 			self._updateAffinity (id)
-			if id != 0:
-				self._updateParentState (job.Parent)
+			self._updateParentState (job.Parent)
 		except KeyError:
 			pass
 
@@ -894,6 +1091,7 @@ class Master (xmlrpc.XMLRPC):
 				dependencies = getArg ("dependencies", "")
 				localprogress = getArg ("localprogress", None)
 				globalprogress = getArg ("globalprogress", None)
+				linko = getArg ("linko", "")
 
 				output ("Add job : " + cmd)
 				if isinstance (parent, str):
@@ -917,6 +1115,7 @@ class Master (xmlrpc.XMLRPC):
 					dependencies[i] = int (dep)
 				
 				id = State.addJob (parent, Job (str (title), str (cmd), str (dir), int (priority), int (retry), int (timeout), str (affinity), str (self.User), dependencies, localprogress, globalprogress))
+				State.Jobs[id].URL = linko
 				
 				State.update ()
 				return str(id)
@@ -926,8 +1125,12 @@ class Master (xmlrpc.XMLRPC):
 				return self.json_clearjobs (request.args.get ("id"))
 			elif request.path == "/json/resetjobs":
 				return self.json_resetjobs (request.args.get ("id"))
+			elif request.path == "/json/startjobs":
+				return self.json_startjobs (request.args.get ("id"))
 			elif request.path == "/json/pausejobs":
 				return self.json_pausejobs (request.args.get ("id"))
+			elif request.path == "/json/movejobs":
+				return self.json_movejobs (request.args.get ("id"), getArg ("dest", 0))
 			elif request.path == "/json/updatejobs":
 				return self.json_updatejobs (request.args.get ("id"), request.args.get ("prop"),request.args.get ("value"))
 			elif request.path == "/json/getlog":
@@ -942,6 +1145,8 @@ class Master (xmlrpc.XMLRPC):
 				return self.json_startworkers (request.args.get ("id"))
 			elif request.path == "/json/updateworkers":
 				return self.json_updateworkers (request.args.get ("id"), request.args.get ("prop"),request.args.get ("value"))
+			elif request.path == "/json/getactivities":
+				return self.json_getactivities (int(getArg ("job", -1)), str(getArg ("worker", "")), int(getArg ("howlong", -1)))
 			else:
 				# return server.NOT_DONE_YET
 				return xmlrpc.XMLRPC.render (self, request)
@@ -953,7 +1158,7 @@ class Master (xmlrpc.XMLRPC):
 
 		State.update ()
 		
-		vars = ["ID","Title","Command","Dir","State","Worker","StartTime","Duration","Try","Retry","TimeOut","Priority","Affinity","User","Finished","Errors","Working","Total","TotalFinished","TotalErrors","TotalWorking","Dependencies","LocalProgress","GlobalProgress"];
+		vars = ["ID","Title","Command","Dir","State","Worker","StartTime","Duration","Try","Retry","TimeOut","Priority","Affinity","User","Finished","Errors","Working","Total","TotalFinished","TotalErrors","TotalWorking","Dependencies","URL","LocalProgress","GlobalProgress"];
 
 		# Get the job
 		try:
@@ -1005,11 +1210,27 @@ class Master (xmlrpc.XMLRPC):
 		State.update ()
 		return "1"
 
+	def json_startjobs (self, ids):
+		global State
+		for jobId in ids:
+			output ("Start job "+str (jobId))
+			State.startJob (int(jobId))
+		State.update ()
+		return "1"
+
 	def json_pausejobs (self, ids):
 		global State
 		for jobId in ids:
 			output ("Pause job "+str (jobId))
 			State.pauseJob (int(jobId))
+		State.update ()
+		return "1"
+
+	def json_movejobs (self, ids, dest):
+		global State
+		for jobId in ids:
+			output ("Move job "+str (jobId)+" in "+str(dest))
+			State.moveJob (int(jobId),int(dest))
 		State.update ()
 		return "1"
 
@@ -1042,6 +1263,10 @@ class Master (xmlrpc.XMLRPC):
 							job.Retry = int (value)
 						elif prop == "Dependencies":
 							job.Dependencies = str (value)
+						elif prop == "User":
+							job.User = str (value)
+						elif prop == "URL":
+							job.URL = str (value)
 						State._UpdatedDb = True
 					except ValueError:
 						pass
@@ -1141,6 +1366,29 @@ class Master (xmlrpc.XMLRPC):
 					pass
 		State.update ()
 		return "1"
+
+	def json_getactivities (self, job, worker, howlong):
+		global State
+		output ("Send activities " +str(job)+" "+str(worker)+" "+str(howlong))
+
+		State.update ()
+
+		vars = ["Start","JobID","JobTitle","State","Worker","Duration","ID"]
+
+		# Build the children
+		_time = time.time ();
+		activities = "["
+		for name, activity in State.Activities.iteritems () :
+			if (job == -1 or activity.JobID == job) and (worker == "" or activity.Worker == worker) and (howlong == -1 or _time - activity.Start < howlong):
+				childparams = "["
+				for var in vars:
+					childparams += json.dumps (getattr (activity, var)) + ','
+				childparams += "],\n"
+				activities += childparams
+		activities += "]"
+		
+		result = ('{ "Vars":'+repr(vars)+', "Activities":'+activities+'}')
+		return result
 
 # Unauthenticated connection for workers
 class Workers(xmlrpc.XMLRPC):
@@ -1256,6 +1504,13 @@ class Workers(xmlrpc.XMLRPC):
 			State.updateWorkerState (hostname, "WORKING")
 			State.update ()
 			output (hostname + " picked job " + str (jobId) + " " + worker.State)
+			
+			# Create the event
+			event = Activity (hostname, job.ID, job.Title, State.ActivityCounter)
+			State.ActivityCounter += 1;
+			State.Activities[event.ID] = event
+			worker.CurrentActivity = event.ID
+
 			if job.User != None and job.User != "":
 				return repr (job.ID)+","+repr (job.Command)+","+repr (job.Dir)+","+repr (job.User)
 			else:
@@ -1390,6 +1645,41 @@ def main():
 	reactor.callLater(5, saveDb)
 	reactor.run()
 
+def sendEmail (to, message) :
+	if to != "" :
+		output ("Send email to " + to + " : " + message)
+		if smtphost != "" :
+			# Create a text/plain message
+			msg = MIMEText(message)
+
+			# me == the sender's email address
+			# you == the recipient's email address
+			msg['Subject'] = message
+			msg['From'] = smtpsender
+			msg['To'] = to
+
+			# Send the message via our own SMTP server, but don't include the
+			# envelope header.
+			s = smtplib.SMTP(smtphost)
+			if smtplogin != '' or smtppasswd != '':
+				s.login(smtplogin, smtppasswd)
+			s.sendmail (smtpsender, [to], msg.as_string())
+			s.quit()
+
+def notifyError (job):
+	if job.User :
+		sendEmail (job.User, 'ERRORS in job ' + job.Title + ' (' + str(job.ID) + ').')
+
+def notifyFinished (job):
+	if job.User :
+		sendEmail (job.User, 'The job ' + job.Title + ' (' + str(job.ID) + ') is FINISHED.')
+
+def notifyFirstFinished (job):
+	if job.User :
+		sendEmail (job.User, 'The job ' + job.Title + ' (' + str(job.ID) + ') has finished ' + str(notifyafter) + ' jobs.')
+
+sendEmail ("corvazier@gmail.com", "test message")
+
 if sys.platform=="win32" and service:
 
 	# Windows Service
@@ -1434,3 +1724,4 @@ else:
 	# Simple server
 	if __name__ == '__main__':
 		main()
+

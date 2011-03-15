@@ -1,7 +1,7 @@
 import os
 
-nbP = 1	# nb parents
-nbC = 1000	# nb children
+nbP = 20	# nb parents
+nbC = 10	# nb children
 
 for p in range(0,nbP):
 	pipe = os.popen ('python control.py -c "" -t "Parent job' + str(p) + '" http://127.0.0.1:19211 add')
