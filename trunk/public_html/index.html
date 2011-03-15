@@ -16,6 +16,7 @@
     <div id="tabs">
             <div id="jobtab" class="activetab" onclick='showJobs()'>Jobs</div>
             <div id="workertab" class="unactivetab" onclick='showWorkers()'>Workers</div>
+            <div id="activitytab" class="unactivetab" onclick='showActivities()'>Activities</div>
             <div id="logtab" class="unactivetab" onclick='showLog ()'>Log</div>
     </div>
 
@@ -29,7 +30,7 @@
 <div id="main">
     <div id="jobsTab">
         <div id="jobtools">
-            <div class='button' id='Div1'><img src='icon_select.png' /> Filter
+            <div class='button' id='Div1'>Filter
                 <select id='filterJobs' onchange='javascript:reloadJobs ()'>
                     <option value='NONE'>NONE</option>
                     <option value='WORKING'>WORKING</option>
@@ -39,7 +40,7 @@
                     <option value='PAUSED'>PAUSED</option>
                 </select></div>
             <div class='buttonSep'>|</div>
-            <div class='button' id='b01''><img src='icon_select.png' /> Select
+            <div class='button' id='b01''>Select
                 <select id='selectJobs' onchange='javascript:selectJobs ()' value='CUSTOM'>
                     <option value='NONE'>NONE</option>
                     <option value='ALL'>ALL</option>
@@ -51,15 +52,23 @@
                     <option value='CUSTOM'>CUSTOM</option>
                 </select></div>
             <div class='buttonSep'>|</div>
-            <div class='button' id='b03' onclick='removeSelection()'><img src='icon_remove.png' /> Remove Selection</div>
+            <div class='button' id='b04' onclick='resetSelection()'><img src='icon_refresh.png' /> Reset</div>
             <div class='buttonSep'>|</div>
-            <div class='button' id='b04' onclick='resetSelection()'><img src='icon_refresh.png' /> Reset Selection</div>
+            <div class='button' id='b05' onclick='startSelection()'><img src='icon_play.png' /> Start</div>
             <div class='buttonSep'>|</div>
-            <div class='button' id='b05' onclick='pauseSelection()'><img src='icon_pause.png' /> Pause Selection</div>
+            <div class='button' id='b06' onclick='pauseSelection()'><img src='icon_pause.png' /> Pause</div>
             <div class='buttonSep'>|</div>
-            <div class='button' id='b11' onclick='logSelection()'><img src='icon_logs.png' /> Log Selection</div>
+            <div class='button' id='b07' onclick='cutSelection()'><img src='icon_cut.png' /> Cut</div>
             <div class='buttonSep'>|</div>
-            <div class='button' id='b12' onclick='exportCSV()'><img src='icon_logs.png' /> Export CSV</div>
+            <div class='button' id='b11' onclick='pasteSelection()'><img src='icon_paste.png' /> Paste</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b03' onclick='removeSelection()'><img src='icon_remove.png' /> Delete</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b08' onclick='logSelection()'><img src='icon_logs.png' /> Log</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b09' onclick='jobActivity()'><img src='icon_activity.png' /> Activity</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b10' onclick='exportCSV()'><img src='icon_tabler.png' /> CSV</div>
         </div>
         <div id="parents">
         </div>
@@ -87,6 +96,10 @@
         <td class="ttr1">Dependencies:</td><td><input type='edit' class="ttedit" id='dependencies' name='dependencies' value='' onchange='onchangejobprop ("dependencies")'></td>
         <td class="ttr3">Retry:</td><td><input type='edit' class="ttedit" id='retry' name='retry' value='10' onchange='onchangejobprop ("retry")'></td>
         </tr>
+        <tr>
+        <td class="ttr1">URL:</td><td><input type='edit' class="ttedit" id='linko' name='linko' value='' onchange='onchangejobprop ("linko")'></td>
+        <td class="ttr3">User:</td><td><input type='edit' class="ttedit" id='user' name='user' value='' onchange='onchangejobprop ("user")'></td>
+        </tr>
         </table>
     </div>
     <div id="workersTab">
@@ -95,11 +108,13 @@
             <div class='buttonSep'>|</div>
             <div class='button' id='b07' onclick='selectAll (false)'><img src='icon_none.png' /> Select None</div>
             <div class='buttonSep'>|</div>
-            <div class='button' id='b08' onclick='clearWorkers ()'><img src='icon_remove.png' /> Remove Selection</div>
+            <div class='button' id='b09' onclick='startWorkers ()'><img src='icon_play.png' /> Start</div>
             <div class='buttonSep'>|</div>
-            <div class='button' id='b09' onclick='startWorkers ()'><img src='icon_play.png' /> Start Selection</div>
+            <div class='button' id='b10' onclick='stopWorkers ()'><img src='icon_pause.png' /> Stop</div>
             <div class='buttonSep'>|</div>
-            <div class='button' id='b10' onclick='stopWorkers ()'><img src='icon_pause.png' /> Stop Selection</div>
+            <div class='button' id='b08' onclick='clearWorkers ()'><img src='icon_remove.png' /> Delete</div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='b11' onclick='workerActivity ()'><img src='icon_activity.png' /> Activity</div>
         </div>
         <div id="workers">
         </div>
@@ -119,6 +134,32 @@
             <div class='button' id='b12' onclick='clearLog()'><img src='icon_remove.png' /> Clear</div>
         </div>
         <div id="logs">
+        </div>
+    </div>
+    <div id="activitiesTab">
+        <div id="activitiestools">
+            <div class='button' id='Div2'>Job filter
+                <input id='activityJob' onchange='javascript:reloadActivities()'>
+                </input></div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='Div3'>Worker filter
+                <input id='activityWorker' onchange='javascript:reloadActivities()'>
+                </input></div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='Div4'>How long
+                <select id='howlong' onchange='javascript:reloadActivities()'>
+                    <option value='60'>Last minute</option>
+                    <option value='600'>Last 10 minutes</option>
+                    <option value='3600'>Last hour</option>
+                    <option value='28800'>Last 8 hours</option>
+                    <option value='86400'>Last day</option>
+                    <option value='604800'>Last week</option>
+                    <option value='2592000'>Last month</option>
+                    <option value='15552000'>Last 6 monthes</option>
+                    <option value='100000000000'>All</option>
+                </select></div>
+        </div>
+        <div id="activities">
         </div>
     </div>
 </div>

@@ -3,15 +3,20 @@ var timer;
 var page = "jobs";
 var viewJob = 0;
 var logId = 0;
-var jobs = {};
+var jobs = [];
 var selectedJobs = {};
+var cutJobs = {};
 var selectedWorkers = {};
-var workers = {};
+var selectedActivities = {};
+var workers = [];
 var parents = {};
+var activities = [];
 var jobsSortKey = "ID";
 var jobsSortKeyToUpper = true;
 var workersSortKey = "Name";
 var workersSortKeyToUpper = true;
+var activitiesSortKey = "Start";
+var activitiesSortKeyToUpper = false;
 var selectionStart = 0;
 var showTools = true;
 
@@ -41,6 +46,19 @@ function setWorkerKey (id)
 	renderWorkers ();
 }
 
+function setActivityKey (id)
+{
+	// Same key ?
+	if (activitiesSortKey == id)
+		activitiesSortKeyToUpper = !activitiesSortKeyToUpper;
+	else
+	{
+		activitiesSortKey = id;
+		activitiesSortKeyToUpper = true;
+	}
+	renderActivities ();
+}
+
 function get_cookie ( cookie_name )
 {
   var results = document.cookie.match ( '(^|;) ?' + cookie_name + '=([^;]*)(;|$)' );
@@ -55,6 +73,7 @@ $(document).ready(function()
 {
 	reloadJobs ();
 	reloadWorkers ();
+	reloadActivities ();
 	showJobs ();
 	timer=setTimeout(timerCB,4000);
 });
@@ -104,9 +123,11 @@ function showLog ()
 {
 	$("#jobsTab").hide ();
 	$("#workersTab").hide ();
+	$("#activitiesTab").hide ();
 	$("#logsTab").show ();
 	document.getElementById("jobtab").className = "unactivetab";
 	document.getElementById("workertab").className = "unactivetab";
+	document.getElementById("activitytab").className = "unactivetab";
 	document.getElementById("logtab").className = "activetab";
 
 	page = "logs";
@@ -158,6 +179,12 @@ function clearWorkers ()
 	}
 }
 
+function formatDate (_date)
+{
+	var date = new Date(_date*1000)
+    return date.getFullYear() + '/' + (date.getMonth()+1) + '/' + date.getDate() + ' ' + date.getHours () + ':' + date.getMinutes () + ':' + date.getSeconds();
+}
+
 function formatDuration (secondes)
 {
 	var days = Math.floor (secondes / (60*60*24));
@@ -190,6 +217,8 @@ function refresh ()
 		reloadJobs ();
 	else if (page == "workers") 
 		reloadWorkers ();
+	else if (page == "activities") 
+		reloadActivities ();
 	else if (page == "logs") 
 		renderLog (logId);
 }
@@ -212,13 +241,72 @@ function showJobs ()
 {
 	$("#jobsTab").show ();
 	$("#workersTab").hide ();
+	$("#activitiesTab").hide ();
 	$("#logsTab").hide ();
 	document.getElementById("jobtab").className = "activetab";
 	document.getElementById("workertab").className = "unactivetab";
+	document.getElementById("activitytab").className = "unactivetab";
 	document.getElementById("logtab").className = "unactivetab";
 
 	page = "jobs";
 	updateTools ();
+}
+
+// Returns the HTML code for a job title column
+function addSumEmpty (str)
+{
+	if (str == undefined)
+		return "<td></td>";
+	else
+		return "<td class='headerCell'>" + str + "</td>";
+}
+
+// Returns the HTML code for a job title column
+function addSum (inputs, attribute)
+{
+	var sum = 0;
+	for (i=0; i < inputs.length; i++)
+	{
+		var job = inputs[i];
+		sum += job[attribute];
+	}
+	return "<td class='headerCell'>" + sum + "</td>";
+}
+
+// Returns the HTML code for a job title column
+function addSumFinished (inputs, attribute)
+{
+	var sum = 0;
+	for (i=0; i < inputs.length; i++)
+	{
+		var job = inputs[i];
+		if (job[attribute] == "FINISHED")
+		    sum ++;
+	}
+	return "<td class='headerCell'>" + sum + "</td>";
+}
+
+// Average
+function addSumAvgDuration (inputs, attribute)
+{
+	var sum = 0;
+	var count = 0;
+	for (i=0; i < inputs.length; i++)
+	{
+		var job = inputs[i];
+		sum += job[attribute];
+		count++;
+	}
+	if (count > 0)
+	    return "<td class='headerCell'>" + formatDuration (sum/count) + "</td>";
+    else
+        return "<td class='headerCell'></td>";
+}
+
+// Returns the HTML code for a job title column
+function addSumSimple (inputs)
+{
+	return "<td class='headerCell'>" + inputs.length + "</td>";
 }
 
 // Render the current jobs
@@ -228,13 +316,53 @@ function renderJobs ()
 	$("#parents").empty ();
 	var table = "<table id='jobsTable'>";
 
+    function getJobProgress (job)
+    {
+	    if (job.Total > 0)
+	    {
+            // A bar div
+            lProgress = job.TotalFinished / job.Total;
+            gProgress = job.TotalFinished / job.Total;
+	    }
+	    else
+	    {
+	        lProgress = job.State == "FINISHED"  ? 
+	                        1.0 :
+	                        ( 
+		                            job.LocalProgress == null ? 
+		                                0.0 : 
+		                                parseFloat(job.LocalProgress)
+                            );
+	        gProgress = job.State == "FINISHED"  ? 
+	                        1.0 :
+	                        ( 
+		                            job.GlobalProgress == null ? 
+		                                0.0 : 
+		                                parseFloat(job.GlobalProgress)
+                            );
+            // A bar div
+            lProgress = lProgress;
+            gProgress = gProgress;
+        }
+        return lProgress, gProgress;
+    }
+    
 	function _sort (a,b)
 	{
-		var aValue = a[jobsSortKey];
-		if (typeof aValue == 'string')
-			return compareStrings (aValue, b[jobsSortKey], jobsSortKeyToUpper);
-		else
-			return compareNumbers (aValue, b[jobsSortKey], jobsSortKeyToUpper);
+		if (jobsSortKey == "Progress")
+		{
+		    var lProgressA, gProgressA = getJobProgress (a);
+		    var lProgressB, gProgressB = getJobProgress (b);
+		    return compareNumbers (gProgressA, gProgressB, jobsSortKeyToUpper);
+	    }
+	    else
+	    {
+		    var aValue = a[jobsSortKey];
+		    if (typeof aValue == 'string')
+    			return compareStrings (aValue, b[jobsSortKey], jobsSortKeyToUpper);
+		    else
+    			return compareNumbers (aValue, b[jobsSortKey], jobsSortKeyToUpper);
+    	}
 	}
 
 	jobs.sort (_sort);
@@ -250,7 +378,7 @@ function renderJobs ()
 	{
 		table += "<th class='headerCell' onclick='"+"setJobKey(\""+attribute+"\")'>";
 		var value = jobs[0];
-		if (value && value[attribute] != null)
+		if (value)
 		{
 			table += alias;
 			if (attribute == jobsSortKey && jobsSortKeyToUpper)
@@ -326,44 +454,21 @@ function renderJobs ()
 		
 		// *** Progress bar
         var progress = ""
-		if (job.Total > 0)
-		{
-            // A bar div
-	        progress = "<div class='progress'>";
-            progress += "<div class='lprogressbar' style='width:" + Math.floor((job.TotalFinished / job.Total)*100.0) + "%' />";
-            progress += "<div class='progresslabel'>" + Math.floor((job.TotalFinished / job.Total)*100.0) + "%</div>";
-	        progress += "</div>";
-		}
-		else
-		{
-		    var lProgressValue = job.State == "FINISHED"  ? 
-		                    1.0 :
-		                    ( 
-    		                        job.LocalProgress == null ? 
-    		                            0.0 : 
-    		                            parseFloat(job.LocalProgress)
-                            );
-		    var gProgressValue = job.State == "FINISHED"  ? 
-		                    1.0 :
-		                    ( 
-    		                        job.GlobalProgress == null ? 
-    		                            0.0 : 
-    		                            parseFloat(job.GlobalProgress)
-                            );
-            // A bar div
-	        progress = "<div class='progress'>";
-            progress += "<div class='lprogressbar' style='width:" + Math.floor(lProgressValue*100.0) + "%; height:8px' />";
-            progress += "<div class='gprogressbar' style='width:" + Math.floor(gProgressValue*100.0) + "%; height:8px' />";
-            progress += "<div class='progresslabel'>" + Math.floor(lProgressValue*100.0) + "%|" + Math.floor(gProgressValue*100.0) + "%</div>";
-	        progress += "</div>";
-        }
+        var lProgress, gProgress = getJobProgress (job)
+        lProgress = Math.floor(lProgress*100.0);
+        gProgress = Math.floor(gProgress*100.0);
+
+        // A bar div
+        progress = "<div class='progress'>";
+        progress += "<div class='lprogressbar' style='width:" + lProgress + "%' />";
+        progress += "<div class='progresslabel'>" + gProgress + "%</div>";
+        progress += "</div>";
         		
 		addTD (progress);
 		addTD (job.Affinity);
 		addTD (job.TimeOut);
 		addTD (job.Worker);
-		var start = new Date(job.StartTime*1000)
-		addTD (start.getFullYear() + '/' + start.getMonth() + '/' + start.getDate() + ' ' + start.getHours () + ':' + start.getMinutes () + ':' + start.getSeconds());
+		addTD (formatDate (job.StartTime));
 		addTD (formatDuration (job.Duration));
 		addTD (job.Try+"/"+job.Retry);
 		addTD (job.Command);
@@ -382,46 +487,25 @@ function renderJobs ()
 	// Footer
 	table += "<tr class='title'>";
 
-	// Returns the HTML code for a job title column
-	function addSumEmpty (attribute, str)
-	{
-		if (str == undefined)
-			table += "<td></td>";
-		else
-			table += "<td class='headerCell'>" + str + "</td>";
-	}
-
-	// Returns the HTML code for a job title column
-	function addSum (attribute)
-	{
-		var sum = 0;
-		for (i=0; i < jobs.length; i++)
-		{
-			var job = jobs[i];
-			sum += job[attribute];
-		}
-		table += "<td class='headerCell'>" + sum + "</td>";
-	}
-
-	addSumEmpty ("ID");
-	addSumEmpty ("Title", "TOTAL");
-	addSumEmpty ("User");
-	addSumEmpty ("State");
-	addSumEmpty ("Priority");
-	addSum ("TotalFinished", "Ok");
-	addSum ("TotalWorking", "Wrk");
-	addSum ("TotalErrors", "Err");
-	addSum ("Total");
-	addSumEmpty ("Progress");
-	addSumEmpty ("Affinity");
-	addSumEmpty ("TimeOut");
-	addSumEmpty ("Worker");
-	addSumEmpty ("StartTime");
-	addSumEmpty ("Duration");
-	addSumEmpty ("Try");
-	addSumEmpty ("Command");
-	addSumEmpty ("Dir");
-	addSumEmpty ("Dependencies");
+	table += addSumEmpty ("TOTAL");
+	table += addSumSimple (jobs);
+	table += addSumEmpty ();
+	table += addSumFinished (jobs, "State");
+	table += addSumEmpty ();
+	table += addSum (jobs, "TotalFinished");
+	table += addSum (jobs, "TotalWorking");
+	table += addSum (jobs, "TotalErrors");
+	table += addSum (jobs, "Total");
+	table += addSumEmpty ();
+	table += addSumEmpty ();
+	table += addSumEmpty ();
+	table += addSumEmpty ();
+	table += addSumEmpty ();
+	table += addSumAvgDuration (jobs, "Duration");
+	table += addSumEmpty ();
+	table += addSumEmpty ();
+	table += addSumEmpty ();
+	table += addSumEmpty ();
 	table += "</tr>\n";
 
 	table += "</table></div>";
@@ -501,6 +585,44 @@ function stopWorkers ()
         	reloadWorkers ();
         }
     });
+}
+
+function workerActivity ()
+{
+    var _data = "";
+	for (j=workers.length-1; j >= 0; j--)
+	{
+		var worker = workers[j];
+		if (selectedWorkers[worker.Name])
+		{
+		    title:$('#activityWorker').attr("value", worker.Name)
+		    title:$('#activityJob').attr("value", "")
+           	break;
+        }
+	}
+
+    reloadActivities ()
+	page = "activities"
+	showActivities ()
+}
+
+function jobActivity ()
+{
+    var _data = "";
+	for (j=jobs.length-1; j >= 0; j--)
+	{
+		var job = jobs[j];
+		if (selectedJobs[job.ID])
+		{
+		    title:$('#activityWorker').attr("value", "")
+		    title:$('#activityJob').attr("value", job.ID)
+           	break;
+        }
+	}
+
+    reloadActivities ()
+	page = "activities"
+	showActivities ()
 }
 
 var MultipleSelection = {}
@@ -649,9 +771,11 @@ function showWorkers ()
 {
 	$("#jobsTab").hide ();
 	$("#workersTab").show ();
+	$("#activitiesTab").hide ();
 	$("#logsTab").hide ();
 	document.getElementById("jobtab").className = "unactivetab";
 	document.getElementById("workertab").className = "activetab";
+	document.getElementById("activitytab").className = "unactivetab";
 	document.getElementById("logtab").className = "unactivetab";
 
 	page = "workers";
@@ -762,6 +886,130 @@ function renderWorkers ()
 	$("#workers").append("<br>");
 }
 
+function reloadActivities ()
+{
+    var _data = {}
+    var job = $('#activityJob').attr("value")
+    if (job != "")
+        _data.job = job
+    var worker = $('#activityWorker').attr("value")
+    if (worker != "")
+        _data.worker = worker
+    _data.howlong = $('#howlong').attr("value")
+    $.ajax({ type: "GET", url: "/json/getactivities", data: _data, dataType: "json", success: 
+        function (data) 
+        {
+	        activities = [];
+	        for (j = 0; j < data.Activities.length; ++j)
+	        {
+	            var _activities = data.Activities[j];
+	            var nw = {};
+	            for (i = 0; i < data.Vars.length; ++i)
+	            {
+	                nw[data.Vars[i]] = _activities[i];
+	            }
+	            activities.push (nw);
+	        }
+	        renderActivities ();
+            document.getElementById("refreshbutton").className = "refreshbutton";
+        }
+    });
+}
+
+function showActivities ()
+{
+	$("#jobsTab").hide ();
+	$("#workersTab").hide ();
+	$("#activitiesTab").show ();
+	$("#logsTab").hide ();
+	document.getElementById("jobtab").className = "unactivetab";
+	document.getElementById("workertab").className = "unactivetab";
+	document.getElementById("activitytab").className = "activetab";
+	document.getElementById("logtab").className = "unactivetab";
+
+	page = "activities";
+	updateTools ();
+}
+
+function renderActivities ()
+{
+	$("#activities").empty ();
+
+	var table = "<table id='activitiesTable'>";
+	table += "<tr class='title'>\n";
+
+	// Returns the HTML code for a worker title column
+	function addTitleHTML (attribute)
+	{
+        table += "<th class='headerCell' onclick='"+"setActivityKey(\""+attribute+"\")'>";	
+		var value = activities[0];
+		if (value && value[attribute] != null)
+		{
+			table += attribute;
+			if (attribute == activitiesSortKey && activitiesSortKeyToUpper)
+				table += " &#8595;";
+			if (attribute == activitiesSortKey && !activitiesSortKeyToUpper)
+				table += " &#8593;";
+		}
+		else
+			table += attribute;
+		table += "</th>";
+	}
+
+    addTitleHTML ("Start");
+    addTitleHTML ("JobID");
+    addTitleHTML ("JobTitle");
+    addTitleHTML ("State");
+    addTitleHTML ("Worker");
+    addTitleHTML ("Duration");
+
+	table += "</tr>\n";
+
+	function _sort (a,b)
+	{
+		var aValue = a[activitiesSortKey];
+		if (typeof aValue == 'string')
+			return compareStrings (aValue, b[activitiesSortKey], activitiesSortKeyToUpper);
+		else
+			return compareNumbers (aValue, b[activitiesSortKey], activitiesSortKeyToUpper);
+	}
+
+	activities.sort (_sort);
+
+	for (i=0; i < activities.length; i++)
+	{
+		var activity = activities[i];
+
+		date = formatDate (activity.Start);
+		dura = formatDuration (activity.Duration);
+
+        var mouseDownEvent = "onMouseDown='onClickList(event,"+i+")' onDblClick='onDblClickList(event,"+i+")'";
+		table += "<tr id='activitytable"+i+"' "+mouseDownEvent+" class='entry"+(i%2)+(selectedActivities[activity.ID]?"Selected":"")+"'>"+
+		// table += "<tr id='activitytable"+i+"' class='entry"+(i%2)+(selectedActivities[activity.ID]?"Selected":"")+"'>"+
+		         "<td>"+date+"</td>"+
+		         "<td>"+activity.JobID+"</td>"+
+		         "<td>"+activity.JobTitle+"</td>"+
+		         "<td class='"+activity.State+"'>"+activity.State+"</td>"+
+		         "<td>"+activity.Worker+"</td>"+
+		         "<td>"+dura+"</td>"+
+		         "</tr>\n";
+	}
+
+	// Footer
+	table += "<tr class='title'>";
+	table += addSumEmpty ("TOTAL");
+	table += addSumSimple (activities);
+	table += addSumEmpty ();
+	table += addSumFinished (activities, "State");
+	table += addSumEmpty ();
+	table += addSumAvgDuration (activities, "Duration");
+	table += "</tr>\n";
+
+	table += "</table>";
+	$("#activities").append(table);
+	$("#activities").append("<br>");
+}
+
 var JobProps =
 [
     [ "Title", "title", "" ],
@@ -771,7 +1019,9 @@ var JobProps =
     [ "Affinity", "affinity", "" ],
     [ "TimeOut", "timeout", "0" ],
     [ "Dependencies", "dependencies", "" ],
-    [ "Retry", "retry", "10" ]
+    [ "Retry", "retry", "10" ],
+    [ "User", "user", "" ],
+    [ "URL", "linko", "" ]
 ];
 var updatedJobProps = {}
 
@@ -801,7 +1051,10 @@ function addjob ()
         retry:$('#retry').attr("value"),
         timeout:$('#timeout').attr("value"),
         affinity:$('#affinity').attr("value"),
-        dependencies:$('#dependencies').attr("value")
+        dependencies:$('#dependencies').attr("value"),
+        user:$('#user').attr("value"),
+        linko:$('#linko').attr("value"),
+        parent:viewJob
     };
     $.ajax({ type: "GET", url: "/xmlrpc/addjob", data: _data, dataType: "json", success: 
         function () 
@@ -827,8 +1080,16 @@ function selectJobs ()
 
 function onDblClickList (e, i)
 {
-    var job = jobs[i];
-	job.Total == 0 ? renderLog (job.ID) : goToJob (job.ID);
+    if (page == "activities")
+    {
+        var activity = activities[i];
+	    renderLog (activity.JobID);
+    }
+    else
+    {
+        var job = jobs[i];
+	    job.Command != "" ? renderLog (job.ID) : goToJob (job.ID);
+	}
 }
 
 // List selection handler
@@ -842,9 +1103,13 @@ function onClickList (e, i)
 	if (!e.ctrlKey)
 	{
         if (page == "jobs")
+        {
             selectedJobs = {};
+        }
         else if (page == "workers")
             selectedWorkers = {};
+        else if (page == "activities")
+            selectedActivities = {};
     }
 
     var thelist;
@@ -864,6 +1129,13 @@ function onClickList (e, i)
         selectedList = selectedWorkers;
         idName = "Name";
         tableId = "workertable";
+    }
+    else if (page == "activities")
+    {
+        thelist = activities;
+        selectedList = selectedActivities;
+        idName = "ID";
+        tableId = "activitytable";
     }
     else
         return;
@@ -972,9 +1244,37 @@ function removeSelection ()
 	}
 }
 
+function startSelection ()
+{
+    var _data = "";
+	for (j=jobs.length-1; j >= 0; j--)
+	{
+		var job = jobs[j];
+		if (selectedJobs[job.ID])
+		    _data += "id="+str(job.ID)+"&";
+	}
+    $.ajax({ type: "GET", url: "/json/startjobs", data: _data, dataType: "json", success: 
+        function () 
+        {
+    	    reloadJobs ();
+        }
+    });
+}
+
+function viewSelection()
+{
+    var _data = "";
+	for (j=jobs.length-1; j >= 0; j--)
+	{
+		var job = jobs[j];
+		if (selectedJobs[job.ID] && job.URL)
+		    window.open(job.URL);
+	}
+}
+
 function resetSelection ()
 {
-	if (confirm("Do you really want to reset the selected jobs ?"))
+	if (confirm("Do you really want to reset the selected jobs and all their children jobs ?"))
 	{
 	    var _data = "";
 		for (j=jobs.length-1; j >= 0; j--)
@@ -1019,3 +1319,33 @@ function exportCSV()
 	window.open('csv.html?id=' + viewJob);
 }
 
+function cutSelection ()
+{
+    cutJobs = {}
+	for (j=jobs.length-1; j >= 0; j--)
+	{
+		var job = jobs[j];
+		if (selectedJobs[job.ID])
+		{
+		    cutJobs[job.ID] = true
+        }
+	}
+	selectAll (false)
+}
+
+function pasteSelection ()
+{
+    var _data = "dest="+str(viewJob)+"&";
+    var count = 0;
+	for (var id in cutJobs)
+	{
+	    _data += "id="+str(id)+"&";
+    }
+
+    $.ajax({ type: "GET", url: "/json/movejobs", data: _data, dataType: "json", success: 
+        function () 
+        {
+    	    reloadJobs ();
+        }
+    });
+}
