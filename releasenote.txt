@@ -9,7 +9,7 @@ Fixed : month in date was wrong
 Added : show the average duration
 Changed : sequentiel mode (no more random)
 Added : cut and paste jobs
-
+Added : URL link per job
 
 3.7
 Fixed : bad json code generation with big numbers
