@@ -85,6 +85,7 @@ sleepTime = cfgInt ('sleep', 2)
 cpus = cfgInt ('cpus', None)
 startup = cfgStr ('startup', '')
 verbose = cfgBool ('verbose', False)
+usesu = cfgBool ('usesu', False)
 
 def usage():
 	print ("Usage: worker [OPTIONS] [SERVER_URL]")
@@ -236,7 +237,7 @@ class Worker:
 	def _execProcess (self, cmd, dir, user):
 
 		# Change the user ?
-		if user != "" and sys.platform != "win32":
+		if user != "" and sys.platform != "win32" and usesu:
 			debugOutput ("Run the command using login " + user)
 			#os.seteuid (pwd.getpwnam (user)[2])
 			cmd = "su - " + user + " -c \"" + "cd "+ dir + "; " +cmd + "\""
