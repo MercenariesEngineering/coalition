@@ -1030,7 +1030,7 @@ var JobProps =
     [ "Dependencies", "dependencies", "" ],
     [ "Retry", "retry", "10" ],
     [ "User", "user", "" ],
-    [ "URL", "linko", "" ]
+    [ "URL", "url", "" ]
 ];
 var updatedJobProps = {}
 
@@ -1062,7 +1062,7 @@ function addjob ()
         affinity:$('#affinity').attr("value"),
         dependencies:$('#dependencies').attr("value"),
         user:$('#user').attr("value"),
-        linko:$('#linko').attr("value"),
+        url:$('#url').attr("value"),
         parent:viewJob
     };
     $.ajax({ type: "GET", url: "/xmlrpc/addjob", data: _data, dataType: "json", success: 

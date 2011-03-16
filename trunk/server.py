@@ -70,7 +70,10 @@ verbose = cfgBool ('verbose', False)
 service = cfgBool ('service', True)
 notifyafter = cfgInt ('notifyafter', 10)
 decreasepriorityafter = cfgInt ('decreasepriorityafter', 10)
+smtpsender = cfgStr ('smtpsender', "")
 smtphost = cfgStr ('smtphost', "")
+smtpport = cfgInt ('smtpport', 587)
+smtptls = cfgBool ('smtptls', True)
 smtplogin = cfgStr ('smtplogin', "")
 smtppasswd = cfgStr ('smtppasswd', "")
 
@@ -1091,7 +1094,10 @@ class Master (xmlrpc.XMLRPC):
 				dependencies = getArg ("dependencies", "")
 				localprogress = getArg ("localprogress", None)
 				globalprogress = getArg ("globalprogress", None)
-				linko = getArg ("linko", "")
+				url = getArg ("url", "")
+				user = getArg ("user", "")
+				if user == "":
+					user = self.User
 
 				output ("Add job : " + cmd)
 				if isinstance (parent, str):
@@ -1114,8 +1120,8 @@ class Master (xmlrpc.XMLRPC):
 				for i, dep in enumerate (dependencies) :
 					dependencies[i] = int (dep)
 				
-				id = State.addJob (parent, Job (str (title), str (cmd), str (dir), int (priority), int (retry), int (timeout), str (affinity), str (self.User), dependencies, localprogress, globalprogress))
-				State.Jobs[id].URL = linko
+				id = State.addJob (parent, Job (str (title), str (cmd), str (dir), int (priority), int (retry), int (timeout), str (affinity), str (user), dependencies, localprogress, globalprogress))
+				State.Jobs[id].URL = url
 				
 				State.update ()
 				return str(id)
@@ -1660,11 +1666,19 @@ def sendEmail (to, message) :
 
 			# Send the message via our own SMTP server, but don't include the
 			# envelope header.
-			s = smtplib.SMTP(smtphost)
-			if smtplogin != '' or smtppasswd != '':
-				s.login(smtplogin, smtppasswd)
-			s.sendmail (smtpsender, [to], msg.as_string())
-			s.quit()
+			try:
+				s = smtplib.SMTP(smtphost, smtpport)
+				if smtptls:
+					s.ehlo()
+					s.starttls()
+					s.ehlo() 
+				if smtplogin != '' or smtppasswd != '':
+					s.login(smtplogin, smtppasswd)
+				s.sendmail (smtpsender, [to], msg.as_string())
+				s.quit()
+			except Exception as inst:
+				output (inst)
+				pass
 
 def notifyError (job):
 	if job.User :
@@ -1677,8 +1691,6 @@ def notifyFinished (job):
 def notifyFirstFinished (job):
 	if job.User :
 		sendEmail (job.User, 'The job ' + job.Title + ' (' + str(job.ID) + ') has finished ' + str(notifyafter) + ' jobs.')
-
-sendEmail ("corvazier@gmail.com", "test message")
 
 if sys.platform=="win32" and service:
 
