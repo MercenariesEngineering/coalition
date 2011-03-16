@@ -283,7 +283,7 @@ function addSumFinished (inputs, attribute)
 		if (job[attribute] == "FINISHED")
 		    sum ++;
 	}
-	return "<td class='headerCell'>" + sum + "</td>";
+	return "<td class='headerCell'>" + sum + " FINISHED</td>";
 }
 
 // Average
@@ -298,7 +298,7 @@ function addSumAvgDuration (inputs, attribute)
 		count++;
 	}
 	if (count > 0)
-	    return "<td class='headerCell'>" + formatDuration (sum/count) + "</td>";
+	    return "<td class='headerCell'>Avg " + formatDuration (sum/count) + "</td>";
     else
         return "<td class='headerCell'></td>";
 }
@@ -306,7 +306,7 @@ function addSumAvgDuration (inputs, attribute)
 // Returns the HTML code for a job title column
 function addSumSimple (inputs)
 {
-	return "<td class='headerCell'>" + inputs.length + "</td>";
+	return "<td class='headerCell'>" + inputs.length + " jobs</td>";
 }
 
 // Render the current jobs
@@ -400,6 +400,7 @@ function renderJobs ()
 	//addTitleHTML ("Order");
 	addTitleHTML ("ID");
 	addTitleHTML ("Title");
+	addTitleHTML ("URL");
 	addTitleHTML ("User");
 	addTitleHTML ("State");
 	addTitleHTML ("Priority");
@@ -433,7 +434,13 @@ function renderJobs ()
 		//addTD (job.Order);
 		addTD (job.ID);
 		table += "<td>" + job.Title + "</td>\n";
-		//addTD (job.Title);
+
+        // URL
+		if (job.URL != "")
+		    addTD ("<a href='"+job.URL+"'>Open</a>")
+        else
+            addTD ("")
+		
 		addTD (job.User);
 	    table += "<td class='"+job.State+"'>"+job.State+"</td>";
 		addTD (job.Priority);
@@ -481,6 +488,7 @@ function renderJobs ()
 			deps += job.Dependencies[j] + " ";
 		}
 		addTD (deps);
+
 		table += "</td></tr>\n";
 	}
 
@@ -489,6 +497,7 @@ function renderJobs ()
 
 	table += addSumEmpty ("TOTAL");
 	table += addSumSimple (jobs);
+	table += addSumEmpty ();
 	table += addSumEmpty ();
 	table += addSumFinished (jobs, "State");
 	table += addSumEmpty ();
