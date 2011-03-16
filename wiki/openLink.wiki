@@ -1,0 +1,3 @@
+By default, a web browser blocks the links on local files.
+
+On firefox, it is possible to override this behavior. Chech this : http://kb.mozillazine.org/Links_to_local_pages_don%27t_work
