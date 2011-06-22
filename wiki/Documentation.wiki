@@ -1,0 +1,70 @@
+#v3.8
+
+= Jobs =
+
+A job is a simple command to run on one of the workers. Each job has an ID chosen by the server.
+
+== Job Attributes ==
+
+A job may have different attributes. For example, the job attribute *cmd* is the command to execute.
+
+The differents job attributes used to initialise a job are :
+
+ * cmd
+ * title
+ * dir
+ * parent
+ * priority
+ * dependencies
+ * timeout
+ * retry
+ * affinities
+ * url
+ * user
+ * localprogress
+ * globalprogress
+
+== Job execution ==
+
+The *title* attributes is displayed in the user interface.
+
+A new job is in the *WAITING* state.
+
+When a worker run a job, it set the current working directory to *dir* and run the command *cmd*. The job is then in the *WORKING *state. If the command returns with the exit code 0, the job is put in the state *FINISHED*. If not, the job is put in the state *ERROR*.
+
+If the job is in the *ERROR* state, the server will retry to run this job up to *retry* times.
+
+If the job duration exceeds *timeout*, the server will kill this job and set it in the ERROR state.
+
+== Job hierarchy ==
+
+A job can be the parent of some children jobs. In this case, the parent job won't run any command. Even if the attribute *cmd* has been provided. 
+
+The *parent* attribute can be specified to create a job into a previously created parent job. In this case, *parent* must be the ID of this parent job.
+
+The hierarchy is useful to organize and schedule the different jobs.
+
+=== Job dependencies ===
+
+The *dependencies* attributes is a job ID list of the different jobs to be finished before to run this job.
+
+This list can be provided like this : "1,3,5".
+
+=== Affinities ===
+
+
+= Server =
+
+The coalition server collect the jobs and distributes them to the differents workers.
+
+== Run the server ==
+
+== Add a job ==
+
+== Database backup ==
+
+== LDAP ==
+
+= Worker =
+
+= Control =
