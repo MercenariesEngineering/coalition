@@ -4,11 +4,11 @@
 
 A job is a simple command to run on one of the workers. Each job has an ID chosen by the server.
 
-== Job Attributes ==
+== Job attributes ==
 
 A job may have different attributes. For example, the job attribute *cmd* is the command to execute.
 
-The differents job attributes used to initialise a job are :
+The different job attributes used to initialise a job are :
 
  * cmd
  * title
@@ -26,8 +26,6 @@ The differents job attributes used to initialise a job are :
 
 == Job execution ==
 
-The *title* attributes is displayed in the user interface.
-
 A new job is in the *WAITING* state.
 
 When a worker run a job, it set the current working directory to *dir* and run the command *cmd*. The job is then in the *WORKING *state. If the command returns with the exit code 0, the job is put in the state *FINISHED*. If not, the job is put in the state *ERROR*.
@@ -35,6 +33,16 @@ When a worker run a job, it set the current working directory to *dir* and run t
 If the job is in the *ERROR* state, the server will retry to run this job up to *retry* times.
 
 If the job duration exceeds *timeout*, the server will kill this job and set it in the ERROR state.
+
+== Job display ==
+
+The *title* attribute is displayed in the user interface.
+
+The *url* attribute is the url to open with the Open link in the user interface.
+
+By default, the web browser blocks the URLs on local files.
+
+On Firefox, it is possible to override this behavior. Chech this : http://kb.mozillazine.org/Links_to_local_pages_don%27t_work
 
 == Job hierarchy ==
 
@@ -46,16 +54,27 @@ The hierarchy is useful to organize and schedule the different jobs.
 
 === Job dependencies ===
 
-The *dependencies* attributes is a job ID list of the different jobs to be finished before to run this job.
+The *dependencies* attributes is a job ID list of the different jobs to finish before to run this job.
 
-This list can be provided like this : "1,3,5".
+A list can be provided like this : "1,3,5".
 
 === Affinities ===
 
+If a job has an *affinity* attribute, only the worker with at least all the affinities specified in the *affinity* attribute will be able to run this job.
+
+For example, it the affinity attribute is initialised with "LINUX,24GB", the workers must have at least the "LINUX" and the "24GB" affinities to run this job.
+
+== Owner ==
+
+The *user* attributes is the user name of the owner of the job. If the emails are activated, the emails regarding this job will be sent at *user*.
+
+If LDAP is configured, the job will be executed with the *user* rights.
+
+== Job progression ==
 
 = Server =
 
-The coalition server collect the jobs and distributes them to the differents workers.
+The coalition server collects the jobs and distributes them to the differents workers.
 
 == Run the server ==
 
