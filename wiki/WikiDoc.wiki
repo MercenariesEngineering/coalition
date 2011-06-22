@@ -1,4 +1,4 @@
-#summary How to use coalition
+#summary How to use coalition (in French, need translation)
 
 
 = Présentation de Coalition =
