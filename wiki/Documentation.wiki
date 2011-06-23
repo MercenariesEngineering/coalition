@@ -122,7 +122,7 @@ python control.py --cmd="echo toto" --priority=1000 --affinity="linux" --retry=1
 
 === Using a HTTP request ===
 
-To add a job using the HTTP interface, simply GET or POST the url http://host:port/xmlrpc/addjob with any job attributes :
+To add a job using the HTTP interface, simply GET or POST the url http://host:port/json/addjob with any job attributes :
 
 Example :
 
