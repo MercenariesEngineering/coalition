@@ -84,7 +84,7 @@ If LDAP is configured, the job will be executed with the *user* rights.
 
 == Job log ==
 
-The job's log are the command's stdout and stderr streams. The log is sent by the worker to the server.
+The job's log is the output of the command's stdout and stderr streams. The log is sent by the worker to the server.
 
 The server stores the log in the *logs/* directory, in a file named *ID.log* with ID the ID of the job.
 
@@ -99,6 +99,8 @@ The *globalprogress* attribute is a pattern that is used to extract the job prog
 || P:1 || P:%one || 100% ||
 
 The *localprogress* attribute can be used with *globalprogress* to specify a second level of the job progression.
+
+----
 
 = Server =
 
@@ -147,6 +149,10 @@ The worker have to be run as root because it will now run the jobs with the user
 If the server is started with the --ldapserver option, the user will be asked for their login and password. The jobs will be added with the user's login. The workers will execute 
 the jobs with the user's privileges.
 
+----
+
 = Worker =
+
+----
 
 = Control =
