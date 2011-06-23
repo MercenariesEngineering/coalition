@@ -12,6 +12,8 @@ timeout = 0
 parent = 0
 dependencies = ""
 id=-1
+localprogress=None
+globalprogress=None
 
 def usage():
 	print ("Usage: control.py [OPTIONS] SERVER_URL ACTION [COMMAND]")
@@ -22,7 +24,8 @@ def usage():
 	print("  remove: remove job designated by id, option -i is necessary") 
 	print ("Options:")
 	print ("  -h, --help\t\tShow this help")
-	print ("  -c, --command=COMMAND\t\tIf action is add, add command to server")
+	print ("  -v, --verbose\t\tIncrease verbosity")
+	print ("  -c, --cmd=COMMAND\t\tIf action is add, add command to server")
 	print ("  -d, --directory=DIR\tWorking directory (default: "+dir+")")
 	print ("  -t, --title=TITLE\tSet the job title (default: "+title+")")
 	print ("  -p, --priority=PRIORITY\tPriority of the job (default: "+str(priority)+")")
@@ -32,13 +35,14 @@ def usage():
 	print ("  -T, --timeout=TIMEOUT\ttimeout for the job")
 	print ("  -D, --dependencies=DEPS\tIDs of the dependent jobs (exemple : \"21 22 23\"")
 	print ("  -P, --parent=PARENT\tId of of the parent of the job")
-	print ("  -v, --verbose\t\tIncrease verbosity")
+	print ("      --globalprogress=PATTERN\tThe job progression pattern")
+	print ("      --localprogress=PATTERN\tThe second job progression pattern")
 
 	print ("\nExample : control -t \"Job\" -a \"Linux\" -c \"echo Hello world!\" http://localhost:8080 add")
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "a:d:e:h:r:s:t:v:c:i:D:p:T:P:", ["affinity=", "directory=", "end=", "help", "retry=", "start=", "title=", "verbose=", "command=", "dependencies=", "priority", "timeout","parent"])
+	opts, args = getopt.getopt(sys.argv[1:], "a:d:e:h:r:s:t:v:c:i:D:p:T:P:", ["affinity=", "directory=", "end=", "help", "retry=", "start=", "title=", "verbose=", "command=", "cmd=", "dependencies=", "priority=", "timeout=","parent=","localprogress=","globalprogress="])
 	if len(args) != 2 :
 		usage()
 		sys.exit(2)
@@ -71,7 +75,7 @@ for o, a in opts:
 		affinity = a
 	elif o in ("-t", "--title"):
 		title = a
-	elif o in ("-c", "--command"):
+	elif o in ("-c", "--command", "--cmd"):
 		cmd=a
 	elif o in ("-i", "--jobid"):
 		id=a
@@ -81,6 +85,10 @@ for o, a in opts:
 		timeout=int(a)
 	elif o in ("-P", "--parent"):
 		parent=int(a)
+	elif o in ("--localprogress"):
+		localprogress = a
+	elif o in ("--globalprogress"):
+		globalprogress = a
 	else:
 		assert False, "unhandled option " + o
 
@@ -90,7 +98,7 @@ def output (str):
 		print (str)
 
 if action=="add":
-	params = urllib.urlencode({'parent':parent, 'title':title, 'cmd':cmd, 'dir':dir, 'priority':priority, 'retry':retry, 'timeout':timeout, 'affinity':affinity, 'dependencies':dependencies})
+	params = urllib.urlencode({'parent':parent, 'title':title, 'cmd':cmd, 'dir':dir, 'priority':priority, 'retry':retry, 'timeout':timeout, 'affinity':affinity, 'dependencies':dependencies, 'localprogress':localprogress, 'globalprogress':globalprogress})
 	conn = httplib.HTTPConnection(re.sub("^http://", "", serverUrl))
 	conn.request("GET", "/json/addjob?"+params)
 	response = conn.getresponse()

@@ -326,13 +326,6 @@ function renderJobs ()
 	    }
 	    else
 	    {
-	        lProgress = job.State == "FINISHED"  ? 
-	                        1.0 :
-	                        ( 
-		                            job.LocalProgress == null ? 
-		                                0.0 : 
-		                                parseFloat(job.LocalProgress)
-                            );
 	        gProgress = job.State == "FINISHED"  ? 
 	                        1.0 :
 	                        ( 
@@ -340,9 +333,13 @@ function renderJobs ()
 		                                0.0 : 
 		                                parseFloat(job.GlobalProgress)
                             );
-            // A bar div
-            lProgress = lProgress;
-            gProgress = gProgress;
+	        lProgress = job.State == "FINISHED"  ? 
+	                        1.0 :
+	                        ( 
+		                            job.LocalProgress == null ? 
+		                                gProgress : 
+		                                parseFloat(job.LocalProgress)
+                            );
         }
         return lProgress, gProgress;
     }
