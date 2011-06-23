@@ -4,16 +4,18 @@
 
 A job is a simple command to run on one of the workers. Each job has an ID chosen by the server.
 
+A job can be submitted to the server using *control.py* or a HTTP request.
+
 == Job attributes ==
 
 A job may have different attributes. For example, the job attribute *cmd* is the command to execute.
 
 The different job attributes used to initialise a job are :
 
- * cmd
- * title
- * dir
- * parent
+ * cmd : the command to run
+ * title : the title to display in the user interface
+ * dir : the job's working directory
+ * parent : the parent's job
  * priority
  * dependencies
  * timeout
@@ -60,9 +62,19 @@ A list can be provided like this : "1,3,5".
 
 === Affinities ===
 
-If a job has an *affinity* attribute, only the worker with at least all the affinities specified in the *affinity* attribute will be able to run this job.
+Affinities are used to associate some jobs to a subset of workers.
 
-For example, it the affinity attribute is initialised with "LINUX,24GB", the workers must have at least the "LINUX" and the "24GB" affinities to run this job.
+The affinity attribute is a list of strings, separated by comas.
+
+If a job has an *affinity* attribute, only the workers with the affinities matching all the job's affinities will be able to run this job.
+
+For example, let's say a job has the following *affinity* : "LINUX,24GB"
+
+|| *Worker affinities* || *Match* ||
+|| "LINUX" || NO ||
+|| "24GB" || NO ||
+|| "LINUX,24GB" || YES ||
+|| "LINUX,24GB,GL" || YES ||
 
 == Owner ==
 
