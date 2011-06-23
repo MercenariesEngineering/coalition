@@ -110,6 +110,10 @@ The coalition server collects the jobs and distributes them to the differents wo
 
 == Add a job ==
 
+It is possible to add a job to the server using control.py or a HTTP request. 
+
+If the job is added, the new job ID is returned.
+
 === Using control.py ===
 
 You can use control.py to add jobs to the server :
