@@ -15,10 +15,10 @@ The different job attributes used to initialise a job are :
  * cmd : the command to run
  * title : the title to display in the user interface
  * dir : the job's working directory
- * parent : the job's parent
- * priority : the job priority
- * dependencies : the job dependencies on other jobs
- * timeout : the job timeout in seconds
+ * parent : the parent job ID
+ * priority : the job's priority
+ * dependencies : the job's dependencies on other jobs
+ * timeout : the job's timeout in seconds
  * retry : how many time to retry this job
  * affinities : the job affinities to match
  * url : the url to open with the Open link
