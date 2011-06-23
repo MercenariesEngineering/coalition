@@ -15,7 +15,7 @@ The different job attributes used to initialise a job are :
  * cmd : the command to run
  * title : the title to display in the user interface
  * dir : the job's working directory
- * parent : the parent's job
+ * parent : the job's parent
  * priority : the job priority
  * dependencies : the job dependencies on other jobs
  * timeout : the job timeout in seconds
