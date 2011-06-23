@@ -1,3 +1,5 @@
+#summary Work in progress
+
 = Jobs =
 
 A job is a simple command to run on one of the workers. Each job has an ID chosen by the server.
