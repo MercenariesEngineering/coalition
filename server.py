@@ -189,7 +189,10 @@ class LogFilter:
 		progress = None
 		for m in self.RE.finditer (log):
 			capture = m.group(1)
-			progress = float(capture) / (self.IsPercent and 100.0 or 1.0)
+			try:
+				progress = float(capture) / (self.IsPercent and 100.0 or 1.0)
+			except ValueError:
+				pass
 		return self.RE.sub ("", log), progress
 		
 LogFilterCache = {}
@@ -276,6 +279,7 @@ def compareAffinities (jobAffinity, workerAffinity):
 	if workerAffinity == "" :
 		return False
 	jobWords = jobAffinity.split (',')
+
 	workerWords = workerAffinity.split (',')
 	for jobWord in jobWords:
 		found = False
@@ -1180,10 +1184,12 @@ class Master (xmlrpc.XMLRPC):
 				if filter == "" or child.State == filter:
 					childparams = "["
 					for var in vars:
+						attr = None
 						try:
-							childparams += json.dumps (getattr (child, var)) + ','
+							attr = getattr (child, var)
 						except AttributeError:
 							pass
+						childparams += json.dumps (attr) + ','
 					childparams += "],\n"
 					jobs += childparams
 			except KeyError:

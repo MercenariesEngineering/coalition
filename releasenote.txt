@@ -1,3 +1,7 @@
+3.9
+Added : Better log progress parsing
+Fixed : All job attributes available in control.py 
+
 3.8
 Added : Emails sent to the user
 Added : activities list
