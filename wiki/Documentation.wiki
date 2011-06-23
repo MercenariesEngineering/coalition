@@ -1,5 +1,3 @@
-#v3.8
-
 = Jobs =
 
 A job is a simple command to run on one of the workers. Each job has an ID chosen by the server.
@@ -23,8 +21,8 @@ The different job attributes used to initialise a job are :
  * affinities : the job affinities to match
  * url : the url to open with the Open link
  * user : the user name/email of the owner of this job
- * localprogress
- * globalprogress
+ * globalprogress : the job progression pattern
+ * localprogress : the second job progression pattern
 
 == Job execution ==
 
@@ -82,7 +80,23 @@ The *user* attributes is the user name of the owner of the job. If the emails ar
 
 If LDAP is configured, the job will be executed with the *user* rights.
 
+== Job log ==
+
+The job's log are the command's stdout and stderr streams. The log is sent by the worker to the server.
+
+The server stores the log in the *logs/* directory, in a file named *ID.log* with ID the ID of the job.
+
 == Job progression ==
+
+The *globalprogress* attribute is a pattern that is used to extract the job progression out of the job's logs. Here are some examples of logs and patterns : 
+
+|| *Log* || *Pattern* || *Progression* ||
+|| 25 || %percent || 25% ||
+|| (50) || (%percent) || 50% ||
+|| 0.75 || %one || 75% ||
+|| P:1 || P:%one || 100% ||
+
+The *localprogress* attribute can be used with *globalprogress* to specify a second level of the job progression.
 
 = Server =
 
