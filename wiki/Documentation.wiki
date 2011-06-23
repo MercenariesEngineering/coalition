@@ -16,13 +16,13 @@ The different job attributes used to initialise a job are :
  * title : the title to display in the user interface
  * dir : the job's working directory
  * parent : the parent's job
- * priority
- * dependencies
- * timeout
- * retry
- * affinities
- * url
- * user
+ * priority : the job priority
+ * dependencies : the job dependencies on other jobs
+ * timeout : the job timeout in seconds
+ * retry : how many time to retry this job
+ * affinities : the job affinities to match
+ * url : the url to open with the Open link
+ * user : the user name/email of the owner of this job
  * localprogress
  * globalprogress
 
@@ -60,7 +60,7 @@ The *dependencies* attributes is a job ID list of the different jobs to finish b
 
 A list can be provided like this : "1,3,5".
 
-=== Affinities ===
+=== Job affinities ===
 
 Affinities are used to associate some jobs to a subset of workers.
 
@@ -68,15 +68,15 @@ The affinity attribute is a list of strings, separated by comas.
 
 If a job has an *affinity* attribute, only the workers with the affinities matching all the job's affinities will be able to run this job.
 
-For example, let's say a job has the following *affinity* : "LINUX,24GB"
+For example, let's say a job has the following *affinity* : "LINUX,24GB". Here is a summary of which worker affinities configuration match the job's one :
 
-|| *Worker affinities* || *Match* ||
-|| "LINUX" || NO ||
-|| "24GB" || NO ||
-|| "LINUX,24GB" || YES ||
-|| "LINUX,24GB,GL" || YES ||
+|| *Job affinites* || *Worker affinities* || *Match* ||
+|| "LINUX,24GB" || "LINUX" || NO ||
+|| "LINUX,24GB" || "24GB" || NO ||
+|| "LINUX,24GB" || "LINUX,24GB" || YES ||
+|| "LINUX,24GB" || "LINUX,24GB,GL" || YES ||
 
-== Owner ==
+== Job owner ==
 
 The *user* attributes is the user name of the owner of the job. If the emails are activated, the emails regarding this job will be sent at *user*.
 
@@ -95,6 +95,27 @@ The coalition server collects the jobs and distributes them to the differents wo
 == Database backup ==
 
 == LDAP ==
+
+This feature works only under a linux system with the "su" command available.
+
+server.py can use LDAP to authenticate the users in order to control access to the monitor and run the jobs with the users's privileges.
+
+=== LDAP Setup ===
+
+To use a LDAP server, you have to run the server with the two following options :
+
+{{{
+--ldaphost=LDAPHOST
+--ldaptemplate=LDAPTEMPLATE
+}}}
+
+LDAPHOST is the host name of the LDAP server.
+LDAPTEMPLATE is a template like "uid=%login,ou=people,dc=exemple,dc=com" used to test the password. "%login" will be replaced by the user login.
+
+The worker have to be run as root because it will now run the jobs with the user rights. 
+
+If the server is started with the --ldapserver option, the user will be asked for their login and password. The jobs will be added with the user's login. The workers will execute 
+the jobs with the user's privileges.
 
 = Worker =
 
