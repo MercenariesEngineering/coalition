@@ -1298,6 +1298,26 @@ function resetSelection ()
 	}
 }
 
+function resetErrorSelection ()
+{
+	if (confirm("Do you really want to reset the selected jobs and all their children jobs tagged in ERROR ?"))
+	{
+	    var _data = "";
+		for (j=jobs.length-1; j >= 0; j--)
+		{
+			var job = jobs[j];
+			if (selectedJobs[job.ID])
+			    _data += "id="+str(job.ID)+"&";
+		}
+        $.ajax({ type: "GET", url: "/json/reseterrorjobs", data: _data, dataType: "json", success: 
+            function () 
+            {
+        	    reloadJobs ();
+            }
+        });
+	}
+}
+
 function pauseSelection ()
 {
     var _data = "";

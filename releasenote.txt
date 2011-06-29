@@ -1,3 +1,9 @@
+3.10
+Fixed : Patch for the darwin plateform (by Peter Postma)
+Changed : Background saving of the database, no more freeze during the save
+Changed : The file format has been changed to support background saving
+Added : Reset error jobs command
+
 3.9
 Added : Better log progress parsing
 Fixed : All job attributes available in control.py 

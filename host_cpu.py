@@ -70,7 +70,7 @@ class HostCPU:
 #			result = []
 #			for cpuid in range(0,cpucount):			
 #				result.append (0)
-		if sys.platform!="win32":
+		if sys.platform!="win32" and sys.platform!="darwin":
 			global gUser
 			global gNice
 			global gSystem
