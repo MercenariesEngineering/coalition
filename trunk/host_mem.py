@@ -1,4 +1,5 @@
-import sys,re
+
+import sys,re,os
 
 if sys.platform=="win32":
 	from ctypes import Structure, c_ulonglong
@@ -43,6 +44,8 @@ def getTotalMem ():
 	    x.dwLength = 8*8;
 	    windll.kernel32.GlobalMemoryStatusEx(byref(x)) # from cytypes.wintypes
 	    return x.ullTotalPhys
+	elif sys.platform=="darwin":
+		return int(os.popen('/usr/sbin/sysctl -n hw.memsize').read())
 	else:
 		total, free = parseMemInfo ()
 		return total * 1024
@@ -53,6 +56,12 @@ def getAvailableMem ():
 	    x.dwLength = 8*8;
 	    windll.kernel32.GlobalMemoryStatusEx(byref(x)) # from cytypes.wintypes
 	    return x.ullAvailPhys
+	elif sys.platform=="darwin":
+		for line in os.popen('/usr/bin/vm_stat').readlines():
+			if line.startswith('Pages free'):
+				data = line.split()
+				return int(data[2].rstrip('.')) * 4 * 1024
+		return 0
 	else:
 		total, free = parseMemInfo ()
 		return free * 1024

@@ -77,6 +77,7 @@ smtptls = cfgBool ('smtptls', True)
 smtplogin = cfgStr ('smtplogin', "")
 smtppasswd = cfgStr ('smtppasswd', "")
 
+SaveTime = cfgInt ('savetime', 60*5)		# DB save timing in secondes, 5min
 BackupTime = cfgInt ('backuptime', 60*60)	# Backup timing in secondes, 1H
 BackupMax = cfgInt ('backupmax', 24)		# Maximum backup files, 24
 BackupLastTime = time.time ()	# Last backup date
@@ -134,7 +135,6 @@ if not verbose or service:
 		sys.stdout = outfile
 		sys.stderr = outfile
 		def exit ():
-			print ("exit")
 			outfile.close ()
 		atexit.register (exit)
 	except:
@@ -317,7 +317,7 @@ def writeJobLog (jobId, log):
 # If the job has children, they must be finished before
 # If no child can be ran (exceeded retries count), then the job cannot be ran
 # Children are picked according to their priority
-DBVersion = 7
+DBVersion = 8
 class CState:
 
 	def __init__ (self):
@@ -338,49 +338,122 @@ class CState:
 
 	# Read the state
 	def read (self, fo):
+		_time = time.time ()
 		version = cPickle.load(fo)
-		if version >= 5:
+		if version >= 8 :
 			self.Counter = cPickle.load (fo)
-			if version >= 7 :
-				self.ActivityCounter = cPickle.load (fo)
-				self.Activities = cPickle.load (fo)
-			else :
-				print ("Translate DB to version 7")
-				self.ActivityCounter = 0
-				self.Activities = {}
-			self.Jobs = cPickle.load (fo)
-			self.Workers = cPickle.load (fo)
+			self.ActivityCounter = cPickle.load (fo)
 
-			# Translate Workers from 6 -> 7
-			if version < 7 :
-				for id, worker in self.Workers.iteritems () :
-					worker.CurrentActivity = -1
-				for id, job in self.Jobs.iteritems () :
-					job.URL = ""
+			count = cPickle.load (fo)
+			self.Activities = {}
+			for i in range (0, count):
+				array = cPickle.load (fo)
+				self.Activities.update (array)
+
+			count = cPickle.load (fo)
+			self.Jobs = {}
+			for i in range (0, count):
+				array = cPickle.load (fo)
+				self.Jobs.update (array)
+
+			count = cPickle.load (fo)
+			self.Workers = {}
+			for i in range (0, count):
+				array = cPickle.load (fo)
+				self.Workers.update (array)
+		else :
+			if version >= 5:
+				self.Counter = cPickle.load (fo)
+				if version >= 7 :
+					self.ActivityCounter = cPickle.load (fo)
+					self.Activities = cPickle.load (fo)
+				else :
+					print ("Translate DB to version 7")
+					self.ActivityCounter = 0
+					self.Activities = {}
+				self.Jobs = cPickle.load (fo)
+				self.Workers = cPickle.load (fo)
+
+				# Translate Workers from 6 -> 7
+				if version < 7 :
+					for id, worker in self.Workers.iteritems () :
+						worker.CurrentActivity = -1
+					for id, job in self.Jobs.iteritems () :
+						job.URL = ""
 					
-			self._refresh ()
-			if version <= 5:
-				# Add Working, TotalWorking
-				print ("Translate DB to version 6")
-				for id, job in self.Jobs.iteritems () :
-					job.Working = 0
-					job.TotalWorking = 0				
-			#self.dump ()
-		else:
-			raise Exception ("Database too old, erase the master_db file")
-			self.clear ()
+				self._refresh ()
+				if version <= 5:
+					# Add Working, TotalWorking
+					print ("Translate DB to version 6")
+					for id, job in self.Jobs.iteritems () :
+						job.Working = 0
+						job.TotalWorking = 0				
+				#self.dump ()
+			else:
+				raise Exception ("Database too old, erase the master_db file")
+				self.clear ()
+		output ("Read time :" + str (time.time () - _time) + "s")
 
 	# Write the state
-	def write (self, fo):
-		version = DBVersion
-		cPickle.dump (version, fo)
-		cPickle.dump (self.Counter, fo)
-		cPickle.dump (self.ActivityCounter, fo)
-		cPickle.dump (self.Activities, fo)
-		cPickle.dump (self.Jobs, fo)
-		cPickle.dump (self.Workers, fo)
-		self._UpdatedDb = False
-		#self.dump ()
+	def write (self):
+		global dataDir
+		backup ()
+		fo = open(dataDir + "/master_db.part", "wb")
+		try:
+			_time = time.time ()
+			version = DBVersion
+			cPickle.dump (version, fo)
+			cPickle.dump (self.Counter, fo)
+			cPickle.dump (self.ActivityCounter, fo)
+		
+			blockSize = 10000
+
+			# Save a block of dict
+			def saveBlock (blockID, blockSize, keys, _dict, fo):
+				array = {}
+				for j in range (blockID*blockSize, min (len (keys), (blockID+1)*blockSize)):
+					key = keys[j]
+					value = _dict.get (key) 
+					if value != None:
+						array[key] = value
+				cPickle.dump (array, fo)
+
+			# Can't factorize this code here because of the yield
+
+			output ("Write Activities")
+			keys = self.Activities.keys ()
+			blockCount = (len (keys) + (blockSize-1)) / blockSize
+			cPickle.dump (blockCount, fo)
+			for blockID in range(0, blockCount):
+				saveBlock (blockID, blockSize, keys, self.Activities, fo)
+				yield True
+		
+			output ("Write Jobs")
+			keys = self.Jobs.keys ()
+			blockCount = (len (keys) + (blockSize-1)) / blockSize
+			cPickle.dump (blockCount, fo)
+			for blockID in range(0, blockCount):
+				saveBlock (blockID, blockSize, keys, self.Jobs, fo)
+				yield True
+		
+			output ("Write Workers")
+			keys = self.Workers.keys ()
+			blockCount = (len (keys) + (blockSize-1)) / blockSize
+			cPickle.dump (blockCount, fo)
+			for blockID in range(0, blockCount):
+				saveBlock (blockID, blockSize, keys, self.Workers, fo)
+				yield True
+
+			fo.close()
+			try:
+				os.remove (dataDir + '/master_db')
+			except OSError:
+				pass
+			os.rename (dataDir + '/master_db.part', dataDir + '/master_db')
+		except IOError:
+			fo.close()		
+		output ("DB saved in " + str (time.time () - _time) + "s")
+		yield False
 
 	def update (self, forceSaveDb = False) :
 		global	TimeOut
@@ -560,6 +633,29 @@ class CState:
 			self._updateParentState (job.Parent)
 			for cid in job.Children :
 				self.resetJob (cid)
+		except KeyError:
+			pass
+
+	# Reset a job and its error children
+	def resetErrorJob (self, id) :
+		try:
+			job = self.Jobs[id]
+			job.State = "WAITING"
+			job.Try = 0
+			job.Worker = ""
+			if getattr(job, "LocalProgress", False):
+				job.LocalProgress = 0
+			if getattr(job, "GlobalProgress", False):
+				job.GlobalProgress = 0
+			try:
+				self._ActiveJobs.remove (id)
+			except KeyError:
+				pass
+			self._UpdatedDb = True
+			self._updateParentState (job.Parent)
+			for cid in job.Children :
+				if self.Jobs[cid].State == "ERROR":
+					self.resetErrorJob (cid)
 		except KeyError:
 			pass
 
@@ -1135,6 +1231,8 @@ class Master (xmlrpc.XMLRPC):
 				return self.json_clearjobs (request.args.get ("id"))
 			elif request.path == "/json/resetjobs":
 				return self.json_resetjobs (request.args.get ("id"))
+			elif request.path == "/json/reseterrorjobs":
+				return self.json_reseterrorjobs (request.args.get ("id"))
 			elif request.path == "/json/startjobs":
 				return self.json_startjobs (request.args.get ("id"))
 			elif request.path == "/json/pausejobs":
@@ -1219,6 +1317,14 @@ class Master (xmlrpc.XMLRPC):
 		for jobId in ids:
 			output ("Reset job "+str (jobId))
 			State.resetJob (int(jobId))
+		State.update ()
+		return "1"
+
+	def json_reseterrorjobs (self, ids):
+		global State
+		for jobId in ids:
+			output ("Reset error job "+str (jobId))
+			State.resetErrorJob (int(jobId))
 		State.update ()
 		return "1"
 
@@ -1583,25 +1689,22 @@ def backup ():
 		BackupLastTime = time.time()
 
 # Write the DB on disk
+SaveCoroutine = None
 def saveDb ():
-	global State, dataDir
-	global GErr, GOk
-#	print ("Error : " + str(GErr) + " OK : " + str(GOk))
-	if State._UpdatedDb:
-		backup ()
-		fo = open(dataDir + "/master_db.part", "wb")
-		try:
-			State.write (fo)
-			fo.close()
-			try:
-				os.remove (dataDir + '/master_db')
-			except OSError:
-				pass
-			os.rename (dataDir + '/master_db.part', dataDir + '/master_db')
-		except IOError:
-			fo.close()		
-		output ("DB saved")
-	reactor.callLater(5, saveDb)
+	global State, dataDir, SaveCoroutine, SaveTime
+	
+	if SaveCoroutine == None and State._UpdatedDb:
+		output ("Start coroutine")
+		State._UpdatedDb = False
+		SaveCoroutine = State.write ()
+
+	if SaveCoroutine != None:
+		output ("Continue coroutine")
+		if not SaveCoroutine.next ():
+			output ("Stop coroutine")
+			SaveCoroutine = None
+	
+	reactor.callLater(SaveTime, saveDb)
 
 # Read the DB from disk
 def readDb ():
