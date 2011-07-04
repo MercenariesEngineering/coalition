@@ -1,6 +1,6 @@
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
-import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random
+import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random, shutil
 import atexit, json
 import smtplib
 from email.mime.text import MIMEText
@@ -552,6 +552,7 @@ class CState:
 				self._updateAffinity (job.ID)
 				self._updateParentState (parent)
 			return job.ID
+
 		except KeyError:
 			print ("Can't add job to parent " + str (parent) + " type", type (parent))
 
@@ -1682,8 +1683,8 @@ def backup ():
 
 		# Copy the last db
 		try:
-			os.rename (dataDir + "/master_db", dataDir + "/master_db.1")
-			output ('rename ' + dataDir + "/master_db in " + dataDir + "/master_db.1")
+			shutil.copy2 (dataDir + "/master_db", dataDir + "/master_db.1")
+			output ('copy ' + dataDir + "/master_db in " + dataDir + "/master_db.1")
 		except OSError:	
 			pass
 		BackupLastTime = time.time()
@@ -1692,7 +1693,9 @@ def backup ():
 SaveCoroutine = None
 def saveDb ():
 	global State, dataDir, SaveCoroutine, SaveTime
-	
+
+	delai = SaveTime
+
 	if SaveCoroutine == None and State._UpdatedDb:
 		output ("Start coroutine")
 		State._UpdatedDb = False
@@ -1700,11 +1703,13 @@ def saveDb ():
 
 	if SaveCoroutine != None:
 		output ("Continue coroutine")
-		if not SaveCoroutine.next ():
+		if SaveCoroutine.next ():
+			delai = 1
+		else :
 			output ("Stop coroutine")
 			SaveCoroutine = None
 	
-	reactor.callLater(SaveTime, saveDb)
+	reactor.callLater(delai, saveDb)
 
 # Read the DB from disk
 def readDb ():
