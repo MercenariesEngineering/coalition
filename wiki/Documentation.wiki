@@ -20,7 +20,7 @@ The different job attributes used to initialise a job are :
  * *dependencies* : the job's dependencies on other jobs
  * *timeout* : the job's timeout in seconds
  * *retry* : how many time to retry this job
- * *affinities* : the job affinities to match
+ * *affinity* : the job affinities to match
  * *url* : the url to open with the Open link
  * *user* : the user name/email of the owner of this job
  * *globalprogress* : the job progression pattern
