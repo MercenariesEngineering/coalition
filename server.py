@@ -361,6 +361,7 @@ class CState:
 			for i in range (0, count):
 				array = cPickle.load (fo)
 				self.Workers.update (array)
+			self._refresh ()
 		else :
 			if version >= 5:
 				self.Counter = cPickle.load (fo)
