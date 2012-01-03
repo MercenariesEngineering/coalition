@@ -244,6 +244,9 @@ class Worker:
 		else:
 			if dir != "" :
 				try:
+					# Linux, change the \\ for /
+					if sys.platform != "win32" :
+						dir = re.sub ("\\\\", "/", dir)
 					os.chdir (dir)
 				except OSError, err:
 					self.info ("Can't change dir to " + dir + ": " + str (err))
