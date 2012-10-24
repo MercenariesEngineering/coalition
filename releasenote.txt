@@ -1,3 +1,6 @@
+3.11
+Added : umask 022 for the worker
+
 3.10
 Fixed : Patch for the darwin plateform (by Peter Postma)
 Changed : Background saving of the database, no more freeze during the save
