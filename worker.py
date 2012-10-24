@@ -258,6 +258,8 @@ class Worker:
 		# Run the job
 		self.info ("exec " + cmd)
 
+		# Make sure 
+		os.umask(022)
 		process = subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 		# Get the pid
