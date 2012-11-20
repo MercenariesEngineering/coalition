@@ -222,13 +222,14 @@ class Activity:
 class Job:
 	"""A farm job"""
 
-	def __init__ (self, title, cmd = "", dir = "", priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", dependencies = [], localprogress = None, globalprogress = None):
+	def __init__ (self, title, cmd = "", dir = "", environment = None, priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", dependencies = [], localprogress = None, globalprogress = None):
 		self.ID = None						# Job ID
 		self.Parent = None					# Parent Job ID
 		self.Children = []					# Children Jobs IDs
 		self.Title = title					# Job title
 		self.Command = cmd					# Job command to execute
 		self.Dir = dir						# Job working directory
+		self.Environment = environment		# Job environment
 		self.State = "WAITING"				# Job state, can be WAITING, WORKING, FINISHED or ERROR
 		self.Worker = ""					# Worker hostname
 		self.StartTime = time.time()		# Start working time 
@@ -1189,6 +1190,9 @@ class Master (xmlrpc.XMLRPC):
 				title = getArg ("title", "New job")
 				cmd = getArg ("cmd", "")
 				dir = getArg ("dir", ".")
+				environment = getArg ("env", None)
+				if environment == "":
+					environment = None
 				priority = getArg ("priority", "1000")
 				retry = getArg ("retry", "10")
 				timeout = getArg ("timeout", "0")
@@ -1222,7 +1226,7 @@ class Master (xmlrpc.XMLRPC):
 				for i, dep in enumerate (dependencies) :
 					dependencies[i] = int (dep)
 				
-				id = State.addJob (parent, Job (str (title), str (cmd), str (dir), int (priority), int (retry), int (timeout), str (affinity), str (user), dependencies, localprogress, globalprogress))
+				id = State.addJob (parent, Job (str (title), str (cmd), str (dir), str (environment), int (priority), int (retry), int (timeout), str (affinity), str (user), dependencies, localprogress, globalprogress))
 				State.Jobs[id].URL = url
 				
 				State.update ()
@@ -1632,13 +1636,13 @@ class Workers(xmlrpc.XMLRPC):
 			worker.CurrentActivity = event.ID
 
 			if job.User != None and job.User != "":
-				return repr (job.ID)+","+repr (job.Command)+","+repr (job.Dir)+","+repr (job.User)
+				return repr (job.ID)+","+repr (job.Command)+","+repr (job.Dir)+","+repr (job.User)+","+repr (job.Environment)
 			else:
-				return repr (job.ID)+","+repr (job.Command)+","+repr (job.Dir)+","+'""'
+				return repr (job.ID)+","+repr (job.Command)+","+repr (job.Dir)+","+'""'+","+repr (job.Environment)
 
 		State.updateWorkerState (hostname, "WAITING")
 		State.update ()
-		return '-1,"","",""'
+		return '-1,"","","",None'
 
 	def json_endjob (self, hostname, jobId, errorCode):
 		"""A worker finished a job."""

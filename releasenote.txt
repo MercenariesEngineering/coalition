@@ -1,3 +1,6 @@
+3.12
+Added : Optional environment to override the worker environment
+
 3.11
 Added : umask 022 for the worker
 
