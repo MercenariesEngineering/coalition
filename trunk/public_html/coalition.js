@@ -1027,7 +1027,8 @@ var JobProps =
     [ "Dependencies", "dependencies", "" ],
     [ "Retry", "retry", "10" ],
     [ "User", "user", "" ],
-    [ "URL", "url", "" ]
+    [ "URL", "url", "" ],
+    [ "Environment", "env", "" ]
 ];
 var updatedJobProps = {}
 
@@ -1053,6 +1054,7 @@ function addjob ()
         title:$('#title').attr("value"),
         cmd:$('#cmd').attr("value"),
         dir:$('#dir').attr("value"), 
+        env:$('#env').attr("value"), 
         priority:$('#priority').attr("value"), 
         retry:$('#retry').attr("value"),
         timeout:$('#timeout').attr("value"),

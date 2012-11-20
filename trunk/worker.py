@@ -211,13 +211,20 @@ class Worker:
 		self.HostCPU
 		return self.HostCPU.getUsage ()
 
-	def workerEvalEnv (self, _str):
+	def workerEvalEnv (self, _str, _env):
 		if platform.system () != 'Windows':
 			def _mapDrive (match):
 				return '$(' + match.group(1).upper () + '_DRIVE)'
 			_str = re.sub ('^([a-zA-Z]):', _mapDrive, _str)
 		def _getenv (match):
-			result = os.getenv (match.group(1))
+			m = match.group(1)
+			# if _env exists, first try in _env
+			if _env:
+				try:
+					return _env[m]
+				except:
+					pass
+			result = os.getenv (m)
 			if result == None:
 				self.info ("Environment variable not found : " + match.group(1))
 				result = ""
@@ -234,7 +241,7 @@ class Worker:
 			self.LogLock.release()
 
 	# Thread function to execute the job process
-	def _execProcess (self, cmd, dir, user):
+	def _execProcess (self, cmd, dir, user, environment):
 
 		# Change the user ?
 		if user != "" and sys.platform != "win32" and usesu:
@@ -259,8 +266,8 @@ class Worker:
 		self.info ("exec " + cmd)
 
 		# Make sure 
-		os.umask(022)
-		process = subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		os.umask(002)
+		process = subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=environment)
 
 		# Get the pid
 		self.PId = int (process.pid)
@@ -285,13 +292,13 @@ class Worker:
 		self.info ("Job returns code: " + str(self.ErrorCode))
 
 
-	def execProcess (self, cmd, dir, user):
+	def execProcess (self, cmd, dir, user, env):
 		global debug, sleepTime
 		if debug:
-			self._execProcess (cmd, dir, user)
+			self._execProcess (cmd, dir, user, env)
 		else:
 			try:
-				self._execProcess (cmd, dir, user)	
+				self._execProcess (cmd, dir, user, env)	
 			except:
 				self.ErrorCode = -1
 				print ("Fatal error executing the job...")
@@ -379,14 +386,29 @@ class Worker:
 			return eval (result)
 				
 		# Block until this message to handled by the server
-		jobId, cmd, dir, user = workerRun (self, startFunc, True)
+		jobId, cmd, dir, user, env = workerRun (self, startFunc, True)
 
 		if jobId != -1:
 			self.Log = ""
 
-			_cmd = self.workerEvalEnv (cmd)
-			_dir = self.workerEvalEnv (dir)
+			_env = None
+			if env:
+				_env = {}
+				try:
+					for k in env.split ("\\n"):
+						try:
+							key, value = k.split ("=", 1)
+							_env[key] = value
+						except:
+							pass
+				except:
+					_env = None
+
+			_cmd = self.workerEvalEnv (cmd, _env)
+			_dir = self.workerEvalEnv (dir, _env)
+
 			debugOutput ("Start job " + str (jobId) + " in " + _dir + " : " + _cmd)
+			debugOutput ("Job environment is " + str (_env))
 
 			# Reset the globals
 			self.Working = True
@@ -396,7 +418,7 @@ class Worker:
 			# Launch a new thread to run the process
 
 			# Set the working directory in the main thead
-			thread.start_new_thread (self.execProcess, (_cmd, _dir, user))
+			thread.start_new_thread (self.execProcess, (_cmd, _dir, user, _env))
 
 			# Flush the logs
 			while (self.Working):
