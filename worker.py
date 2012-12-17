@@ -393,7 +393,13 @@ class Worker:
 
 			_env = None
 			if env:
+				# Duplicate environment to add overrides
 				_env = {}
+				try:
+					for key, value in os.environ.items ():
+						_env[key] = value;
+				except:
+					pass
 				try:
 					for k in env.split ("\\n"):
 						try:

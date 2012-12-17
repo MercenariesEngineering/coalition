@@ -1,3 +1,6 @@
+3.13
+Fixed : Optional environment would replace the worker environment, loosing previous values
+
 3.12
 Added : Optional environment to override the worker environment
 
