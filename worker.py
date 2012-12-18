@@ -86,6 +86,7 @@ cpus = cfgInt ('cpus', None)
 startup = cfgStr ('startup', '')
 verbose = cfgBool ('verbose', False)
 usesu = cfgBool ('usesu', False)
+usesudo = cfgBool ('usesudo', False)
 
 def usage():
 	print ("Usage: worker [OPTIONS] [SERVER_URL]")
@@ -229,7 +230,9 @@ class Worker:
 				self.info ("Environment variable not found : " + match.group(1))
 				result = ""
 			return result
-		return re.sub ('\$\(([^)]*)\)', _getenv, _str)
+		while re.search ('\$\(([^)]*)\)', _str):
+			_str = re.sub ('\$\(([^)]*)\)', _getenv, _str)
+		return _str
 
 	# Add to the logs
 	def info (self, str):
@@ -248,6 +251,10 @@ class Worker:
 			debugOutput ("Run the command using login " + user)
 			#os.seteuid (pwd.getpwnam (user)[2])
 			cmd = "su - " + user + " -c \"" + "cd "+ dir + "; " +cmd + "\""
+		elif user != "" and sys.platform != "win32" and usesudo:
+			debugOutput ("Run the command using login " + user)
+			#os.seteuid (pwd.getpwnam (user)[2])
+			cmd = "sudo -u " + user + " -E -s \'" + "cd "+ dir + "; " +cmd + "\'"
 		else:
 			if dir != "" :
 				try:
