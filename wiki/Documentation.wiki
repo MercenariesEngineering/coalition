@@ -15,6 +15,7 @@ The different job attributes used to initialise a job are :
  * *cmd* : the command to run
  * *title* : the title to display in the user interface
  * *dir* : the job's working directory
+ * *env* : an environment for the command
  * *parent* : the parent job ID
  * *priority* : the job's priority
  * *dependencies* : the job's dependencies on other jobs
@@ -48,11 +49,18 @@ On Firefox, it is possible to override this behavior. Chech this : http://kb.moz
 
 == Job hierarchy ==
 
+The hierarchy is useful to organize and schedule the different jobs.
+
 A job can be the parent of some children jobs. In this case, the parent job won't run any command. Even if the attribute *cmd* has been provided. 
 
-The *parent* attribute can be specified to create a job into a previously created parent job. In this case, *parent* must be the ID of this parent job.
+The *parent* attribute can be specified to create a job into a previously created parent job.
 
-The hierarchy is useful to organize and schedule the different jobs.
+The *parent* attribute can be the parent job ID (an integer), a job title (a string) or a path of job titles. Exemples :
+
+ * parent=12345 : add the new job to the job #12345
+ * parent="departments" : add the new job to the job named "departments"
+ * parent="departments|render" : add the new job to the job named "render" inside the job named "departments"
+
 
 == Job dependencies ==
 
