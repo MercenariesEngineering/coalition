@@ -31,20 +31,17 @@ install = False
 Headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
 
 # Go to the script directory
-global coalitionDir, dataDir
+global coalitionDir
 if sys.platform=="win32":
 	import _winreg
 	# under windows, uses the registry setup by the installer
 	try:
 		hKey = _winreg.OpenKey (_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Mercenaries Engineering\\Coalition", 0, _winreg.KEY_READ)
 		coalitionDir, type = _winreg.QueryValueEx (hKey, "Installdir")
-		dataDir, _type = _winreg.QueryValueEx (hKey, "Datadir")
 	except OSError:
 		coalitionDir = "."
-		dataDir = "."
 else:
 	coalitionDir = "."
-	dataDir = "."
 os.chdir (coalitionDir)
 
 # Read the config file
@@ -87,6 +84,7 @@ startup = cfgStr ('startup', '')
 verbose = cfgBool ('verbose', False)
 usesu = cfgBool ('usesu', False)
 usesudo = cfgBool ('usesudo', False)
+logfile = cfgStr ('logfile', './worker.log')
 
 def usage():
 	print ("Usage: worker [OPTIONS] [SERVER_URL]")
@@ -142,7 +140,7 @@ if not service:
 			assert False, "unhandled option " + o
 
 if not verbose or service:
-	outfile = open(dataDir + '/worker.log', 'a')
+	outfile = open(logfile, 'a')
 	sys.stdout = outfile
 	sys.stderr = outfile
 
