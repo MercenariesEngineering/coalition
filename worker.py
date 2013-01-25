@@ -1,4 +1,4 @@
-import socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser, httplib, urllib
+import socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser, httplib, urllib, datetime
 from sys import modules
 from os.path import splitext, abspath
 
@@ -225,7 +225,7 @@ class Worker:
 					pass
 			result = os.getenv (m)
 			if result == None:
-				self.info ("Environment variable not found : " + match.group(1))
+				self.info ("ERROR : Environment variable not found : " + match.group(1))
 				result = ""
 			return result
 		while re.search ('\$\(([^)]*)\)', _str):
@@ -236,13 +236,16 @@ class Worker:
 	def info (self, str):
 		self.LogLock.acquire()
 		try:
-			self.Log = self.Log + "WORKER " + self.Name + ": " + str + "\n";
+			self.Log = self.Log + "* " + str + "\n";
 			debugOutput (str)
 		finally:
 			self.LogLock.release()
 
 	# Thread function to execute the job process
 	def _execProcess (self, cmd, dir, user, environment):
+		self.info ("START **********************************")
+		self.info ("WORKER : " + self.Name)
+		self.info ("DATE : " + datetime.datetime.today ().strftime("%d/%m/%y %H:%M"))
 
 		# Change the user ?
 		if user != "" and sys.platform != "win32" and usesu:
@@ -261,14 +264,14 @@ class Worker:
 						dir = re.sub ("\\\\", "/", dir)
 					os.chdir (dir)
 				except OSError, err:
-					self.info ("Can't change dir to " + dir + ": " + str (err))
+					self.info ("ERROR : Can't change dir to " + dir + ": " + str (err))
 
 		# Serious quoting under windows
 		if sys.platform=="win32":
 			cmd = '"' + cmd + '"'
 			
 		# Run the job
-		self.info ("exec " + cmd)
+		self.info ("CMD : " + cmd)
 
 		# Make sure 
 		os.umask(002)
@@ -282,7 +285,6 @@ class Worker:
 		
 			# "" means EOF
 			if line == "":
-				self.info ("end")
 				break
 
 			debugRaw (line)
@@ -294,7 +296,8 @@ class Worker:
 
 		# Get the error code of the job
 		self.ErrorCode = process.wait ()
-		self.info ("Job returns code: " + str(self.ErrorCode))
+		self.info ("EXIT : " + str(self.ErrorCode))
+		self.info ("END ********\n")
 
 
 	def execProcess (self, cmd, dir, user, env):
