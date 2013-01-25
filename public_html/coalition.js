@@ -822,6 +822,7 @@ function renderWorkers ()
     addTitleHTML ("LastJob");
     addTitleHTML ("Finished");
     addTitleHTML ("Error");
+    addTitleHTML ("IP");
 
 	table += "</tr>\n";
 
@@ -885,6 +886,7 @@ function renderWorkers ()
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.LastJob+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Finished+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Error+"</td>"+
+		         "<td>"+worker.IP+"</td>"+
 		         "</tr>\n";
 	}
 	table += "</table>";

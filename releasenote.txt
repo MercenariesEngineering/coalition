@@ -2,6 +2,7 @@
 Added : worker log file path in coalition.ini
 Changed : reset job clear the job logs
 Changed : better worker logs
+Added : workers IP address visible in the web interface
 
 3.13
 Fixed : Optional environment would replace the worker environment, loosing previous values

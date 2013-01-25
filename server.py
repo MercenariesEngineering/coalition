@@ -295,7 +295,8 @@ class Worker:
 	"""A farm worker"""
 
 	def __init__ (self, name):
-		self.Name = name				# Worker name
+		self.Name = name			# Worker name
+		self.IP = ""				# Worker IP addr
 		self.Affinity = ""				# Worker affinity
 		self.State = "WAITING"			# Worker state, can be WAITING, WORKING, FINISHED or TIMEOUT
 		self.PingTime = time.time()		# Last worker ping time
@@ -1431,7 +1432,7 @@ class Master (xmlrpc.XMLRPC):
 
 		State.update ()
 
-		vars = ["Name","Affinity","State","Finished","Error","LastJob","Load","FreeMemory","TotalMemory","Active"]
+		vars = ["Name","IP","Affinity","State","Finished","Error","LastJob","Load","FreeMemory","TotalMemory","Active"]
 
 		# Build the children
 		workers = "["
@@ -1533,16 +1534,16 @@ class Workers(xmlrpc.XMLRPC):
 			return value[0]
 
 		if request.path == "/workers/heartbeat":
-			return self.json_heartbeat (getArg ('hostname', ''), getArg ('jobId', '-1'), getArg ('log', ''), getArg ('load', '[0]'), getArg ('freeMemory', '0'), getArg ('totalMemory', '0'))
+			return self.json_heartbeat (getArg ('hostname', ''), getArg ('jobId', '-1'), getArg ('log', ''), getArg ('load', '[0]'), getArg ('freeMemory', '0'), getArg ('totalMemory', '0'), request.getClientIP ())
 		elif request.path == "/workers/pickjob":
-			return self.json_pickjob (getArg ('hostname', ''), getArg ('load', '[0]'), getArg ('freeMemory', '0'), getArg ('totalMemory', '0'))
+			return self.json_pickjob (getArg ('hostname', ''), getArg ('load', '[0]'), getArg ('freeMemory', '0'), getArg ('totalMemory', '0'), request.getClientIP ())
 		elif request.path == "/workers/endjob":
-			return self.json_endjob (getArg ('hostname', ''), getArg ('jobId', '1'), getArg ('errorCode', '0'))
+			return self.json_endjob (getArg ('hostname', ''), getArg ('jobId', '1'), getArg ('errorCode', '0'), request.getClientIP ())
 		else:
 			# return server.NOT_DONE_YET
 			return xmlrpc.XMLRPC.render (self, request)
 
-	def json_heartbeat (self, hostname, jobId, log, load, freeMemory, totalMemory):
+	def json_heartbeat (self, hostname, jobId, log, load, freeMemory, totalMemory, ip):
 		"""Get infos from the workers."""
 		global State
 		_time = time.time ()
@@ -1555,6 +1556,7 @@ class Workers(xmlrpc.XMLRPC):
 			worker.Load = [0]
 		worker.FreeMemory = int(freeMemory)
 		worker.TotalMemory = int(totalMemory)
+		worker.IP = str(ip)
 		workingJob = None
 		jobId = int(jobId)
 		try :
@@ -1605,7 +1607,7 @@ class Workers(xmlrpc.XMLRPC):
 			State.updateJobState (jobId, "WAITING")
 		return "false"
 
-	def json_pickjob (self, hostname, load, freeMemory, totalMemory):
+	def json_pickjob (self, hostname, load, freeMemory, totalMemory, ip):
 		"""A worker ask for a job."""
 		global State
 		output (hostname + " wants some job" + " " + load)
@@ -1616,6 +1618,7 @@ class Workers(xmlrpc.XMLRPC):
 			worker.Load = [0]
 		worker.FreeMemory = int(freeMemory)
 		worker.TotalMemory = int(totalMemory)
+		worker.IP = str(ip)
 		if not worker.Active:
 			State.updateWorkerState (hostname, "WAITING")
 			return '-1,"","",""'
@@ -1651,10 +1654,11 @@ class Workers(xmlrpc.XMLRPC):
 		State.update ()
 		return '-1,"","","",None'
 
-	def json_endjob (self, hostname, jobId, errorCode):
+	def json_endjob (self, hostname, jobId, errorCode, ip):
 		"""A worker finished a job."""
 		global State
 		worker = State.getWorker (hostname)
+		worker.IP = str(ip)
 		output ("End job " + str(jobId) + " with code " + str (errorCode))
 		jobId = int(jobId)
 		errorCode = int(errorCode)
