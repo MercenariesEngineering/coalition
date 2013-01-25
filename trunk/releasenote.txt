@@ -1,6 +1,7 @@
 3.14
 Added : worker log file path in coalition.ini
 Changed : reset job clear the job logs
+Changed : better worker logs
 
 3.13
 Fixed : Optional environment would replace the worker environment, loosing previous values
