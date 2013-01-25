@@ -1439,7 +1439,7 @@ class Master (xmlrpc.XMLRPC):
 		for name, worker in State.Workers.iteritems () :
 			childparams = "["
 			for var in vars:
-				childparams += json.dumps (getattr (worker, var)) + ','
+				childparams += json.dumps (getattr (worker, var, None)) + ','
 			childparams += "],\n"
 			workers += childparams
 		workers += "]"
