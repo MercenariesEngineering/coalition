@@ -49,10 +49,10 @@ On Firefox, it is possible to override this behavior. Chech this : http://kb.moz
 
 == Job environment ==
 
-An environment can be provided with a job using the 'env' option. An environment is a string containing 
+An environment can be provided with a job using the 'env' attribute. An environment is a string containing 
 all the variables and their values. The separator is the string "\\n" (a '\' character followed be a 'n' character, not an end of line character).
 
-Here is a string you can use as 'env' value : "USER=mylogin\\nPATH=mypath"
+Here is a string you can use with the 'env' attribute : "USER=mylogin\\nPATH=mypath"
 
 == Job hierarchy ==
 
