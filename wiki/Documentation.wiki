@@ -1,4 +1,4 @@
-#summary Version 3.9 - Documentation in progress..
+#summary Version 3.14 - Documentation in progress..
 
 = Jobs =
 
@@ -46,6 +46,13 @@ The *url* attribute is the url to open with the Open link in the user interface.
 By default, the web browser blocks the URLs on local files.
 
 On Firefox, it is possible to override this behavior. Chech this : http://kb.mozillazine.org/Links_to_local_pages_don%27t_work
+
+== Job environment ==
+
+An environment can be provided with a job. An environment is a string containing 
+all the variables and their values. The separator is the string "\\n" (a '\' followed be a 'n' characters, not an end of line character).
+
+Here is a string you can use as 'env' value : "USER=mylogin\\nPATH=mypath"
 
 == Job hierarchy ==
 
