@@ -636,6 +636,13 @@ class CState:
 			self._updateParentState (job.Parent)
 			for cid in job.Children :
 				self.resetJob (cid)
+
+			# Clear the logs
+			try:
+				os.unlink (getLogFilename (id))
+			except OSError:
+				pass
+
 		except KeyError:
 			pass
 
