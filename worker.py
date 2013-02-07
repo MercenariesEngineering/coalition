@@ -198,6 +198,7 @@ class Worker:
 		self.Name = name						# The worker name
 		self.Working = False					# The worker current state
 		self.PId = 0							# The worker current process pid
+		self.User = ""
 		self.ErrorCode = 0						# The process exit error code
 		self.LogLock = thread.allocate_lock()	# Logs lock
 		self.Log = ""							# Logs
@@ -279,6 +280,7 @@ class Worker:
 
 		# Get the pid
 		self.PId = int (process.pid)
+		self.User = user
 		while (1):
 			# Read some lines of logs
 			line = process.stdout.readline()
@@ -321,8 +323,9 @@ class Worker:
 			try:
 				self.killr (self.PId)
 				self.PId = 0
-			except OSError:
+			except OSError as exc:
 				debugOutput ("kill failed")
+				debugOutput (exc)
 				pass
 
 	### To kill all child process
@@ -337,15 +340,29 @@ class Worker:
 					if words[3] == str (pid):
 						debugOutput ("Found in " + name)
 						self.killr (int (name))
-				except IOError:
+				except IOError as exc:
+					#debugOutput (exc)
 					pass
 		try:
 			if sys.platform == "win32":
 				subprocess.Popen ("taskkill /F /T /PID %i"%pid, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			elif self.User != "" and usesu:
+				cmd = "su - " + self.User + " -c \"" + "kill " + str (pid) + "\""
+				debugOutput ("Kill process with su: "+cmd)
+				subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			elif self.User != "" and usesudo:
+				cmd = "sudo -u " + self.User + " -E -s \'" + "kill "+ str (pid) + "\'"
+				debugOutput ("Kill process with sudo: "+cmd)
+				subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			else:
+				debugOutput ("Kill process with os.kill")
 				os.kill (pid, signal.SIGKILL)
+		except OSError as exc:
+			debugOutput ("Can't kill the process %i"%pid)
+			debugOutput (exc)
 		except:
-			print ("Can't kill the process")
+			debugOutput ("Can't kill the process %i"%pid)
+			debugOutput (sys.exc_info ()[0])
 
 	# Flush the logs to the server
 	def heartbeat (self, jobId, retry):

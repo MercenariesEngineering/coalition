@@ -1621,7 +1621,7 @@ class Workers(xmlrpc.XMLRPC):
 		worker.IP = str(ip)
 		if not worker.Active:
 			State.updateWorkerState (hostname, "WAITING")
-			return '-1,"","",""'
+			return '-1,"","","",None'
 		affinity = frozenset (re.findall ('([^,]+)', worker.Affinity))
 		jobId = State.pickJob (0, affinity)
 		if jobId != None :
