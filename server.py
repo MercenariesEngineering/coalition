@@ -85,6 +85,9 @@ BackupLastTime = time.time ()	# Last backup date
 LDAPServer = ""
 LDAPTemplate = ""
 
+DefaultLocalProgressPattern = "PROGRESS:%percent"
+DefaultGlobalProgressPattern = None
+
 def usage():
 	print ("Usage: server [OPTIONS]")
 	print ("Start a Coalition server.\n")
@@ -194,6 +197,7 @@ class LogFilter:
 			except ValueError:
 				pass
 		return self.RE.sub ("", log), progress
+		#return log, progress
 		
 LogFilterCache = {}
 
@@ -465,7 +469,7 @@ class CState:
 		for id in State._ActiveJobs.copy () :
 			try:
 				job = self.Jobs[id]
-				if job.State == "WORKING":
+				if job.State == "WORKING" and job.Command != "":	# Don't update timeout if it is a folder job
 					if _time - job.PingTime > TimeOut :
 						# Job times out, no heartbeat received for too long
 						output ("Job " + str(job.ID) + " is AWOL")
@@ -1572,8 +1576,8 @@ class Workers(xmlrpc.XMLRPC):
 						
 						# Filter the log progression message
 						progress = None
-						localProgress = getattr(job, "LocalProgressPattern", None)
-						globalProgress = getattr(job, "GlobalProgressPattern", None)
+						localProgress = getattr(job, "LocalProgressPattern", DefaultLocalProgressPattern)
+						globalProgress = getattr(job, "GlobalProgressPattern", DefaultGlobalProgressPattern)
 						if localProgress or globalProgress:
 							output ("progressPattern : \n" + str(localProgress) + " " + str(globalProgress))
 							lp = None
