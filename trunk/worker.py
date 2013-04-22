@@ -256,7 +256,7 @@ class Worker:
 		elif user != "" and sys.platform != "win32" and usesudo:
 			debugOutput ("Run the command using login " + user)
 			#os.seteuid (pwd.getpwnam (user)[2])
-			cmd = "sudo -u " + user + " -E -s \'" + "cd "+ dir + "; " +cmd + "\'"
+			cmd = "sudo -u " + user + " -E -s -- \'" + "cd "+ dir + "; " +cmd + "\'"
 		else:
 			if dir != "" :
 				try:
