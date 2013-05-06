@@ -339,8 +339,7 @@ class CState:
 		self._ActiveJobs = set ()
 		self.addJob (0, Job ("Root", priority=1, retry=0))
 		self._UpdatedDb = False
-		self._StAffinity = {}			# static affinity
-		self._DynAffinity = {}			# dynamic affinity, job affinity concatened to the children jobs affinity
+		self._Affinities = {}			# dynamic affinity, job affinity concatened to the children jobs affinity
 
 	# Read the state
 	def read (self, fo):
@@ -584,11 +583,7 @@ class CState:
 				except KeyError:
 					pass
 				try:
-					del self._StAffinity[id]
-				except KeyError:
-					pass
-				try:
-					del self._DynAffinity[id]
+					del self._Affinities[id]
 				except KeyError:
 					pass
 				try:
@@ -613,10 +608,6 @@ class CState:
 		try:
 			job = self.Jobs[id]
 			job.Affinity = affinity
-			try:
-				del self._StAffinity[id]
-			except KeyError:
-				pass
 			self._UpdatedDb = True
 			self._updateParentState (id)
 		except:
@@ -759,11 +750,8 @@ class CState:
 
 	# Can be executed
 	def compatibleAffinities (self, job, worker) :
-		if len (job) == 0:
+		if worker >= job:
 			return True
-		for affinity in job:
-			if worker >= affinity:
-				return True
 		return False
 		
 	def pickJob (self, id, affinity) :
@@ -784,8 +772,8 @@ class CState:
 					allFinished = False
 				# if job can be executed and worker affinity is compatible, add this job as a potential one
 				if self.canExecute (childId):
-					if self.compatibleAffinities (self._DynAffinity[childId], affinity):
-						#output ("++ worker "+str (affinity)+" compatible with job "+str (childId)+" "+str (self._DynAffinity[childId]))
+					if self.compatibleAffinities (self._Affinities[childId], affinity):
+						#output ("++ worker "+str (affinity)+" compatible with job "+str (childId)+" "+str (self._Affinities[childId]))
 						if nextChild == None or child.Priority > nextChild.Priority or (child.Priority == nextChild.Priority and (child.TotalWorking+child.TotalFinished < nextChild.TotalWorking+nextChild.TotalFinished)) :
 							tryJobId = None
 							if child.hasChildren () :
@@ -813,12 +801,12 @@ class CState:
 					allFinished = False
 				# if job can be executed and worker affinity is compatible, add this job as a potential one
 				if self.canExecute (childId):
-					if self.compatibleAffinities (self._DynAffinity[childId], affinity):
-						#output ("++ worker "+str (affinity)+" compatible with job "+str (childId)+" "+str (self._DynAffinity[childId]))
+					if self.compatibleAffinities (self._Affinities[childId], affinity):
+						#output ("++ worker "+str (affinity)+" compatible with job "+str (childId)+" "+str (self._Affinities[childId]))
 						sumpriority += child.Priority
 						jobs.append (child)
 					else:
-						#output ("-- worker "+str (affinity)+" NOT compatible with job "+str (childId)+" "+str (self._DynAffinity[childId]))
+						#output ("-- worker "+str (affinity)+" NOT compatible with job "+str (childId)+" "+str (self._Affinities[childId]))
 						pass
 			if sumpriority > 0 :
 				# there are some children that need execution
@@ -973,43 +961,7 @@ class CState:
 	# Update job affinity
 	def _updateAffinity (self, id) :
 		job = self.Jobs[id]
-		if id not in self._StAffinity:
-			if job.Affinity != "" :
-				self._StAffinity[id] = frozenset (re.findall ('([^,]+)', job.Affinity))
-			else:
-				self._StAffinity[id] = None
-		static = self._StAffinity[id]
-		# compute dynamic affinity from all waiting children dynamic affinity
-		# dynamic affinity is a set of children dynamic affinities
-		dyn = set ()
-		allFinished = True
-		someChildrenEmpty = False
-		for cid in job.Children :
-			child = self.Jobs[cid]
-			if child.State != "FINISHED" :
-				allFinished = False
-			if self.canExecute (cid):
-				cdyn = self._DynAffinity[cid]
-				empty = True
-				for aff in cdyn:
-					dynIsEmpty = False
-					empty = False
-					if static:
-						dyn.add (aff | static)
-					else:
-						dyn.add (aff)
-
-				# One child without affinity
-				someChildrenEmpty |= len(cdyn) == 0
-		
-		# If some children are empty, but the set is not empty, add an empty set
-		if someChildrenEmpty and len(dyn) > 0:
-			dyn.add (frozenset ())
-			
-		if len (dyn) == 0 and static :
-			# no affinity set yet, add default
-			dyn.add (static)
-		self._DynAffinity[id] = dyn
+		self._Affinities[id] = frozenset (re.findall ('([^,]+)', job.Affinity))
 
 	# Refresh active jobs count
 	def _refresh (self) :
@@ -1130,9 +1082,7 @@ class CState:
 				job = self.Jobs[id]
 				print (" "*(depth*2)) + str (job.ID) + " " + job.Title + " " + job.State + " cmd='" + job.Dir + "/" + job.Command + "' prio=" + str (job.Priority) + " retry=" + str (job.Try) + "/" + str (job.Retry)
 				try:
-					static = self._StAffinity[id]
-					dyn = self._DynAffinity[id]
-					print (" "*(depth*2+1)), "Static:", static
+					dyn = self._Affinities[id]
 					print (" "*(depth*2+1)), "Dyn:", dyn
 				except:
 					pass
