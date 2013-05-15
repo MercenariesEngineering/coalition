@@ -1,3 +1,6 @@
+3.16
+Changed : usesudo and usesu have been replaced by a custom user run command. See the runcommand option in coalition.ini for details.
+
 3.15
 Fixed : hierarchical affinities are working
 
