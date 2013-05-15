@@ -82,8 +82,7 @@ sleepTime = cfgInt ('sleep', 2)
 cpus = cfgInt ('cpus', None)
 startup = cfgStr ('startup', '')
 verbose = cfgBool ('verbose', False)
-usesu = cfgBool ('usesu', False)
-usesudo = cfgBool ('usesudo', False)
+runcommand  = cfgStr ('runcommand', '')
 logfile = cfgStr ('logfile', './worker.log')
 
 def usage():
@@ -248,15 +247,9 @@ class Worker:
 		self.info ("WORKER : " + self.Name)
 		self.info ("DATE : " + datetime.datetime.today ().strftime("%d/%m/%y %H:%M"))
 
-		# Change the user ?
-		if user != "" and sys.platform != "win32" and usesu:
-			debugOutput ("Run the command using login " + user)
-			#os.seteuid (pwd.getpwnam (user)[2])
-			cmd = "su - " + user + " -c \"" + "cd "+ dir + "; " +cmd + "\""
-		elif user != "" and sys.platform != "win32" and usesudo:
-			debugOutput ("Run the command using login " + user)
-			#os.seteuid (pwd.getpwnam (user)[2])
-			cmd = "sudo -u " + user + " -E -s -- \'" + "cd "+ dir + "; " +cmd + "\'"
+		# Special command ?
+		if runcommand != '':
+			cmd = string.replace(string.replace(string.replace(runcommand, '__user__', user), '__dir__', dir), '__cmd__', cmd)
 		else:
 			if dir != "" :
 				try:
@@ -346,13 +339,10 @@ class Worker:
 		try:
 			if sys.platform == "win32":
 				subprocess.Popen ("taskkill /F /T /PID %i"%pid, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			elif self.User != "" and usesu:
-				cmd = "su - " + self.User + " -c \"" + "kill " + str (pid) + "\""
-				debugOutput ("Kill process with su: "+cmd)
-				subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			elif self.User != "" and usesudo:
-				cmd = "sudo -u " + self.User + " -E -s \'" + "kill "+ str (pid) + "\'"
-				debugOutput ("Kill process with sudo: "+cmd)
+			elif runcommand != '':
+				killcmd = "kill -9 "+ str (pid)
+				cmd = string.replace(string.replace(string.replace(runcommand, '__user__', self.User), '__dir__', '.'), '__cmd__', killcmd)
+				debugOutput ("Kill process with runcommand : "+cmd)
 				subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			else:
 				debugOutput ("Kill process with os.kill")
