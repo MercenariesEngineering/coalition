@@ -1,4 +1,4 @@
-#summary Version 3.14 - Documentation in progress..
+#summary Version 3.16 - Documentation in progress..
 
 = Jobs =
 
@@ -147,27 +147,70 @@ http://127.0.0.1:19211/json/addjob?title=job&cmd=echo toto&priority=1000&affinit
 
 == LDAP ==
 
-This feature works only under a linux system with the "su" command available.
+This feature works only under a linux system.
 
-server.py can use LDAP to authenticate the users in order to control access to the monitor and run the jobs with the users's privileges.
+server.py can use LDAP to authenticate the users in order to control access to coalition.
 
 === LDAP Setup ===
 
-To use a LDAP server, you have to run the server with the two following options :
+To use a LDAP server, you have to run the server with the two following options in coalition.ini :
 
 {{{
---ldaphost=LDAPHOST
---ldaptemplate=LDAPTEMPLATE
+ldaphost=LDAPHOST
+ldaptemplate=LDAPTEMPLATE
 }}}
 
 LDAPHOST is the host name of the LDAP server.
-LDAPTEMPLATE is a template like "uid=%login,ou=people,dc=exemple,dc=com" used to test the password. "%login" will be replaced by the user login.
+LDAPTEMPLATE is a template to test the password like :
+{{{
+uid=__login__,ou=people,dc=exemple,dc=com
+}}}
+{{{__login__}}} will be replaced by the user login.
+
+If the server is started with the ldaphost option, the user will be asked for their login and password. The jobs will be added with the user's login.
 
 The worker have to be run as root because it will now run the jobs with the user rights. 
 
-If the server is started with the --ldapserver option, the user will be asked for their login and password. The jobs will be added with the user's login. The workers will execute 
+ The workers will execute 
 the jobs with the user's privileges.
 
+=== Trusted users ===
+
+A trusted user list can be specified in the coalition.ini file like this :
+
+{{{
+trustedusers=trustedUser1
+ trustedUser2
+ trustedUser3
+}}}
+
+A trusted user doesn't need to enter its password in LDAP mode.
+
+== White lists ==
+
+The white lists are used to restrict the command available in coalition.
+
+A white list is a list of python style regular expressions. If a white list is active, the command of a job must match at least one regular expression to be added in the job list.
+
+There is a global white list which restrict all the users and a per user white list.
+
+Here is an example of white lists to put in coalition.ini :
+
+{{{
+commandwhitelist=^/usr/bin/globalcommand1$
+ ^/usr/bin/globalcommand2$
+ @user1
+ ^/usr/bin/user1command1$
+ ^/usr/bin/user1command2$
+ @user2
+ ^/usr/bin/user2command1$
+ ^/usr/bin/user2command2$
+}}}
+
+All the users can execute the commands '/usr/bin/globalcommand1' and
+'/usr/bin/globalcommand2'.
+user1 can execute the command '/usr/bin/user1command1' and '/usr/bin/user1command2'.
+user2 can execute the command '/usr/bin/user2command1' and '/usr/bin/user2command2'.
 ----
 
 = Worker =
