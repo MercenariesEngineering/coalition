@@ -85,11 +85,11 @@ BackupLastTime = time.time ()	# Last backup date
 LDAPServer = cfgStr ('ldaphost', "")
 LDAPTemplate = cfgStr ('ldaptemplate', "")
 
-_ClearanceList = cfgStr ('clearancelist', "")
+_TrustedUsers = cfgStr ('trustedusers', "")
 
-ClearanceList = {}
-for line in _ClearanceList.splitlines (False):
-	ClearanceList[line] = True
+TrustedUsers = {}
+for line in _TrustedUsers.splitlines (False):
+	TrustedUsers[line] = True
 
 _CmdWhiteList = cfgStr ('commandwhitelist', "")
 
@@ -1120,7 +1120,7 @@ def authenticate (request):
 	if LDAPServer != "":
 		username = request.getUser ()
 		password = request.getPassword ()
-		if username in ClearanceList:
+		if username in TrustedUsers:
 			output (username + " in the clearance list")
 			output ("Authentication OK")
 			return True
@@ -1153,16 +1153,23 @@ def grantAddJob (user, cmd):
 			output ("User '" + user + "' is not allowed to run the command '" + cmd + "'")
 		return False
 
-	# First check the global white list
-	if GlobalCmdWhiteList:
-		if not checkWhiteList (GlobalCmdWhiteList):
-			return False
-
 	# User defined white list ?		
 	if user in UserCmdWhiteList:
 		wl = UserCmdWhiteList[user]
-		if not checkWhiteList (wl):
-			return False
+		if checkWhiteList (wl):
+			return True
+
+		# If in the global command white list
+		if GlobalCmdWhiteList:
+			if checkWhiteList (GlobalCmdWhiteList):
+				return True
+		return False
+
+	else:
+		# If in the global command white list
+		if GlobalCmdWhiteList:
+			if not checkWhiteList (GlobalCmdWhiteList):
+				return False
 	
 	# Cleared
 	return True
