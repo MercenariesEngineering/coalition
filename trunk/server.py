@@ -82,8 +82,33 @@ BackupTime = cfgInt ('backuptime', 60*60)	# Backup timing in secondes, 1H
 BackupMax = cfgInt ('backupmax', 24)		# Maximum backup files, 24
 BackupLastTime = time.time ()	# Last backup date
 
-LDAPServer = ""
-LDAPTemplate = ""
+LDAPServer = cfgStr ('ldaphost', "")
+LDAPTemplate = cfgStr ('ldaptemplate', "")
+
+_ClearanceList = cfgStr ('clearancelist', "")
+
+ClearanceList = {}
+for line in _ClearanceList.splitlines (False):
+	ClearanceList[line] = True
+
+_CmdWhiteList = cfgStr ('commandwhitelist', "")
+
+GlobalCmdWhiteList = None
+UserCmdWhiteList = {}
+UserCmdWhiteListUser = None
+for line in _CmdWhiteList.splitlines (False):
+	_re = re.match ("^@(.*)", line)
+	if _re:
+		UserCmdWhiteListUser = _re.group(1)
+		if not UserCmdWhiteListUser in UserCmdWhiteList:
+			UserCmdWhiteList[UserCmdWhiteListUser] = []
+	else:
+		if UserCmdWhiteListUser:
+			UserCmdWhiteList[UserCmdWhiteListUser].append (line)			
+		else:
+			if not GlobalCmdWhiteList:
+				GlobalCmdWhiteList = []
+			GlobalCmdWhiteList.append (line)
 
 DefaultLocalProgressPattern = "PROGRESS:%percent"
 DefaultGlobalProgressPattern = None
@@ -95,8 +120,6 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
-	print ("  --ldaphost=HOSTNAME\tLDAP server to use for authentication")
-	print ("  --ldaptemplate=TEMPLATE\tLDAP template used to validate the user, like uid=%login,ou=people,dc=exemple,dc=com")
 	print ("\nExample : server -p 1234")
 
 # Service only on Windows
@@ -105,7 +128,7 @@ service = service and sys.platform == "win32"
 if not service:
 	# Parse the options
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "hp:v", ["help", "port=", "verbose", "ldaphost=", "ldaptemplate="])
+		opts, args = getopt.getopt(sys.argv[1:], "hp:v", ["help", "port=", "verbose"])
 		if len(args) != 0:
 			usage()
 			sys.exit(2)
@@ -122,10 +145,6 @@ if not service:
 			verbose = True
 		elif o in ("-p", "--port"):
 			port = float(a)
-		elif o in ("-lh", "--ldaphost"):
-			LDAPServer = a
-		elif o in ("-lt", "--ldaptemplate"):
-			LDAPTemplate = a
 		else:
 			assert False, "unhandled option " + o
 
@@ -1101,10 +1120,14 @@ def authenticate (request):
 	if LDAPServer != "":
 		username = request.getUser ()
 		password = request.getPassword ()
+		if username in ClearanceList:
+			output (username + " in the clearance list")
+			output ("Authentication OK")
+			return True
 		if username != "" or password != "":
 			l = ldap.open(LDAPServer)
 			output ("Authenticate "+username+" with LDAP")
-			username = LDAPTemplate.replace ("%login", username)
+			username = LDAPTemplate.replace ("__login__", username)
 			try:
 				if l.bind_s(username, password, ldap.AUTH_SIMPLE):
 					output ("Authentication OK")
@@ -1119,8 +1142,30 @@ def authenticate (request):
 		return False
 	return True
 
+# Check if the user can add this command
+def grantAddJob (user, cmd):
 
+	def checkWhiteList (wl):
+		for pattern in wl:
+			if (re.match (pattern, cmd)):
+				return True
+		else:
+			output ("User '" + user + "' is not allowed to run the command '" + cmd + "'")
+		return False
 
+	# First check the global white list
+	if GlobalCmdWhiteList:
+		if not checkWhiteList (GlobalCmdWhiteList):
+			return False
+
+	# User defined white list ?		
+	if user in UserCmdWhiteList:
+		wl = UserCmdWhiteList[user]
+		if not checkWhiteList (wl):
+			return False
+	
+	# Cleared
+	return True
 
 class Root (static.File):
 	def __init__ (self, path, defaultType='text/html', ignoredExts=(), registry=None, allowExt=0):
@@ -1139,6 +1184,7 @@ class Master (xmlrpc.XMLRPC):
 	def render (self, request):
 		global State
 		if authenticate (request):
+			# If not autenticated, User == ""
 			self.User = request.getUser ()
 			# Addjob
 
@@ -1164,35 +1210,38 @@ class Master (xmlrpc.XMLRPC):
 				globalprogress = getArg ("globalprogress", None)
 				url = getArg ("url", "")
 				user = getArg ("user", "")
-				if user == "":
+				if self.User != "":
 					user = self.User
 
-				output ("Add job : " + cmd)
-				if isinstance (parent, str):
-					try:
-						# try as an int
-						parent = int (parent)
-					except ValueError:
-						bypath = State.findJobByPath (parent)
-						if bypath:
-							parent = bypath
-						else:
-							parenttitle = parent
-							parent = State.findJobByTitle (parent)
-							if parent == None:
-								print ("Error : can't find job " + str (parenttitle))
-								return -1
-				if type(dependencies) is str:
-					# Parse the dependencies string
-					dependencies = re.findall ('(\d+)', dependencies)
-				for i, dep in enumerate (dependencies) :
-					dependencies[i] = int (dep)
+				if grantAddJob (self.User, cmd):
+					output ("Add job : " + cmd)
+					if isinstance (parent, str):
+						try:
+							# try as an int
+							parent = int (parent)
+						except ValueError:
+							bypath = State.findJobByPath (parent)
+							if bypath:
+								parent = bypath
+							else:
+								parenttitle = parent
+								parent = State.findJobByTitle (parent)
+								if parent == None:
+									print ("Error : can't find job " + str (parenttitle))
+									return -1
+					if type(dependencies) is str:
+						# Parse the dependencies string
+						dependencies = re.findall ('(\d+)', dependencies)
+					for i, dep in enumerate (dependencies) :
+						dependencies[i] = int (dep)
 				
-				id = State.addJob (parent, Job (str (title), str (cmd), str (dir), str (environment), int (priority), int (retry), int (timeout), str (affinity), str (user), dependencies, localprogress, globalprogress))
-				State.Jobs[id].URL = url
+					id = State.addJob (parent, Job (str (title), str (cmd), str (dir), str (environment), int (priority), int (retry), int (timeout), str (affinity), str (user), dependencies, localprogress, globalprogress))
+					State.Jobs[id].URL = url
 				
-				State.update ()
-				return str(id)
+					State.update ()
+					return str(id)
+				else:
+					return -1
 			elif request.path == "/json/getjobs":
 				return self.json_getjobs (int(getArg ("id", 0)), getArg ("filter", ""))
 			elif request.path == "/json/clearjobs":
@@ -1334,7 +1383,9 @@ class Master (xmlrpc.XMLRPC):
 					job = State.Jobs[id]
 					try:
 						if prop == "Command":
-							job.Command = str (value)
+							cmd = str (value)
+							if grantAddJob (job.User, cmd):
+								job.Command = cmd
 						elif prop == "Dir":
 							job.Dir = str (value)
 						elif prop == "Priority":
@@ -1350,7 +1401,8 @@ class Master (xmlrpc.XMLRPC):
 						elif prop == "Dependencies":
 							job.Dependencies = str (value)
 						elif prop == "User":
-							job.User = str (value)
+							if not LDAPServer != "":
+								job.User = str (value)
 						elif prop == "URL":
 							job.URL = str (value)
 						State._UpdatedDb = True
