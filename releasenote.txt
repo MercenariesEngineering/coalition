@@ -1,3 +1,9 @@
+3.17
+Added : A trusted user list in LDAP mode
+Added : Global command white list : restrict the job commands for all the users
+Added : User command white list : restrict the job commands by users
+Changed : User can't change the username of a job in LDAP mode anymore
+
 3.16
 Changed : usesudo and usesu have been replaced by a custom user run command. See the runcommand option in coalition.ini for details.
 
