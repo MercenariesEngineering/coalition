@@ -1306,24 +1306,22 @@ class Master (xmlrpc.XMLRPC):
 			job = State.Jobs[0]
 			
 		# Build the children
-		jobs = "["
+		jobs = []
 		for childId in job.Children :
 			try:
 				child = State.Jobs[childId]
 				if filter == "" or child.State == filter:
-					childparams = "["
+					l = []
 					for var in vars:
 						attr = None
 						try:
 							attr = getattr (child, var)
 						except AttributeError:
 							pass
-						childparams += json.dumps (attr) + ','
-					childparams += "],\n"
-					jobs += childparams
+						l.append (attr)
+					jobs.append (l)
 			except KeyError:
 				pass
-		jobs += "]"
 
 		parents = []
 		# Build the parents
@@ -1333,7 +1331,7 @@ class Master (xmlrpc.XMLRPC):
 				break
 			job = State.Jobs[job.Parent]
 		
-		return '{ "Vars":'+repr(vars)+', "Jobs":'+jobs+', "Parents":'+repr(parents)+' }'
+		return '{ "Vars":'+json.dumps (vars)+', "Jobs":'+json.dumps (jobs)+', "Parents":'+json.dumps (parents)+' }'
 
 	def json_clearjobs (self, ids):
 		global State
