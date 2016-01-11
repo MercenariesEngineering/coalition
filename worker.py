@@ -147,11 +147,13 @@ if not verbose or service:
 def debugOutput (str):
 	if verbose:
 		print (str)
+		sys.stdout.flush()
 
 # Log for debugging
 def debugRaw (str):
 	if verbose:
-		print (str),
+		print (str)
+		sys.stdout.flush()
 
 debugOutput ("--- Start ------------------------------------------------------------")
 

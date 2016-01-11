@@ -167,6 +167,7 @@ if not verbose or service:
 def output (str):
 	if verbose:
 		print (str)
+		sys.stdout.flush()
 
 output ("--- Start ------------------------------------------------------------")
 
