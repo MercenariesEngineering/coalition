@@ -261,10 +261,6 @@ class Worker:
 					os.chdir (dir)
 				except OSError, err:
 					self.info ("ERROR : Can't change dir to " + dir + ": " + str (err))
-
-		# Serious quoting under windows
-		if sys.platform=="win32":
-			cmd = '"' + cmd + '"'
 			
 		# Run the job
 		self.info ("CMD : " + cmd)
