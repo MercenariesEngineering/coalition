@@ -120,33 +120,39 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
+	if sys.platform == "win32":	
+		print ("  -c, --console=\t\tRun as a windows console application")
+		print ("  -s, --service=\t\tRun as a windows service")
 	print ("\nExample : server -p 1234")
 
 # Service only on Windows
 service = service and sys.platform == "win32"
 
-if not service:
-	# Parse the options
-	try:
-		opts, args = getopt.getopt(sys.argv[1:], "hp:v", ["help", "port=", "verbose"])
-		if len(args) != 0:
-			usage()
-			sys.exit(2)
-	except getopt.GetoptError, err:
-		# print help information and exit:
-		print str(err) # will print something like "option -a not recognized"
+# Parse the options
+try:
+	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=", "verbose", "console", "service"])
+	if len(args) != 0:
 		usage()
 		sys.exit(2)
-	for o, a in opts:
-		if o in ("-h", "--help"):
-			usage ()
-			sys.exit(2)
-		elif o in ("-v", "--verbose"):
-			verbose = True
-		elif o in ("-p", "--port"):
-			port = float(a)
-		else:
-			assert False, "unhandled option " + o
+except getopt.GetoptError, err:
+	# print help information and exit:
+	print str(err) # will print something like "option -a not recognized"
+	usage()
+	sys.exit(2)
+for o, a in opts:
+	if o in ("-h", "--help"):
+		usage ()
+		sys.exit(2)
+	elif o in ("-v", "--verbose"):
+		verbose = True
+	elif o in ("-p", "--port"):
+		port = int(a)
+	elif o in ("-c", "--console"):
+		service = False
+	elif o in ("-s", "--service"):
+		service = True
+	else:
+		assert False, "unhandled option " + o
 
 	if LDAPServer != "":
 		import ldap
