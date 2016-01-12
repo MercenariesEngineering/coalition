@@ -1,4 +1,4 @@
-import socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser, httplib, urllib, datetime
+import socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser, httplib, urllib, datetime, threading
 from sys import modules
 from os.path import splitext, abspath
 
@@ -28,6 +28,7 @@ startup = ""
 service = __name__!='__main__' and sys.platform == "win32"
 install = False
 Headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
+Event = threading.Event ()
 
 # Go to the script directory
 global coalitionDir
@@ -305,6 +306,7 @@ class Worker:
 				time.sleep (sleepTime)
 		# Signal to the main process the job is finished
 		self.Working = False
+		Event.set ()
 
 	### To kill the current worker job
 	def killJob (self):
@@ -441,7 +443,8 @@ class Worker:
 			# Flush the logs
 			while (self.Working):
 				self.heartbeat (jobId, False)
-				time.sleep (sleepTime)
+				Event.clear ()
+				Event.wait (sleepTime)
 
 			# Flush for real for the last time
 			self.heartbeat (jobId, True)
@@ -456,12 +459,13 @@ class Worker:
 					'errorCode':self.ErrorCode, 
 				})
 				serverConn.request ("POST", "/workers/endjob", params, Headers)
-				serverConn.getresponse()
+				response = serverConn.getresponse()
+				response.read ()
 
 			# Block until this message to handled by the server
 			workerRun (self, endFunc, True)
-
-		time.sleep (sleepTime)
+		else:
+			time.sleep (sleepTime)
 
 def main ():
 	global	name, serverUrl, sleepTime, broadcastPort, gogogo, workers, startup
