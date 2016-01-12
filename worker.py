@@ -15,7 +15,6 @@ if sys.platform=="win32":
 global serverUrl, debug, verbose, sleepTime, broadcastPort, gogogo, workers
 debug = False
 verbose = False
-sleepTime = 5
 affinity = ""
 
 name = socket.gethostname()
