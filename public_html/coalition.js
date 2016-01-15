@@ -143,8 +143,8 @@ function renderLog (jobId)
 {
     showLog ();
 	logId = jobId;
-
-    $.ajax({ type: "GET", url: "/json/getlog", data: "id="+str(jobId), dataType: "json", success: 
+	var data = {id:jobId}
+    $.ajax({ type: "POST", url: "/json/getlog", data: JSON.stringify(data), dataType: "json", success: 
         function (data) 
         {
 	        $("#logs").empty();
@@ -157,18 +157,23 @@ function renderLog (jobId)
     });
 }
 
+function getSelectedWorkers ()
+{
+    var workers = [];
+	for (j=workers.length-1; j >= 0; j--)
+	{
+		var name = workers[j].Name;
+		if (selectedWorkers[name])
+		    workers.push (name);
+	}
+	return workers;
+}
+
 function clearWorkers ()
 {
 	if (confirm("Do you really want to clear all the workers?"))
 	{
-	    var _data = "";
-		for (j=workers.length-1; j >= 0; j--)
-		{
-			var worker = workers[j];
-			if (selectedWorkers[worker.Name])
-			    _data += "id="+str(worker.Name)+"&";
-		}
-        $.ajax({ type: "GET", url: "/json/clearworkers", data: _data, dataType: "json", success: 
+        $.ajax({ type: "POST", url: "/json/clearworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
             function () 
             {
     	        selectedWorkers = {}
@@ -533,7 +538,8 @@ function reloadJobs ()
 {
     var tag = document.getElementById("filterJobs").value;
     tag = tag == "NONE" ? "" : tag;
-    $.ajax({ type: "GET", url: "/json/getjobs", data: "filter="+tag+"&id="+str(viewJob), dataType: "json", success: 
+    var data = {id:viewJob, filter:tag}
+    $.ajax({ type: "POST", url: "/json/getjobs", data: JSON.stringify(data), dataType: "json", success: 
         function(data) 
         {
 	        jobs = []
@@ -561,14 +567,7 @@ function reloadJobs ()
 
 function startWorkers ()
 {
-    var _data = "";
-	for (j=workers.length-1; j >= 0; j--)
-	{
-		var worker = workers[j];
-		if (selectedWorkers[worker.Name])
-           	_data += "id="+worker.Name+"&";
-	}
-    $.ajax({ type: "GET", url: "/json/startworkers", data: _data, dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/json/startworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
         function () 
         {
         	reloadWorkers ();
@@ -578,14 +577,7 @@ function startWorkers ()
 
 function stopWorkers ()
 {
-    var _data = "";
-	for (j=workers.length-1; j >= 0; j--)
-	{
-		var worker = workers[j];
-		if (selectedWorkers[worker.Name])
-           	_data += "id="+worker.Name+"&";
-	}
-    $.ajax({ type: "GET", url: "/json/stopworkers", data: _data, dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/json/stopworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
         function () 
         {
         	reloadWorkers ();
@@ -595,7 +587,6 @@ function stopWorkers ()
 
 function workerActivity ()
 {
-    var _data = "";
 	for (j=workers.length-1; j >= 0; j--)
 	{
 		var worker = workers[j];
@@ -614,7 +605,6 @@ function workerActivity ()
 
 function jobActivity ()
 {
-    var _data = "";
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
@@ -687,27 +677,41 @@ function updateSelectionProp (values, props, prop)
         }
 }
 
-function sendSelectionPropChanges (list, idName, values, props, _url, selectedList, func)
+function sendSelectionPropChanges (list, idName, values, props, objects, selectedList, func)
 {
-    var _data = "";
+	if (!props.length)
+		return;
+
+	var ids = {};
+	var idsN = 0;
 	for (j=list.length-1; j >= 0; j--)
 	{
 		var id = list[j][idName];
 		if (selectedList[id])
-		    _data += "id="+str(id)+"&";
-	}
+		{
+			var _props = {}
+		    for (i = 0; i < props.length; ++i)
+		        if (values[i] == true)
+		        {
+		            var prop = props[i][0];
+		            var value = $('#'+props[i][1]).attr("value");
+		            if (prop == "Dependencies")
+		            	value = value.split(",");
+		            _props[prop] = value;
+		        }
+	     	ids[id] = _props;
+	     	idsN++;
+		}
+    }
 
-    for (i = 0; i < props.length; ++i)
-        if (values[i] == true)
-        {
-            var prop = props[i][0];
-            var value = $('#'+props[i][1]).attr("value");
-            _data += "prop="+prop+"&value="+value+"&";
-        }
+    if (!idsN)
+    	return;
+
+    var data = {Jobs:ids};
 
     // One single call
-    $.ajax({ type: "GET", url: _url, data: _data, dataType: "json", success:
-        function () 
+    $.ajax({ type: "POST", url: "/json/edit", data: JSON.stringify(data), dataType: "json", success:
+        function ()
         {
             for (i = 0; i < props.length; ++i)
                 if (values[i] == true)
@@ -743,7 +747,7 @@ function onchangeworkerprop (prop)
 
 function updateworkers ()
 {
-    sendSelectionPropChanges (workers, 'Name', updatedWorkerProps, WorkerProps, "/json/updateworkers", selectedWorkers,
+    sendSelectionPropChanges (workers, 'Name', updatedWorkerProps, WorkerProps, "Workers", selectedWorkers,
         function ()
         {
             reloadWorkers ();
@@ -753,20 +757,10 @@ function updateworkers ()
 
 function reloadWorkers ()
 {
-    $.ajax({ type: "GET", url: "/json/getworkers", dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/json/getWorkers", dataType: "json", success: 
         function (data) 
         {
-	        workers = [];
-	        for (j = 0; j < data.Workers.length; ++j)
-	        {
-	            var worker = data.Workers[j];
-	            var nw = {};
-	            for (i = 0; i < data.Vars.length; ++i)
-	            {
-	                nw[data.Vars[i]] = worker[i];
-	            }
-	            workers.push (nw);
-	        }
+	        workers = data;
 	        renderWorkers ();
             document.getElementById("refreshbutton").className = "refreshbutton";
         }
@@ -817,7 +811,7 @@ function renderWorkers ()
     addTitleHTML ("Active");
     addTitleHTML ("State");
     addTitleHTML ("Affinity");
-    addTitleHTML ("Load");
+    addTitleHTML ("CPU");
     addTitleHTML ("Memory");
     addTitleHTML ("LastJob");
     addTitleHTML ("Finished");
@@ -846,14 +840,14 @@ function renderWorkers ()
 	    var load = "<div class='load'>";
 	        // Add each CPU load
 	        var loadValue = 0;
-    	    for (j=0; j < worker.Load.length; j++)
+    	    for (j=0; j < worker.CPU.length; j++)
     	    {
-        	    load += "<div class='loadbar' style='width:" + worker.Load[j] + "%;height:" + 16/worker.Load.length + "' />";
-    	        loadValue += worker.Load[j]
+        	    load += "<div class='loadbar' style='width:" + worker.CPU[j] + "%;height:" + 16/worker.CPU.length + "' />";
+    	        loadValue += worker.CPU[j]
             }
 
             // Add the numerical value of the load
-   	        load += "<div class='loadlabel'>" + Math.floor(loadValue/worker.Load.length) + "%</div>";
+   	        load += "<div class='loadlabel'>" + Math.floor(loadValue/worker.CPU.length) + "%</div>";
 	    load += "</div>";
     
         // *** Build the memory tab for this worker		
@@ -896,15 +890,15 @@ function renderWorkers ()
 
 function reloadActivities ()
 {
-    var _data = {}
+    var data = {}
     var job = $('#activityJob').attr("value")
     if (job != "")
-        _data.job = job
+        data.job = job
     var worker = $('#activityWorker').attr("value")
     if (worker != "")
-        _data.worker = worker
-    _data.howlong = $('#howlong').attr("value")
-    $.ajax({ type: "GET", url: "/json/getactivities", data: _data, dataType: "json", success: 
+        data.worker = worker
+    data.howlong = $('#howlong').attr("value")
+    $.ajax({ type: "POST", url: "/json/getactivities", data: JSON.stringify(data), dataType: "json", success: 
         function (data) 
         {
 	        activities = [];
@@ -1041,7 +1035,7 @@ function onchangejobprop (prop)
 
 function updatejobs ()
 {
-    sendSelectionPropChanges (jobs, 'ID', updatedJobProps, JobProps, "/json/updatejobs", selectedJobs,
+    sendSelectionPropChanges (jobs, 'ID', updatedJobProps, JobProps, "Jobs", selectedJobs,
         function ()
         {
             reloadJobs ();
@@ -1052,21 +1046,21 @@ function updatejobs ()
 
 function addjob ()
 {
-    var _data = {
+    var data = {
         title:$('#title').attr("value"),
-        cmd:$('#cmd').attr("value"),
+        command:$('#cmd').attr("value"),
         dir:$('#dir').attr("value"), 
         env:$('#env').attr("value"), 
         priority:$('#priority').attr("value"), 
         retry:$('#retry').attr("value"),
         timeout:$('#timeout').attr("value"),
         affinity:$('#affinity').attr("value"),
-        dependencies:$('#dependencies').attr("value"),
+        dependencies:$('#dependencies').attr("value").split(','),
         user:$('#user').attr("value"),
         url:$('#url').attr("value"),
         parent:viewJob
     };
-    $.ajax({ type: "GET", url: "/xmlrpc/addjob", data: _data, dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/json/newJob", data: JSON.stringify(data), dataType: "json", success: 
         function () 
         {
     		setSelectionDefaultProperties (JobProps);
@@ -1236,14 +1230,14 @@ function removeSelection ()
 {
 	if (confirm("Do you really want to remove the selected jobs ?"))
 	{
-	    var _data = "";
+	    var data = [];
 		for (j=jobs.length-1; j >= 0; j--)
 		{
 			var job = jobs[j];
 			if (selectedJobs[job.ID])
-			    _data += "id="+str(job.ID)+"&";
+			    data.push (job.ID);
 		}
-        $.ajax({ type: "GET", url: "/json/clearjobs", data: _data, dataType: "json", success: 
+        $.ajax({ type: "POST", url: "/json/clearjobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
             {
         		selectedJobs = {};
@@ -1256,14 +1250,14 @@ function removeSelection ()
 
 function startSelection ()
 {
-    var _data = "";
+    var data = [];
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
 		if (selectedJobs[job.ID])
-		    _data += "id="+str(job.ID)+"&";
+		    data.push (job.ID);
 	}
-    $.ajax({ type: "GET", url: "/json/startjobs", data: _data, dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/json/startjobs", data: JSON.stringify(data), dataType: "json", success: 
         function () 
         {
     	    reloadJobs ();
@@ -1273,7 +1267,6 @@ function startSelection ()
 
 function viewSelection()
 {
-    var _data = "";
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
@@ -1286,14 +1279,14 @@ function resetSelection ()
 {
 	if (confirm("Do you really want to reset the selected jobs and all their children jobs ?"))
 	{
-	    var _data = "";
+	    var data = [];
 		for (j=jobs.length-1; j >= 0; j--)
 		{
 			var job = jobs[j];
 			if (selectedJobs[job.ID])
-			    _data += "id="+str(job.ID)+"&";
+			    data.push (job.ID);
 		}
-        $.ajax({ type: "GET", url: "/json/resetjobs", data: _data, dataType: "json", success: 
+        $.ajax({ type: "POST", url: "/json/resetjobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
             {
         	    reloadJobs ();
@@ -1306,14 +1299,14 @@ function resetErrorSelection ()
 {
 	if (confirm("Do you really want to reset the selected jobs and all their children jobs tagged in ERROR ?"))
 	{
-	    var _data = "";
+	    var data = [];
 		for (j=jobs.length-1; j >= 0; j--)
 		{
 			var job = jobs[j];
 			if (selectedJobs[job.ID])
-			    _data += "id="+str(job.ID)+"&";
+			    data.push (job.ID);
 		}
-        $.ajax({ type: "GET", url: "/json/reseterrorjobs", data: _data, dataType: "json", success: 
+        $.ajax({ type: "POST", url: "/json/reseterrorjobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
             {
         	    reloadJobs ();
@@ -1324,14 +1317,14 @@ function resetErrorSelection ()
 
 function pauseSelection ()
 {
-    var _data = "";
+    var data = [];
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
 		if (selectedJobs[job.ID])
-		    _data += "id="+str(job.ID)+"&";
+		    data.push (job.ID);
 	}
-    $.ajax({ type: "GET", url: "/json/pausejobs", data: _data, dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/json/pausejobs", data: JSON.stringify(data), dataType: "json", success: 
         function () 
         {
     	    reloadJobs ();
@@ -1365,14 +1358,12 @@ function cutSelection ()
 
 function pasteSelection ()
 {
-    var _data = "dest="+str(viewJob)+"&";
     var count = 0;
+    var jobs = {}
 	for (var id in cutJobs)
-	{
-	    _data += "id="+str(id)+"&";
-    }
-
-    $.ajax({ type: "GET", url: "/json/movejobs", data: _data, dataType: "json", success: 
+		jobs[id] = {Parent:viewJob}
+    var data = {Jobs:jobs};
+    $.ajax({ type: "POST", url: "/json/edit", data: JSON.stringify(data), dataType: "json", success: 
         function () 
         {
     	    reloadJobs ();
