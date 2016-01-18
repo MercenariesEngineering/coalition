@@ -6,9 +6,16 @@ class DB(object):
 
 	'''Enter a transaction block'''
 	def __enter__(self):
+
+		# Jobs is a map between job.ID and the actual job proxy
+		# This cache is erased after each transaction
+		self.Jobs = {}
+
+		# Those map are the edits done on every objects to commit at the end of the transaction
 		self.JobsToUpdate = {}
 		self.WorkersToUpdate = {}
 		self.EventsToUpdate = {}
+
 		self.IntoWith = True
 
 	'''Leave a transaction block'''
@@ -134,6 +141,11 @@ class Job(object):
 		self.LocalProgress = localprogress
 		self.GlobalProgress = globalprogress
 		self.__initialized = True
+
+		# Should not exist in the cache
+		assert (db.Jobs.get (self.ID) == None)
+		# Cache it
+		db.Jobs[self.ID] = self
 
 	def hasChildren (self):
 		return self.DB.hasJobChildren (self.ID)

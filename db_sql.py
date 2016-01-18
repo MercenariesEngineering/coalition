@@ -36,6 +36,12 @@ class DBSQL(DB):
 	def getJob (self, id):
 		if id == 0:
 			return self.getRoot ()
+
+		# First try the DB cache
+		job = self.Jobs.get (id)
+		if job:
+			return job
+
 		with self.Conn:
 			cur = self.Conn.cursor()
 			self._execute(cur, "SELECT * FROM Jobs WHERE ID=%d" % id);
@@ -48,7 +54,7 @@ class DBSQL(DB):
 			cur = self.Conn.cursor()
 			self._execute(cur, "SELECT * FROM Jobs WHERE Parent=%d" % id);
 			rows = cur.fetchall()
-			return [Job (self, *row) for row in rows]
+			return [(self.Jobs.get (row[0]) or Job (self, *row)) for row in rows]
 
 
 	def hasJobChildren (self, id):
@@ -63,7 +69,7 @@ class DBSQL(DB):
 			cur = self.Conn.cursor()
 			self._execute(cur, "SELECT job.* FROM Jobs job INNER JOIN Dependencies dep ON job.ID = dep.Dependency WHERE dep.JobId=%d" % id);
 			rows = cur.fetchall()
-			return [Job (self, *row) for row in rows]
+			return [(self.Jobs.get (row[0]) or Job (self, *row)) for row in rows]
 
 	def setJobDependencies (self, id, dependencies):
 		with self.Conn:
