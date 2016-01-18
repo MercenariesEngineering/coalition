@@ -1,3 +1,10 @@
+4.0
+First version using a SQL database as storage.
+Uses SQLite by default, and provides a mysql driver (see coalition.ini).
+The server provides now a REST api.
+A phyton module is also available in /api to warp the REST api in some sugar.
+
+
 3.17
 Added : A trusted user list in LDAP mode
 Added : Global command white list : restrict the job commands for all the users

@@ -37,12 +37,11 @@ class Connection:
 		self.IntoWith = False
 		self._Conn = httplib.HTTPConnection (host, port)
 
-	def _send (self, command, params):
-		if params.get ('self'):
-			del params['self']
-		params = json.dumps (params)
+	def _send (self, method, command, params=None):
+		if params:
+			params = json.dumps (params)
 		headers = {'Content-Type': 'application/json'}
-		self._Conn.request ("POST", "/json/%s?"%command, params, headers)
+		self._Conn.request (method, command, params, headers)
 		res = self._Conn.getresponse()
 		if res.status == 200:
 			return res.read ()
@@ -54,7 +53,7 @@ class Connection:
 
 		:param id: the id of the :class:`Job` to return
 		'''
-		res = self._send ('getJob', locals().copy ())
+		res = self._send ("GET", '/api/jobs/' + str(id))
 		return Job (json.loads(res), self)
 
 	def getJobChildren (self, id):
@@ -63,7 +62,7 @@ class Connection:
 		:param id: the job.ID of the parent :class:`Job`
 		:rtype: A list of :class:`Job` objects
 		'''
-		res = self._send ('getJobChildren', locals().copy ())
+		res = self._send ("GET", '/api/jobs/'+str(id)+'/children')
 		res = json.loads(res)
 		children = []
 		for r in res:
@@ -76,7 +75,7 @@ class Connection:
 		:param id: the job.ID of the :class:`Job` with dependencies
 		:rtype: The list of :class:`Job` objects on which the job depends
 		'''
-		res = self._send ('getJobDependencies', locals().copy ())
+		res = self._send ("GET", '/api/jobs/'+str(id)+'/dependencies')
 		res = json.loads(res)
 		children = []
 		for r in res:
@@ -89,7 +88,7 @@ class Connection:
 		:param id: the id of the job with dependencies
 		:rtype: The list of job.ID (int) on which the job depends
 		'''
-		res = self._send ('setJobDependencies', locals().copy ())
+		res = self._send ("POST", '/api/jobs/'+str(id)+'/dependencies', ids)
 		return res
 
 	def newJob  (self, parent=0, title="", command = "", dir = "", environment = "", state="WAITING", priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", dependencies = []):
@@ -129,7 +128,9 @@ class Connection:
 
 		:rtype: The list of job id (int) on which the job depends
 		'''
-		res = self._send ('newJob', locals().copy ())
+		params = locals().copy ()
+		del params['self']
+		res = self._send ("PUT", '/api/jobs', params)
 		return int(res)
 
 	def __enter__(self):
@@ -147,6 +148,8 @@ class Connection:
 			return d
 
 		if not isinstance(value, TypeError):
-			data = {'Jobs':self.Jobs, 'Workers':self.Workers}
-			res = self._send ('edit', data)
+			if len(self.Jobs) > 0:
+				res = self._send ("POST", '/api/jobs', self.Jobs)
+			if len(self.Workers) > 0:
+				res = self._send ("POST", '/api/workers', self.Workers)
 			return res

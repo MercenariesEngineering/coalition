@@ -883,6 +883,7 @@ class Master (xmlrpc.XMLRPC):
 					value = request.args.get (name, [default])
 					return value[0]
 
+				# The legacy method for compatibility
 				if request.path == "/xmlrpc/addjob":
 
 					parent = getArg ("parent", "0")
@@ -934,76 +935,121 @@ class Master (xmlrpc.XMLRPC):
 						return -1
 				else:
 					value = request.content.getvalue()
-					data = value and json.loads(request.content.getvalue()) or {}
-					if verbose:
-						vprint ("[Content] "+repr(data))
+					if request.method != "GET":
+						data = value and json.loads(request.content.getvalue()) or {}
+						if verbose:
+							vprint ("[Content] "+repr(data))
+					else:
+						if verbose:
+							vprint ("[Content] "+repr(request.args))
 
 					def getArg (name, default):
-						value = data.get (name)
-						value = type(default)(default if value == None else value)
-						assert (value != None)
-						return value
+						if request.method == "GET":
+							# GET params
+							value = request.args.get (name, [default])[0]
+							value = type(default)(default if value == None else value)
+							assert (value != None)
+							return value
+						else:
+							# JSON params
+							value = data.get (name)
+							value = type(default)(default if value == None else value)
+							assert (value != None)
+							return value
 
-					if request.path == "/json/newJob":
-						jod_id = State.newJob ((getArg ("parent",0)), (getArg("title","")), (getArg("command","")), (getArg("dir","")), (getArg("environment","")), 
-							(getArg("state","WAITING")),	(getArg("priority",1000)), (getArg("retry",1000)), (getArg("timeout",1000)), (getArg("affinity", "")), 
-							(getArg("user", "")), getArg("dependencies", []), (getArg("localprogressionpattern", "")), (getArg("globalprogressionpattern", "")), (getArg("url", "")))
-						State.update ()
-						return str(jod_id)
-					elif request.path == "/json/getJob":
-						return self.json_getJob (data['id'])
-					elif request.path == "/json/getJobChildren":
-						return self.json_getJobChildren ((getArg ("id", 0)))
-					elif request.path == "/json/getJobDependencies":
-						return self.json_getJobDependencies ((getArg ("id", 0)))
-					elif request.path == "/json/setJobDependencies":
-						db.setJobDependencies (getArg ('id', -1), getArg ('ids', []))
-						return '1'
-					elif request.path == "/json/getjobs":
-						return self.json_getjobs ((getArg ("id", 0)), getArg ("filter", ""))
-					elif request.path == "/json/clearjobs":
-						return self.json_clearjobs (data)
-					elif request.path == "/json/resetjobs":
-						return self.json_resetjobs (data)
-					elif request.path == "/json/reseterrorjobs":
-						return self.json_reseterrorjobs (data)
-					elif request.path == "/json/startjobs":
-						return self.json_startjobs (data)
-					elif request.path == "/json/pausejobs":
-						return self.json_pausejobs (data)
-					elif request.path == "/json/getlog":
-						return self.json_getlog ((getArg ("id", 0)))
-					elif request.path == "/json/getWorkers":
-						return self.json_getWorkers ()
-					elif request.path == "/json/clearworkers":
-						return self.json_clearworkers (data)
-					elif request.path == "/json/stopworkers":
-						return self.json_stopworkers (data)
-					elif request.path == "/json/startworkers":
-						return self.json_startworkers (data)
-					elif request.path == "/json/getactivities":
-						return self.json_getactivities ((getArg ("job", -1)), (getArg ("worker", "")), (getArg ("howlong", -1)))
-					elif request.path == "/json/edit":
-						db.edit (data.get ('Jobs') or {}, data.get ('Workers') or {}, {})
-						return '1'
+					# REST api
+					def api_rest ():
+						if request.method == "PUT":
+							if request.path == "/api/jobs":
+								jod_id = State.newJob ((getArg ("parent",0)), (getArg("title","")), (getArg("command","")), (getArg("dir","")), (getArg("environment","")), 
+									(getArg("state","WAITING")),	(getArg("priority",1000)), (getArg("retry",1000)), (getArg("timeout",1000)), (getArg("affinity", "")), 
+									(getArg("user", "")), getArg("dependencies", []), (getArg("localprogressionpattern", "")), (getArg("globalprogressionpattern", "")), (getArg("url", "")))
+								State.update ()
+								return jod_id
+
+						elif request.method == "GET":
+							m = re.match(r"^/api/jobs/(\d+)$", request.path)
+							if m:
+								return self.getJob (int(m.group (1)))
+
+							m = re.match(r"^/api/jobs/(\d+)/children$", request.path)
+							if m:
+								return self.getJobChildren (int(m.group (1)))
+
+							m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
+							if m:
+								return self.getJobDependencies (int(m.group (1)))
+
+							m = re.match(r"^/api/jobs/(\d+)/log$", request.path)
+							if m:
+								return self.getLog (int(m.group (1)))
+
+							if request.path == "/api/workers":
+								return self.getWorkers ()
+
+							if request.path == "/api/events":
+								return self.getEvents (getArg ("job", -1), getArg ("worker", ""), getArg ("howlong", -1))
+
+						elif request.method == "POST":
+							if request.path == "/api/jobs":
+								db.edit (data, {}, {})
+								return 1
+
+							if request.path == "/api/workers":
+								db.edit ({}, data, {})
+								return 1
+
+							m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
+							if m:
+								db.setJobDependencies (int(m.group (1)), data)
+								return 1
+
+							if request.path == "/api/clearjobs":
+								return self.clearJobs (data)
+
+							if request.path == "/api/resetjobs":
+								return self.resetJobs (data)
+
+							if request.path == "/api/reseterrorjobs":
+								return self.resetErrorJobs (data)
+
+							if request.path == "/api/startjobs":
+								return self.startJobs (data)
+
+							if request.path == "/api/pausejobs":
+								return self.pauseJobs (data)
+
+							if request.path == "/api/clearworkers":
+								return self.clearWorkers (data)
+
+							if request.path == "/api/stopworkers":
+								return self.stopWorkers (data)
+
+							if request.path == "/api/startworkers":
+								return self.startWorkers (data)
+
+					result = api_rest ()
+					if result != None:
+						# Only JSON right now
+						return json.dumps (result)
 					else:
 						# return server.NOT_DONE_YET
 						request.setResponseCode(404)
 						return "Web service not found"
 			return 'Authorization required!'
 
-	def json_getJob (self, id):
+	def getJob (self, id):
 		job = db.getJob (id)
 		if job:
 			d = job.__dict__.copy ()
 			del d['DB']
 			del d['_Job__initialized']
-			return json.dumps (d)
+			return d
 		else:
 			request.setResponseCode(400)
 			return "Job not found"
 
-	def json_getJobChildren (self, id):
+	def getJobChildren (self, id):
 		jobs = db.getJobChildren (id)
 		r = []
 		for job in jobs:
@@ -1011,9 +1057,9 @@ class Master (xmlrpc.XMLRPC):
 			del d['DB']
 			del d['_Job__initialized']
 			r.append (d)
-		return json.dumps (r)
+		return r
 
-	def json_getJobDependencies (self, id):
+	def getJobDependencies (self, id):
 		jobs = db.getJobDependencies (id)
 		r = []
 		for job in jobs:
@@ -1021,82 +1067,44 @@ class Master (xmlrpc.XMLRPC):
 			del d['DB']
 			del d['_Job__initialized']
 			r.append (d)
-		return json.dumps (r)
+		return r
 
-	def json_getjobs (self, id, filter):
-		global State
-		State.update ()
-		
-		vars = ["ID","Title","Command","Dir","State","Worker","StartTime","Duration","Try","Retry","TimeOut","Priority","Affinity","User","Finished","Errors","Working","Total","TotalFinished","TotalErrors","TotalWorking","URL","LocalProgress","GlobalProgress","Dependencies"];
-
-		# Get the job
-		job = db.getJob (id)
-		if not job:
-			job = db.getRoot ()
-			
-		# Build the children
-		jobs = []
-		children = db.getJobChildren (job.ID)
-		for child in children :
-			if filter == "" or child.State == filter:
-				l = []
-				for var in vars:
-					attr = [job.ID for job in child.getDependencies ()] if var == "Dependencies" else getattr (child, var)
-					l.append (attr)
-				jobs.append (l)
-		parents = []
-		# Build the parents
-		while True:
-			parents.insert (0, { "ID":job.ID, "Title":job.Title })
-			if job.ID == 0:
-				break
-			job = db.getJob (job.Parent)
-		
-		return '{ "Vars":'+json.dumps (vars)+', "Jobs":'+json.dumps (jobs)+', "Parents":'+json.dumps (parents)+' }'
-
-	def json_clearjobs (self, ids):
+	def clearJobs (self, ids):
 		global State
 		for jobId in ids:
 			State.removeJob (int(jobId))
 		State.update ()
 		return "1"
 
-	def json_resetjobs (self, ids):
+	def resetJobs (self, ids):
 		global State
 		for jobId in ids:
 			State.resetJob (int(jobId))
 		State.update ()
 		return "1"
 
-	def json_reseterrorjobs (self, ids):
+	def resetErrorJobs (self, ids):
 		global State
 		for jobId in ids:
 			State.resetErrorJob (int(jobId))
 		State.update ()
 		return "1"
 
-	def json_startjobs (self, ids):
+	def startJobs (self, ids):
 		global State
 		for jobId in ids:
 			State.startJob (int(jobId))
 		State.update ()
 		return "1"
 
-	def json_pausejobs (self, ids):
+	def pauseJobs (self, ids):
 		global State
 		for jobId in ids:
 			State.pauseJob (int(jobId))
 		State.update ()
 		return "1"
 
-	def json_movejobs (self, ids, dest):
-		global State
-		for jobId in ids:
-			State.moveJob (int(jobId),int(dest))
-		State.update ()
-		return "1"
-
-	def json_getlog (self, jobId):
+	def getLog (self, jobId):
 		global State
 		# Look for the job
 		log = ""
@@ -1112,9 +1120,9 @@ class Master (xmlrpc.XMLRPC):
 			logFile.close ()
 		except IOError:
 			pass
-		return repr (log)
+		return log
 
-	def json_getWorkers (self):
+	def getWorkers (self):
 		workers = db.getWorkers ()
 		r = []
 		for worker in workers:
@@ -1122,51 +1130,38 @@ class Master (xmlrpc.XMLRPC):
 			del d['DB']
 			del d['_Worker__initialized']
 			r.append (d)
-		return json.dumps (r)
+		return r
 
-	def json_clearworkers (self, names):
+	def clearWorkers (self, names):
 		global State
 		for name in names:
 			DBClearWorkers ()
 		State.update ()
 		return "1"
 
-	def json_stopworkers (self, names):
+	def stopWorkers (self, names):
 		global State
 		for name in names:
 			State.stopWorker (name)
 		State.update ()
 		return "1"
 
-	def json_startworkers (self, names):
+	def startWorkers (self, names):
 		global State
 		for name in names:
 			State.startWorker (name)
 		State.update ()
 		return "1"
 
-	def json_getactivities (self, job, worker, howlong):
-		global State
-
-		State.update ()
-
-		vars = ["Start","JobID","JobTitle","State","Worker","Duration","ID"]
-
-		# Build the children
-		_time = time.time ();
-		_activities = "["
-		activities = db.getEvents (job, worker, howlong)
-		for activity in activities:
-#			if (job == -1 or activity.JobID == job) and (worker == "" or activity.Worker == worker) and (howlong == -1 or _time - activity.Start < howlong):
-			childparams = "["
-			for var in vars:
-				childparams += json.dumps (getattr (activity, var)) + ','
-			childparams += "],\n"
-			_activities += childparams
-		_activities += "]"
-		
-		result = ('{ "Vars":'+repr(vars)+', "Activities":'+_activities+'}')
-		return result
+	def getEvents (self, job, worker, howlong):
+		events = db.getEvents (job, worker, howlong)
+		r = []
+		for event in events:
+			d = event.__dict__.copy ()
+			del d['DB']
+			del d['_Event__initialized']
+			r.append (d)
+		return r
 
 # Unauthenticated connection for workers
 class Workers(xmlrpc.XMLRPC):
@@ -1337,7 +1332,7 @@ def main():
 	webService = Master()
 	workers = Workers()
 	root.putChild('xmlrpc', webService)
-	root.putChild('json', webService)
+	root.putChild('api', webService)
 	root.putChild('workers', workers)
 	vprint ("[Init] Listen on port " + str (port))
 	reactor.listenTCP(port, server.Site(root))
