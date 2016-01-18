@@ -74,7 +74,8 @@ try:
 			time.sleep (.1)
 
 	if __name__ == '__main__':
-		unittest.main(verbosity=2)
+		suite = unittest.TestLoader().loadTestsFromTestCase(TestCoalition)
+		unittest.TextTestRunner(verbosity=2).run(suite)		
 
 finally:
 	pass
