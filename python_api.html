@@ -1,0 +1,405 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Python API &mdash; Coalition 4.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="Coalition 4.0 documentation" href="index.html"/>
+        <link rel="next" title="REST API" href="rest_api.html"/>
+        <link rel="prev" title="Coalition documentation" href="index.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Coalition
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                4.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="">Python API</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="rest_api.html">REST API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">Coalition</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Python API</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/python_api.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="python-api">
+<h1>Python API<a class="headerlink" href="#python-api" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<span class="target" id="module-coalition"></span><dl class="class">
+<dt id="coalition.Connection">
+<em class="property">class </em><code class="descclassname">coalition.</code><code class="descname">Connection</code><span class="sig-paren">(</span><em>host</em>, <em>port</em><span class="sig-paren">)</span><a class="headerlink" href="#coalition.Connection" title="Permalink to this definition">¶</a></dt>
+<dd><p>A connection to the coalition server.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>host</strong> (<em>str</em>) &#8211; the coalition server hostname</li>
+<li><strong>port</strong> (<em>int</em>) &#8211; the coalition server port (19211 by default)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">coalition</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Connect the server</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">conn</span> <span class="o">=</span> <span class="n">coalition</span><span class="o">.</span><span class="n">Connection</span> <span class="p">(</span><span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="mi">19211</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Create a first job in the root node</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">job_id</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">newJob</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Test&quot;</span><span class="p">,</span> <span class="s2">&quot;echo test&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Inspect the job</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">job</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">getJob</span> <span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="nb">type</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="go">&lt;type &#39;int&#39;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">job</span><span class="o">.</span><span class="n">title</span>
+<span class="go">Test</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">job</span><span class="o">.</span><span class="n">command</span>
+<span class="go">echo test</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Edit a job, the modification is sent to the server at the end of the block</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">conn</span><span class="p">:</span>
+<span class="gp">... </span>            <span class="n">job</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="s2">&quot;Test2&quot;</span>
+<span class="gp">... </span>            <span class="n">job</span><span class="o">.</span><span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;echo test2&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">job</span><span class="o">.</span><span class="n">title</span>
+<span class="go">Test2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Reload the job from the server to check it has been modified</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">job</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">getJob</span> <span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">job</span><span class="o">.</span><span class="n">title</span>
+<span class="go">Test2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Create a parent node, must NOT have a command</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">parent_id</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">newJob</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Parent&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Create a job in the parent node</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">child_id</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">newJob</span> <span class="p">(</span><span class="n">parent_id</span><span class="p">,</span> <span class="s2">&quot;Child&quot;</span><span class="p">,</span> <span class="s2">&quot;echo child&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Get the parent children</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">children</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">getJobChildren</span> <span class="p">(</span><span class="n">parent_id</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">children</span><span class="p">:</span> <span class="k">print</span> <span class="n">child</span><span class="o">.</span><span class="n">title</span>
+<span class="go">Child</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="coalition.Connection.getJob">
+<code class="descname">getJob</code><span class="sig-paren">(</span><em>id</em><span class="sig-paren">)</span><a class="headerlink" href="#coalition.Connection.getJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <a class="reference internal" href="#coalition.Job" title="coalition.Job"><code class="xref py py-class docutils literal"><span class="pre">Job</span></code></a> object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>id</strong> &#8211; the id of the <a class="reference internal" href="#coalition.Job" title="coalition.Job"><code class="xref py py-class docutils literal"><span class="pre">Job</span></code></a> to return</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="coalition.Connection.getJobChildren">
+<code class="descname">getJobChildren</code><span class="sig-paren">(</span><em>id</em><span class="sig-paren">)</span><a class="headerlink" href="#coalition.Connection.getJobChildren" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <a class="reference internal" href="#coalition.Job" title="coalition.Job"><code class="xref py py-class docutils literal"><span class="pre">Job</span></code></a> children objects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>id</strong> &#8211; the job.id of the parent <a class="reference internal" href="#coalition.Job" title="coalition.Job"><code class="xref py py-class docutils literal"><span class="pre">Job</span></code></a></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">a list of <a class="reference internal" href="#coalition.Job" title="coalition.Job"><code class="xref py py-class docutils literal"><span class="pre">Job</span></code></a> objects</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="coalition.Connection.getJobDependencies">
+<code class="descname">getJobDependencies</code><span class="sig-paren">(</span><em>id</em><span class="sig-paren">)</span><a class="headerlink" href="#coalition.Connection.getJobDependencies" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the <a class="reference internal" href="#coalition.Job" title="coalition.Job"><code class="xref py py-class docutils literal"><span class="pre">Job</span></code></a> objects on which a job has a dependency.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>id</strong> &#8211; the job.id of the <a class="reference internal" href="#coalition.Job" title="coalition.Job"><code class="xref py py-class docutils literal"><span class="pre">Job</span></code></a> with dependencies</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">the list of <a class="reference internal" href="#coalition.Job" title="coalition.Job"><code class="xref py py-class docutils literal"><span class="pre">Job</span></code></a> objects on which the job depends</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="coalition.Connection.newJob">
+<code class="descname">newJob</code><span class="sig-paren">(</span><em>parent=0</em>, <em>title=''</em>, <em>command=''</em>, <em>dir=''</em>, <em>environment=''</em>, <em>state='WAITING'</em>, <em>priority=1000</em>, <em>retry=10</em>, <em>timeout=0</em>, <em>affinity=''</em>, <em>user=''</em>, <em>progress_pattern=''</em>, <em>dependencies=[]</em><span class="sig-paren">)</span><a class="headerlink" href="#coalition.Connection.newJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a job.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>parent</strong> (<em>int</em>) &#8211; the parent job.id</li>
+<li><strong>title</strong> (<em>str</em>) &#8211; the job title</li>
+<li><strong>command</strong> (<em>str</em>) &#8211; the job command</li>
+<li><strong>dir</strong> (<em>str</em>) &#8211; the job directory. This is the current directory when the job is run.</li>
+<li><strong>environment</strong> (<em>str</em>) &#8211; the job environment variables</li>
+<li><strong>state</strong> (<em>str</em>) &#8211; the job initial state. It must be &#8220;WAITING&#8221; or &#8220;PAUSED&#8221;. If the state is &#8220;WAITING&#8221;, the job will start as soon as possible. If the state is &#8220;PAUSED&#8221;, the job won&#8217;t start until it is started or reset.</li>
+<li><strong>priority</strong> (<em>int</em>) &#8211; the job priority. For a given job hierarchy level, the job with the biggest priority is taken first.</li>
+<li><strong>retry</strong> (<em>int</em>) &#8211; the job run count. If the job fails, the server will retry to run it this number of time.</li>
+<li><strong>int</strong> (<em>timeout</em>) &#8211; maximum duration a job run can take in seconds. If timeout=0, no limit on the job run.</li>
+<li><strong>affinity</strong> (<em>str</em>) &#8211; the job affinity string. Affinities are coma separated keywords. To run a job, the worker affinities must match all the job affinities.</li>
+<li><strong>user</strong> (<em>str</em>) &#8211; the job user name.</li>
+<li><strong>progress_pattern</strong> (<em>str</em>) &#8211; a regexp pattern which filters the logs and return the progression. The pattern must include a &#8216;%percent&#8217; or a &#8216;%one&#8217; keyword.</li>
+<li><strong>dependencies</strong> (<em>[int]</em>) &#8211; the jobs id on which the new job has dependencies. The job will run when the dependency jobs have been completed without error.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">the list of job id (int) on which the job depends</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="coalition.Connection.setJobDependencies">
+<code class="descname">setJobDependencies</code><span class="sig-paren">(</span><em>id</em>, <em>ids</em><span class="sig-paren">)</span><a class="headerlink" href="#coalition.Connection.setJobDependencies" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the <a class="reference internal" href="#coalition.Job" title="coalition.Job"><code class="xref py py-class docutils literal"><span class="pre">Job</span></code></a> objects on which a job has a dependency.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>int</strong> (<em>id</em>) &#8211; the id of the job with dependencies</li>
+<li><strong>[int]</strong> (<em>ids</em>) &#8211; the list of job.id (int) on which the job depends</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="coalition.Job">
+<em class="property">class </em><code class="descclassname">coalition.</code><code class="descname">Job</code><span class="sig-paren">(</span><em>d</em>, <em>conn</em><span class="sig-paren">)</span><a class="headerlink" href="#coalition.Job" title="Permalink to this definition">¶</a></dt>
+<dd><p>A job object returned by the <a class="reference internal" href="#coalition.Connection" title="coalition.Connection"><code class="xref py py-class docutils literal"><span class="pre">Connection</span></code></a>. Don&#8217;t create such objects yourself.
+Job properties should be modified into a Connection block. Don&#8217;t modify the id or the state properties directly.</p>
+<dl class="attribute">
+<dt id="coalition.Job.Conn">
+<code class="descname">Conn</code><em class="property"> = None</em><a class="headerlink" href="#coalition.Job.Conn" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>id</strong> (<em>int</em>) &#8211; the job id</li>
+<li><strong>parent</strong> (<em>int</em>) &#8211; the parent job id</li>
+<li><strong>title</strong> (<em>str</em>) &#8211; the job title</li>
+<li><strong>command</strong> (<em>str</em>) &#8211; the job command to execute</li>
+<li><strong>dir</strong> (<em>str</em>) &#8211; the job working directory</li>
+<li><strong>environment</strong> (<em>str</em>) &#8211; the job environment</li>
+<li><strong>state</strong> (<em>str</em>) &#8211; the job state. It can be &#8220;WAITING&#8221;, &#8220;WORKING&#8221;, &#8220;PAUSED&#8221;, &#8220;FINISHED&#8221; or &#8220;ERROR&#8221;</li>
+<li><strong>worker</strong> (<em>str</em>) &#8211; the last worker name who took the job</li>
+<li><strong>start_time</strong> (<em>int</em>) &#8211; the job start time (in seconds after epoch)</li>
+<li><strong>duration</strong> (<em>int</em>) &#8211; the job duration (in seconds)</li>
+<li><strong>ping_time</strong> (<em>int</em>) &#8211; the last time a worker ping on this job (in seconds after epoch)</li>
+<li><strong>run_done</strong> (<em>int</em>) &#8211; number of run done on this job</li>
+<li><strong>retry</strong> (<em>int</em>) &#8211; the job run count. If the job fails, the server will retry to run it this number of time.</li>
+<li><strong>timeout</strong> (<em>int</em>) &#8211; maximum duration a job run can take in seconds. If timeout=0, no limit on the job run.</li>
+<li><strong>priority</strong> (<em>int</em>) &#8211; the job priority. For a given job hierarchy level, the job with the biggest priority is taken first.</li>
+<li><strong>affinity</strong> (<em>str</em>) &#8211; the job affinity string. Affinities are coma separated keywords. To run a job, the worker affinities must match all the job affinities.</li>
+<li><strong>user</strong> (<em>str</em>) &#8211; the job user name.</li>
+<li><strong>finished</strong> (<em>int</em>) &#8211; number of finished children jobs. For parent node only.</li>
+<li><strong>errors</strong> (<em>int</em>) &#8211; number of faulty children jobs. For parent node only.</li>
+<li><strong>working</strong> (<em>int</em>) &#8211; number of working children jobs. For parent node only.</li>
+<li><strong>total</strong> (<em>int</em>) &#8211; number of total (grand)children jobs. For parent node only.</li>
+<li><strong>total_finished</strong> (<em>int</em>) &#8211; number of finished (grand)children jobs. For parent node only.</li>
+<li><strong>total_errors</strong> (<em>int</em>) &#8211; number of faulty (grand)children jobs. For parent node only.</li>
+<li><strong>total_working</strong> (<em>int</em>) &#8211; number of working (grand)children jobs. For parent node only.</li>
+<li><strong>url</strong> (<em>str</em>) &#8211; an URL to the job result. If available, a link to this URL will be shown in the interface.</li>
+<li><strong>progress</strong> (<em>float</em>) &#8211; the job progression between 0 and 1.</li>
+<li><strong>progress_pattern</strong> (<em>str</em>) &#8211; a regexp pattern which filters the logs and return the progression. The pattern must include a &#8216;%percent&#8217; or a &#8216;%one&#8217; keyword.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="rest_api.html" class="btn btn-neutral float-right" title="REST API" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral" title="Coalition documentation" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Mercenaries Engineering SARL.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'4.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

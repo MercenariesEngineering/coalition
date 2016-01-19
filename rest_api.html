@@ -1,0 +1,937 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>REST API &mdash; Coalition 4.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="Coalition 4.0 documentation" href="index.html"/>
+        <link rel="prev" title="Python API" href="python_api.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Coalition
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                4.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="python_api.html">Python API</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">REST API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#jobs">Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workers">Workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#events">Events</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">Coalition</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>REST API</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/rest_api.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="rest-api">
+<h1>REST API<a class="headerlink" href="#rest-api" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<p>The coalition server provides a REST API using json data.</p>
+<div class="section" id="jobs">
+<h2>Jobs<a class="headerlink" href="#jobs" title="Permalink to this headline">¶</a></h2>
+<dl class="get">
+<dt id="get--api-jobs">
+<code class="descname">GET </code><code class="descname">/api/jobs</code><a class="headerlink" href="#get--api-jobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the root jobs (with parent=0).</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">GET</span> <span class="nn">/api/jobs</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">[</span>
+        <span class="p">{</span>
+              <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+              <span class="nt">&quot;parent&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Job 123&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;echo test&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;dir&quot;</span><span class="p">:</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;environment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;WAITING&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;worker&quot;</span><span class="p">:</span> <span class="s2">&quot;worker-1&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;start_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;duration&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+              <span class="nt">&quot;ping_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;run_done&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+              <span class="nt">&quot;retry&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;timeout&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+              <span class="nt">&quot;priority&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+              <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;render&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;total_finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://localhost/image.png&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;progress&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+              <span class="nt">&quot;progress_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;#%percent&quot;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+              <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">124</span><span class="p">,</span>
+              <span class="nt">&quot;parent&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Job 124&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;echo test&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;dir&quot;</span><span class="p">:</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;environment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;WAITING&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;worker&quot;</span><span class="p">:</span> <span class="s2">&quot;worker-1&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;start_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;duration&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+              <span class="nt">&quot;ping_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;run_done&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+              <span class="nt">&quot;retry&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;timeout&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+              <span class="nt">&quot;priority&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+              <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;render&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;total_finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://localhost/image.png&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;progress&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+              <span class="nt">&quot;progress_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;#%percent&quot;</span>
+        <span class="p">}</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Status Codes:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> &#8211; no error</li>
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.5.1">500 Internal Server Error</a> &#8211; error</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="get">
+<dt id="get--api-jobs-(int-id)">
+<code class="descname">GET </code><code class="descname">/api/jobs/</code><span class="sig-paren">(</span><em class="property">int: </em><em>id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-jobs-(int-id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the job (<cite>id</cite>) object.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">GET</span> <span class="nn">/api/jobs/123</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+      <span class="nt">&quot;parent&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Job 123&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;echo test&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;dir&quot;</span><span class="p">:</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;environment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;WAITING&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;worker&quot;</span><span class="p">:</span> <span class="s2">&quot;worker-1&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;start_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+      <span class="nt">&quot;duration&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+      <span class="nt">&quot;ping_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+      <span class="nt">&quot;run_done&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+      <span class="nt">&quot;retry&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+      <span class="nt">&quot;timeout&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+      <span class="nt">&quot;priority&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+      <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;render&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="nt">&quot;errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="nt">&quot;working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="nt">&quot;total&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+      <span class="nt">&quot;total_finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="nt">&quot;total_errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="nt">&quot;total_working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://localhost/image.png&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;progress&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+      <span class="nt">&quot;progress_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;#%percent&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Status Codes:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> &#8211; no error</li>
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.5.1">500 Internal Server Error</a> &#8211; error</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="put">
+<dt id="put--api-jobs">
+<code class="descname">PUT </code><code class="descname">/api/jobs</code><a class="headerlink" href="#put--api-jobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a job. Returns the new job id.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">PUT</span> <span class="nn">/api/jobs</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">{</span>
+      <span class="nt">&quot;parent&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Job 1&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;echo test&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;dir&quot;</span><span class="p">:</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;environment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;WAITING&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;retry&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+      <span class="nt">&quot;timeout&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+      <span class="nt">&quot;priority&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+      <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;render&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://localhost/image.png&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;progress_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;#%percent&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">123</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Status Codes:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> &#8211; no error</li>
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.5.1">500 Internal Server Error</a> &#8211; error</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-jobs">
+<code class="descname">POST </code><code class="descname">/api/jobs</code><a class="headerlink" href="#post--api-jobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Modify the jobs properties.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre>POST /api/jobs HTTP/1.1
+Host: localhost
+
+{
+      123:
+      {
+              &quot;title&quot;: &quot;Job renamed 123&quot;,
+              &quot;command&quot;: &quot;echo renamed&quot;,
+      },
+      124:
+      {
+              &quot;title&quot;: &quot;Job renamed 124&quot;,
+              &quot;command&quot;: &quot;echo renamed&quot;,
+      }
+}
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Status Codes:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> &#8211; no error</li>
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.5.1">500 Internal Server Error</a> &#8211; error</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="get">
+<dt id="get--api-jobs-(int-id)-children">
+<code class="descname">GET </code><code class="descname">/api/jobs/</code><span class="sig-paren">(</span><em class="property">int: </em><em>id</em><span class="sig-paren">)</span><code class="descname">/children</code><a class="headerlink" href="#get--api-jobs-(int-id)-children" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the job (<cite>id</cite>) children objects.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">GET</span> <span class="nn">/api/jobs/123/children</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">[</span>
+      <span class="p">{</span>
+              <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">124</span><span class="p">,</span>
+              <span class="nt">&quot;parent&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+              <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Job 124&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;echo test&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;dir&quot;</span><span class="p">:</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;environment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;WAITING&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;worker&quot;</span><span class="p">:</span> <span class="s2">&quot;worker-1&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;start_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;duration&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+              <span class="nt">&quot;ping_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;run_done&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+              <span class="nt">&quot;retry&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;timeout&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+              <span class="nt">&quot;priority&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+              <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;render&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;total_finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://localhost/image.png&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;progress&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+              <span class="nt">&quot;progress_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;#%percent&quot;</span>
+      <span class="p">},</span>
+      <span class="p">{</span>
+              <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">125</span><span class="p">,</span>
+              <span class="nt">&quot;parent&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+              <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Job 125&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;echo test&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;dir&quot;</span><span class="p">:</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;environment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;WAITING&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;worker&quot;</span><span class="p">:</span> <span class="s2">&quot;worker-1&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;start_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;duration&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+              <span class="nt">&quot;ping_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;run_done&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+              <span class="nt">&quot;retry&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;timeout&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+              <span class="nt">&quot;priority&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+              <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;render&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;total_finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://localhost/image.png&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;progress&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+              <span class="nt">&quot;progress_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;#%percent&quot;</span>
+      <span class="p">},</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="get">
+<dt id="get--api-jobs-(int-id)-dependencies">
+<code class="descname">GET </code><code class="descname">/api/jobs/</code><span class="sig-paren">(</span><em class="property">int: </em><em>id</em><span class="sig-paren">)</span><code class="descname">/dependencies</code><a class="headerlink" href="#get--api-jobs-(int-id)-dependencies" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the job objects on which the job (<cite>id</cite>) depends.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">GET</span> <span class="nn">/api/jobs/123/dependencies</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">[</span>
+      <span class="p">{</span>
+              <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">124</span><span class="p">,</span>
+              <span class="nt">&quot;parent&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Job 124&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;echo test&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;dir&quot;</span><span class="p">:</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;environment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;WAITING&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;worker&quot;</span><span class="p">:</span> <span class="s2">&quot;worker-1&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;start_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;duration&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+              <span class="nt">&quot;ping_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;run_done&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+              <span class="nt">&quot;retry&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;timeout&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+              <span class="nt">&quot;priority&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+              <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;render&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;total_finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://localhost/image.png&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;progress&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+              <span class="nt">&quot;progress_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;#%percent&quot;</span>
+      <span class="p">},</span>
+      <span class="p">{</span>
+              <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">125</span><span class="p">,</span>
+              <span class="nt">&quot;parent&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Job 125&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;echo test&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;dir&quot;</span><span class="p">:</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;environment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;WAITING&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;worker&quot;</span><span class="p">:</span> <span class="s2">&quot;worker-1&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;start_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;duration&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+              <span class="nt">&quot;ping_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+              <span class="nt">&quot;run_done&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+              <span class="nt">&quot;retry&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;timeout&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+              <span class="nt">&quot;priority&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+              <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;render&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="nt">&quot;total_finished&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_errors&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;total_working&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+              <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://localhost/image.png&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;progress&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+              <span class="nt">&quot;progress_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;#%percent&quot;</span>
+      <span class="p">},</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-jobs-(int-id)-dependencies">
+<code class="descname">POST </code><code class="descname">/api/jobs/</code><span class="sig-paren">(</span><em class="property">int: </em><em>id</em><span class="sig-paren">)</span><code class="descname">/dependencies</code><a class="headerlink" href="#post--api-jobs-(int-id)-dependencies" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the job (<cite>id</cite>) dependencies.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">POST</span> <span class="nn">/api/jobs/123/dependencies</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">[</span><span class="mi">124</span><span class="p">,</span><span class="mi">125</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="get">
+<dt id="get--api-jobs-(int-id)-log">
+<code class="descname">GET </code><code class="descname">/api/jobs/</code><span class="sig-paren">(</span><em class="property">int: </em><em>id</em><span class="sig-paren">)</span><code class="descname">/log</code><a class="headerlink" href="#get--api-jobs-(int-id)-log" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the job (<cite>id</cite>) log file.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">GET</span> <span class="nn">/api/jobs/123/log</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="s2">&quot;Job 123 done&quot;</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Status Codes:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> &#8211; no error</li>
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.5.1">500 Internal Server Error</a> &#8211; error</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-clearjobs">
+<code class="descname">POST </code><code class="descname">/api/clearjobs</code><a class="headerlink" href="#post--api-clearjobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear the jobs.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">POST</span> <span class="nn">/api/clearjobs</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">[</span><span class="mi">123</span><span class="p">,</span><span class="mi">124</span><span class="p">,</span><span class="mi">125</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-resetjobs">
+<code class="descname">POST </code><code class="descname">/api/resetjobs</code><a class="headerlink" href="#post--api-resetjobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reset the jobs. The job status is set to &#8216;WAITING&#8217;, all the job counters are set to 0.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">POST</span> <span class="nn">/api/resetjobs</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">[</span><span class="mi">123</span><span class="p">,</span><span class="mi">124</span><span class="p">,</span><span class="mi">125</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-startjobs">
+<code class="descname">POST </code><code class="descname">/api/startjobs</code><a class="headerlink" href="#post--api-startjobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start the jobs. The job status is set to &#8216;WAITING&#8217;.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">POST</span> <span class="nn">/api/startjobs</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">[</span><span class="mi">123</span><span class="p">,</span><span class="mi">124</span><span class="p">,</span><span class="mi">125</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-pausejobs">
+<code class="descname">POST </code><code class="descname">/api/pausejobs</code><a class="headerlink" href="#post--api-pausejobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pause the jobs. The job status is set to &#8216;PAUSED&#8217;.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">POST</span> <span class="nn">/api/pausejobs</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">[</span><span class="mi">123</span><span class="p">,</span><span class="mi">124</span><span class="p">,</span><span class="mi">125</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="workers">
+<h2>Workers<a class="headerlink" href="#workers" title="Permalink to this headline">¶</a></h2>
+<dl class="get">
+<dt id="get--api-workers">
+<code class="descname">GET </code><code class="descname">/api/workers</code><a class="headerlink" href="#get--api-workers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the workers.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">GET</span> <span class="nn">/api/workers</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;worker-1&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;ip&quot;</span><span class="p">:</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX,WINDOWS&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;WAITING&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;ping_time&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+      <span class="nt">&quot;finished&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+      <span class="nt">&quot;error&quot;</span><span class="p">:</span> <span class="mi">21</span><span class="p">,</span>
+      <span class="nt">&quot;last_job&quot;</span><span class="p">:</span> <span class="mi">1234</span><span class="p">,</span>
+      <span class="nt">&quot;current_event&quot;</span><span class="p">:</span> <span class="mi">1234</span><span class="p">,</span>
+      <span class="nt">&quot;cpu&quot;</span><span class="p">:</span> <span class="s2">&quot;[0,0,0,0]&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;free_memory&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+      <span class="nt">&quot;total_memory&quot;</span><span class="p">:</span> <span class="mi">1000000</span><span class="p">,</span>
+      <span class="nt">&quot;active&quot;</span><span class="p">:</span> <span class="mi">1</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Status Codes:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> &#8211; no error</li>
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.5.1">500 Internal Server Error</a> &#8211; error</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-workers">
+<code class="descname">POST </code><code class="descname">/api/workers</code><a class="headerlink" href="#post--api-workers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Modify the workers properties.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">POST</span> <span class="nn">/api/workers</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">{</span>
+      <span class="nt">&quot;worker-1&quot;</span><span class="p">:</span>
+      <span class="p">{</span>
+              <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;active&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="p">},</span>
+      <span class="nt">&quot;worker-2&quot;</span><span class="p">:</span>
+      <span class="p">{</span>
+              <span class="nt">&quot;affinity&quot;</span><span class="p">:</span> <span class="s2">&quot;LINUX&quot;</span><span class="p">,</span>
+              <span class="nt">&quot;active&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+      <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Status Codes:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> &#8211; no error</li>
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.5.1">500 Internal Server Error</a> &#8211; error</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-clearworkers">
+<code class="descname">POST </code><code class="descname">/api/clearworkers</code><a class="headerlink" href="#post--api-clearworkers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear the workers.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">POST</span> <span class="nn">/api/clearworkers</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">[</span><span class="s2">&quot;worker-1&quot;</span><span class="p">,</span><span class="s2">&quot;worker-2&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-stopworkers">
+<code class="descname">POST </code><code class="descname">/api/stopworkers</code><a class="headerlink" href="#post--api-stopworkers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop the workers.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">POST</span> <span class="nn">/api/stopworkers</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">[</span><span class="s2">&quot;worker-1&quot;</span><span class="p">,</span><span class="s2">&quot;worker-2&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="post">
+<dt id="post--api-startworkers">
+<code class="descname">POST </code><code class="descname">/api/startworkers</code><a class="headerlink" href="#post--api-startworkers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start the workers.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">POST</span> <span class="nn">/api/startworkers</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+
+<span class="p">[</span><span class="s2">&quot;worker-1&quot;</span><span class="p">,</span><span class="s2">&quot;worker-2&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="mi">1</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="events">
+<h2>Events<a class="headerlink" href="#events" title="Permalink to this headline">¶</a></h2>
+<dl class="get">
+<dt id="get--api-events">
+<code class="descname">GET </code><code class="descname">/api/events</code><a class="headerlink" href="#get--api-events" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns some events.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>job</strong> &#8211; returns the events for this job.</li>
+<li><strong>worker</strong> &#8211; returns the events for this worker.</li>
+<li><strong>howlong</strong> &#8211; returns all the events in the last <cite>howlong</cite> seconds.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="nf">GET</span> <span class="nn">/api/events?job=123&amp;worker=worker-1&amp;howlong=60</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="o">:</span> <span class="l">localhost</span>
+</pre></div>
+</div>
+<p><strong>Example response</strong>:</p>
+<div class="highlight-http"><div class="highlight"><pre><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+      <span class="nt">&quot;worker&quot;</span><span class="p">:</span> <span class="s2">&quot;worker-1&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;job_id&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+      <span class="nt">&quot;job_title&quot;</span><span class="p">:</span> <span class="s2">&quot;Job 123&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;state&quot;</span><span class="p">:</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;start&quot;</span><span class="p">:</span> <span class="mi">123456</span><span class="p">,</span>
+      <span class="nt">&quot;duration&quot;</span><span class="p">:</span> <span class="mi">10</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Status Codes:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> &#8211; no error</li>
+<li><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.5.1">500 Internal Server Error</a> &#8211; error</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="python_api.html" class="btn btn-neutral" title="Python API" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Mercenaries Engineering SARL.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'4.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
