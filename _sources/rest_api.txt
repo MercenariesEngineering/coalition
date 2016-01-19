@@ -424,15 +424,15 @@ Jobs
    :statuscode 500: error
 
 
-.. http:post:: /api/clearjobs
+.. http:delete:: /api/jobs
 
-   Clear the jobs.
+   Delete the jobs.
 
    **Example request**:
 
    .. sourcecode:: http
 
-	  POST /api/clearjobs HTTP/1.1
+	  DELETE /api/jobs HTTP/1.1
 	  Host: localhost
 
 	  [123,124,125]
@@ -594,15 +594,15 @@ Workers
    :statuscode 500: error
 
 
-.. http:post:: /api/clearworkers
+.. http:delete:: /api/workers
 
-   Clear the workers.
+   Delete the workers.
 
    **Example request**:
 
    .. sourcecode:: http
 
-	  POST /api/clearworkers HTTP/1.1
+	  DELETE /api/workers HTTP/1.1
 	  Host: localhost
 
 	  ["worker-1","worker-2"]
