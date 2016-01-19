@@ -81,8 +81,8 @@ class Worker(object):
 		self.last_job=last_job
 		self.current_event=current_event
 		self.cpu=cpu
-		self.free_memory=free_memory
-		self.total_memory=total_memory
+		self.free_memory=free_memory		# in Mo
+		self.total_memory=total_memory		# in Mo
 		self.active=active
 
 		# Can't write anymore

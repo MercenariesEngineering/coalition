@@ -144,7 +144,7 @@ if not verbose or service:
 	sys.stderr = outfile
 
 # Log for debugging
-def debugOutput (str):
+def vprint (str):
 	if verbose:
 		print (str)
 		sys.stdout.flush()
@@ -155,7 +155,7 @@ def debugRaw (str):
 		print (str)
 		sys.stdout.flush()
 
-debugOutput ("--- Start ------------------------------------------------------------")
+vprint ("--- Start ------------------------------------------------------------")
 
 # If 'cpus' option set, compute the number of workers out of the total number of cpus
 if cpus != None:
@@ -169,7 +169,7 @@ if cpus != None:
 	else:
 		pass
 
-debugOutput ("Running with " + str (workers) + " workers.")
+vprint ("Running with " + str (workers) + " workers.")
 
 # Safe method to run a command on the server, if retry is true, the function won't return until the message is passed
 def workerRun (worker, func, retry):
@@ -187,9 +187,9 @@ def workerRun (worker, func, retry):
 		if serverConn != None:
 			serverConn.close ()
 		if not retry:
-			debugOutput ("Server down, continue...")
+			vprint ("Server down, continue...")
 			break
-		debugOutput ("No server")
+		vprint ("No server")
 		if gogogo:
 			time.sleep (sleepTime)
 
@@ -204,12 +204,12 @@ class Worker:
 		self.LogLock = thread.allocate_lock()	# Logs lock
 		self.Log = ""							# Logs
 		self.HostCPU = host_cpu.HostCPU ()
-		self.TotalMemory = host_mem.getTotalMem ()
+		self.total_memory = host_mem.getTotalMem ()
 
 
 	# LoadAvg
 	def workerGetLoadAvg (self):
-		self.HostCPU
+		usage = self.HostCPU.getUsage ()
 		return self.HostCPU.getUsage ()
 
 	def workerEvalEnv (self, _str, _env):
@@ -239,7 +239,7 @@ class Worker:
 		self.LogLock.acquire()
 		try:
 			self.Log = self.Log + "* " + str + "\n";
-			debugOutput (str)
+			vprint (str)
 		finally:
 			self.LogLock.release()
 
@@ -311,13 +311,13 @@ class Worker:
 	### To kill the current worker job
 	def killJob (self):
 		if self.PId != 0:
-			debugOutput ("kill " + str (self.PId))
+			vprint ("kill " + str (self.PId))
 			try:
 				self.killr (self.PId)
 				self.PId = 0
 			except OSError as exc:
-				debugOutput ("kill failed")
-				debugOutput (exc)
+				vprint ("kill failed")
+				vprint (exc)
 				pass
 
 	### To kill all child process
@@ -330,10 +330,10 @@ class Worker:
 					line = f.readline()
 					words =  string.split(line)
 					if words[3] == str (pid):
-						debugOutput ("Found in " + name)
+						vprint ("Found in " + name)
 						self.killr (int (name))
 				except IOError as exc:
-					#debugOutput (exc)
+					#vprint (exc)
 					pass
 		try:
 			if sys.platform == "win32":
@@ -341,21 +341,21 @@ class Worker:
 			elif runcommand != '':
 				killcmd = "kill -9 "+ str (pid)
 				cmd = string.replace(string.replace(string.replace(runcommand, '__user__', self.User), '__dir__', '.'), '__cmd__', killcmd)
-				debugOutput ("Kill process with runcommand : "+cmd)
+				vprint ("Kill process with runcommand : "+cmd)
 				subprocess.Popen (cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			else:
-				debugOutput ("Kill process with os.kill")
+				vprint ("Kill process with os.kill")
 				os.kill (pid, signal.SIGKILL)
 		except OSError as exc:
-			debugOutput ("Can't kill the process %i"%pid)
-			debugOutput (exc)
+			vprint ("Can't kill the process %i"%pid)
+			vprint (exc)
 		except:
-			debugOutput ("Can't kill the process %i"%pid)
-			debugOutput (sys.exc_info ()[0])
+			vprint ("Can't kill the process %i"%pid)
+			vprint (sys.exc_info ()[0])
 
 	# Flush the logs to the server
 	def heartbeat (self, jobId, retry):
-		debugOutput ("Flush logs (" + str (len (self.Log)) + " bytes)")
+		vprint ("Flush logs (" + str (len (self.Log)) + " bytes)")
 		def func (serverConn):
 			result = True
 
@@ -366,8 +366,8 @@ class Worker:
 					'jobId':jobId, 
 					'log':base64.b64encode (self.Log), 
 					'load':self.workerGetLoadAvg (), 
-					'freeMemory':int(host_mem.getAvailableMem()/1024/1024), 
-					'totalMemory':int(self.TotalMemory/1024/1024)
+					'free_memory':int(host_mem.getAvailableMem()/1024/1024), 
+					'total_memory':int(self.total_memory/1024/1024)
 				})
 				serverConn.request ("POST", "/workers/heartbeat", params, Headers)
 				response = serverConn.getresponse()
@@ -377,7 +377,7 @@ class Worker:
 				self.LogLock.release()
 
 			if result == "false":
-				debugOutput ("Server ask to stop the job " + str (jobId))
+				vprint ("Server ask to stop the job " + str (jobId))
 				# Send the kill signal to the process
 				self.killJob ()
 		workerRun (self, func, retry)
@@ -385,14 +385,14 @@ class Worker:
 	# Worker main loop
 	def mainLoop (self):
 		global sleepTime
-		debugOutput ("Ask for a job")
+		vprint ("Ask for a job")
 		# Function to ask a job to the server
 		def startFunc (serverConn):
 			params = urllib.urlencode ({
 				'hostname':self.Name, 
 				'load':self.workerGetLoadAvg (), 
-				'freeMemory':int(host_mem.getAvailableMem()/1024/1024), 
-				'totalMemory':int(self.TotalMemory/1024/1024)
+				'free_memory':int(host_mem.getAvailableMem()/1024/1024), 
+				'total_memory':int(self.total_memory/1024/1024)
 			})
 			serverConn.request ("POST", "/workers/pickjob", params, Headers)
 			response = serverConn.getresponse()
@@ -427,8 +427,8 @@ class Worker:
 			_cmd = self.workerEvalEnv (cmd, _env)
 			_dir = self.workerEvalEnv (dir, _env)
 
-			debugOutput ("Start job " + str (jobId) + " in " + _dir + " : " + _cmd)
-			debugOutput ("Job environment is " + str (_env))
+			vprint ("Start job " + str (jobId) + " in " + _dir + " : " + _cmd)
+			vprint ("Job environment is " + str (_env))
 
 			# Reset the globals
 			self.Working = True
@@ -449,7 +449,7 @@ class Worker:
 			# Flush for real for the last time
 			self.heartbeat (jobId, True)
 
-			debugOutput ("Finished job " + str (jobId) + " (code " + str (self.ErrorCode) + ") : " + _cmd)
+			vprint ("Finished job " + str (jobId) + " (code " + str (self.ErrorCode) + ") : " + _cmd)
 
 			# Function to end the job
 			def endFunc (serverConn):
@@ -490,13 +490,13 @@ def main ():
 		s.settimeout (1)
 		while (gogogo):
 			try:
-				debugOutput ("Broadcast port " + str (broadcastPort))
+				vprint ("Broadcast port " + str (broadcastPort))
 				s.sendto ("coalition", ('255.255.255.255', broadcastPort))
 				data, addr = s.recvfrom (1024)
 				if data == "roxor":
 					serverUrl = "http://" + addr[0] + ":" + str (broadcastPort)
 					print ("Server found at " + serverUrl)
-					debugOutput ("Found : " + serverUrl)
+					vprint ("Found : " + serverUrl)
 					found = True
 					break
 			except timeout:
@@ -520,7 +520,7 @@ def main ():
 					print ("Fatal error, retry...")
 					if gogogo:
 						time.sleep (sleepTime)
-		debugOutput ("WORKER " + worker.Name + " is kindly asked to quit.")
+		vprint ("WORKER " + worker.Name + " is kindly asked to quit.")
 		# kill any job in process
 		worker.killJob ()
 
