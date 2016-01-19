@@ -980,6 +980,9 @@ class Master (xmlrpc.XMLRPC):
 							if m:
 								return self.getLog (int(m.group (1)))
 
+							if request.path == "/api/jobs":
+								return self.getJobChildren (0)
+
 							if request.path == "/api/workers":
 								return self.getWorkers ()
 
