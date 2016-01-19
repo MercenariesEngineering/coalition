@@ -28,7 +28,7 @@ class DBSQL(DB):
 			return Job (self, cur.lastrowid, parent, title, command, dir, environment, state, worker, starttime, duration, pingtime, _try, retry, timeout, 
 				priority, affinity, user, finished, errors, working, total, total_finished, total_errors, totalworking, url, progress, progress_pattern)
 
-	def removeJob (self, id):
+	def deleteJob (self, id):
 		with self.Conn:
 			cur = self.Conn.cursor()
 			self._execute(cur, "DELETE FROM Jobs WHERE id=%d" % id);
@@ -102,6 +102,11 @@ class DBSQL(DB):
 			rows = cur.fetchone()
 			if rows:
 				return Worker (self, *rows)
+
+	def deleteWorker (self, name):
+		with self.Conn:
+			cur = self.Conn.cursor()
+			self._execute(cur, "DELETE FROM Workers WHERE name=%s" % convdata(name));
 
 	def newEvent (self, worker, job, jobTitle, state, start, duration):
 		with self.Conn:

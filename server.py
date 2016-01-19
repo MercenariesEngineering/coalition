@@ -384,19 +384,19 @@ class CState:
 			print ("Can't add job to parent " + str (parent) + " type", type (parent))
 
 	# Remove a job
-	def removeJob (self, id, updateParentState = True):
+	def deleteJob (self, id, updateParentState = True):
 		if id != 0:
 			try:
 				job = db.getJob (id)
 				# remove children first
 				children = db.getJobChildren (job.id)
 				for child in children:
-					self.removeJob (child.id)
+					self.deleteJob (child.id)
 				# remove self from parent
 				parentId = job.parent
 				# and unmap
 				try:
-					db.removeJob (id)
+					db.deleteJob (id)
 				except KeyError:
 					pass
 				try:
@@ -418,7 +418,7 @@ class CState:
 		job = db.getJob (id)
 		children = db.getJobChildren (job.id)
 		for child in children:
-			self.removeJob (child.id, False)
+			self.deleteJob (child.id, False)
 		self._updateParentState (id)
 
 	# Change job affinity
@@ -1003,9 +1003,6 @@ class Master (xmlrpc.XMLRPC):
 								db.setJobDependencies (int(m.group (1)), data)
 								return 1
 
-							if request.path == "/api/clearjobs":
-								return self.clearJobs (data)
-
 							if request.path == "/api/resetjobs":
 								return self.resetJobs (data)
 
@@ -1018,14 +1015,20 @@ class Master (xmlrpc.XMLRPC):
 							if request.path == "/api/pausejobs":
 								return self.pauseJobs (data)
 
-							if request.path == "/api/clearworkers":
-								return self.clearWorkers (data)
-
 							if request.path == "/api/stopworkers":
 								return self.stopWorkers (data)
 
 							if request.path == "/api/startworkers":
 								return self.startWorkers (data)
+
+						elif request.method == "DELETE":
+
+							if request.path == "/api/jobs":
+								return self.deleteJobs (data)
+
+							if request.path == "/api/workers":
+								return self.deleteWorkers (data)
+
 
 					result = api_rest ()
 					if result != None:
@@ -1065,10 +1068,10 @@ class Master (xmlrpc.XMLRPC):
 			r.append (d)
 		return r
 
-	def clearJobs (self, ids):
+	def deleteJobs (self, ids):
 		global State
 		for jobId in ids:
-			State.removeJob (int(jobId))
+			State.deleteJob (int(jobId))
 		State.update ()
 		return "1"
 
@@ -1128,10 +1131,10 @@ class Master (xmlrpc.XMLRPC):
 			r.append (d)
 		return r
 
-	def clearWorkers (self, names):
+	def deleteWorkers (self, names):
 		global State
 		for name in names:
-			DBClearWorkers ()
+			db.deleteWorker (name)
 		State.update ()
 		return "1"
 

@@ -158,21 +158,21 @@ function renderLog (jobId)
 
 function getSelectedWorkers ()
 {
-    var workers = [];
+    var data = [];
 	for (j=workers.length-1; j >= 0; j--)
 	{
 		var name = workers[j].name;
 		if (selectedWorkers[name])
-		    workers.push (name);
+		    data.push (name);
 	}
-	return workers;
+	return data;
 }
 
 function clearWorkers ()
 {
-	if (confirm("Do you really want to clear all the workers?"))
+	if (confirm("Do you really want the selected workers?"))
 	{
-        $.ajax({ type: "POST", url: "/api/clearworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
+        $.ajax({ type: "DELETE", url: "/api/workers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
             function () 
             {
     	        selectedWorkers = {}
@@ -1032,7 +1032,8 @@ function updatejobs ()
 function addjob ()
 {
 	dependencies = $.trim($('#dependencies').attr("value"));
-	dependencies = dependencies.split(',') != "" ? dependencies : []
+	dependencies = dependencies.split(',')
+	dependencies = dependencies != "" ? dependencies : []
     var data = {
         title:$('#title').attr("value"),
         command:$('#cmd').attr("value"),
@@ -1224,7 +1225,7 @@ function removeSelection ()
 			if (selectedJobs[job.id])
 			    data.push (job.id);
 		}
-        $.ajax({ type: "POST", url: "/api/clearjobs", data: JSON.stringify(data), dataType: "json", success: 
+        $.ajax({ type: "DELETE", url: "/api/jobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
             {
         		selectedJobs = {};
