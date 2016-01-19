@@ -13,9 +13,9 @@ class DBMySQL(DBSQL):
 			cur.execute('DROP TABLE Workers')
 			cur.execute('DROP TABLE Dependencies')
 			'''
-			cur.execute('CREATE TABLE IF NOT EXISTS Jobs(ID INTEGER PRIMARY KEY AUTO_INCREMENT, Parent INT, Title TEXT, Command TEXT, Dir TEXT, Environment TEXT, State TEXT, '
-				'Worker TEXT, StartTime INT, Duration INT, PingTime INT, Try INT, Retry INT, TimeOut INT, Priority INT, Affinity TEXT, User TEXT, Finished INT, Errors INT, '
-				'Working INT, Total INT, TotalFinished INT, TotalErrors INT, TotalWorking INT, URL TEXT, LocalProgress TEXT, GlobalProgress TEXT)')
+			cur.execute('CREATE TABLE IF NOT EXISTS Jobs(id INTEGER PRIMARY KEY AUTO_INCREMENT, parent INT, title TEXT, command TEXT, dir TEXT, environment TEXT, state TEXT, '
+				'worker TEXT, start_time INT, duration INT, ping_time INT, run_done INT, retry INT, timeout INT, priority INT, affinity TEXT, user TEXT, finished INT, errors INT, '
+				'working INT, total INT, total_finished INT, total_errors INT, total_working INT, url TEXT, progress FLOAT, progress_pattern TEXT)')
 
 			def createKeySafe (table, column, opt=""):
 				cur.execute('SHOW INDEX FROM %s WHERE Column_name="%s"' % (table, column))
@@ -23,17 +23,17 @@ class DBMySQL(DBSQL):
 				if not data:
 					cur.execute('CREATE %s INDEX %s_index ON %s(%s)' % (opt, column, table, column))
 
-			createKeySafe ('Jobs', 'Parent')
+			createKeySafe ('Jobs', 'parent')
 
-			cur.execute('CREATE TABLE IF NOT EXISTS Dependencies(JobId Int, Dependency INT)')
+			cur.execute('CREATE TABLE IF NOT EXISTS Dependencies(job_id Int, dependency INT)')
 			
-			createKeySafe ('Dependencies', 'JobId')
-			createKeySafe ('Dependencies', 'Dependency')
+			createKeySafe ('Dependencies', 'job_id')
+			createKeySafe ('Dependencies', 'dependency')
 
-			cur.execute('CREATE TABLE IF NOT EXISTS Workers(Name VARCHAR(255), IP TEXT, Affinity TEXT, State TEXT, PingTime INT, Finished INT, Error INT, LastJob INT, CurrentActivity INT, CPU TEXT, FreeMemory INT, TotalMemory int, Active BOOLEAN)')
-			createKeySafe ('Workers', 'Name', 'UNIQUE')
+			cur.execute('CREATE TABLE IF NOT EXISTS Workers(name VARCHAR(255), ip TEXT, affinity TEXT, state TEXT, ping_time INT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN)')
+			createKeySafe ('Workers', 'name', 'UNIQUE')
 
-			cur.execute('CREATE TABLE IF NOT EXISTS Events(ID INTEGER PRIMARY KEY AUTO_INCREMENT, Worker VARCHAR(255), JobID INT, JobTitle TEXT, State TEXT, Start INT, Duration INT)')
-			createKeySafe ('Events', 'Worker')
-			createKeySafe ('Events', 'JobID')
-			createKeySafe ('Events', 'Start')
+			cur.execute('CREATE TABLE IF NOT EXISTS Events(id INTEGER PRIMARY KEY AUTO_INCREMENT, worker VARCHAR(255), job_id INT, job_title TEXT, state TEXT, start INT, duration INT)')
+			createKeySafe ('Events', 'worker')
+			createKeySafe ('Events', 'job_id')
+			createKeySafe ('Events', 'start')

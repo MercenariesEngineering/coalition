@@ -5,7 +5,7 @@ class CoalitionError(Exception):
 
 class Job(object):
 	''' A job object returned by the :class:`Connection`. Don't create such objects yourself.
-	Job properties should be modified into a Connection block. Don't modify the ID or the State properties directly.
+	Job properties should be modified into a Connection block. Don't modify the id or the state properties directly.
 	'''
 
 	def __init__ (self, d, conn):
@@ -13,40 +13,42 @@ class Job(object):
 		self.Conn = False
 		self.__dict__.update (d)
 		self.Conn = conn
-		""":var int ID: the job ID
-		:var int Parent: the parent job id
-		:var str Title: the job title
-		:var str Command: the job command to execute
-		:var str Dir: the job working directory
-		:var str Environment: the job environment
-		:var str State: the job state. It can be "WAITING", "WORKING", "PAUSED", "FINISHED" or "ERROR"
-		:var str Worker: the last worker name who took the job
-		:var int StartTime: the job start time (in seconds after epoch)
-		:var int Duration: the job duration (in seconds)
-		:var int PingTime: the last time a worker ping on this job (in seconds after epoch)
-		:var int Try: number of run done on this job
-		:var int Retry: the job run count. If the job fails, the server will retry to run it this number of time.
-		:var int TimeOut: maximum duration a job run can take in seconds. If timeout=0, no limit on the job run.
-		:var int Priority: the job priority. For a given job hierarchy level, the job with the biggest priority is taken first.
-		:var str Affinity: the job affinity string. Affinities are coma separated keywords. To run a job, the worker affinities must match all the job affinities.
-		:var str User: the job user name.
-		:var int Finished: number of finished children jobs. For parent node only. 
-		:var int Errors: number of faulty children jobs. For parent node only. 
-		:var int Working: number of working children jobs. For parent node only. 
-		:var int Total: number of total (grand)children jobs. For parent node only. 
-		:var int TotalFinished: number of finished (grand)children jobs. For parent node only. 
-		:var int TotalErrors: number of faulty (grand)children jobs. For parent node only. 
-		:var int TotalWorking: number of working (grand)children jobs. For parent node only. 
-		:var str URL: an URL to the job result. If available, a link to this URL will be shown in the interface.
+		""":var int id: the job id
+		:var int parent: the parent job id
+		:var str title: the job title
+		:var str command: the job command to execute
+		:var str dir: the job working directory
+		:var str environment: the job environment
+		:var str state: the job state. It can be "WAITING", "WORKING", "PAUSED", "FINISHED" or "ERROR"
+		:var str worker: the last worker name who took the job
+		:var int start_time: the job start time (in seconds after epoch)
+		:var int duration: the job duration (in seconds)
+		:var int ping_time: the last time a worker ping on this job (in seconds after epoch)
+		:var int run_done: number of run done on this job
+		:var int retry: the job run count. If the job fails, the server will retry to run it this number of time.
+		:var int timeout: maximum duration a job run can take in seconds. If timeout=0, no limit on the job run.
+		:var int priority: the job priority. For a given job hierarchy level, the job with the biggest priority is taken first.
+		:var str affinity: the job affinity string. Affinities are coma separated keywords. To run a job, the worker affinities must match all the job affinities.
+		:var str user: the job user name.
+		:var int finished: number of finished children jobs. For parent node only. 
+		:var int errors: number of faulty children jobs. For parent node only. 
+		:var int working: number of working children jobs. For parent node only. 
+		:var int total: number of total (grand)children jobs. For parent node only. 
+		:var int total_finished: number of finished (grand)children jobs. For parent node only. 
+		:var int total_errors: number of faulty (grand)children jobs. For parent node only. 
+		:var int total_working: number of working (grand)children jobs. For parent node only. 
+		:var str url: an URL to the job result. If available, a link to this URL will be shown in the interface.
+		:var float progress: the job progression between 0 and 1.
+		:var str progress_pattern: a regexp pattern which filters the logs and return the progression. The pattern must include a '%percent' or a '%one' keyword.
 		"""
 
 	def __setattr__(self, attr, value):
 		if attr != "Conn" and self.Conn:
 			if self.Conn.IntoWith:
-				w = self.Conn.Jobs.get(self.ID)
+				w = self.Conn.Jobs.get(self.id)
 				if not w:
 					w = {}
-					self.Conn.Jobs[self.ID] = w
+					self.Conn.Jobs[self.id] = w
 				w[attr] = value
 			else:
 				raise CoalitionError("Can't write attributes outside a connection block")
@@ -65,21 +67,21 @@ class Connection:
 	>>> job_id = conn.newJob (0, "Test", "echo test")
 	>>> # Inspect the job
 	>>> job = conn.getJob (job_id)
-	>>> print type(job.ID)
+	>>> print type(job.id)
 	<type 'int'>
-	>>> print job.Title
+	>>> print job.title
 	Test
-	>>> print job.Command
+	>>> print job.command
 	echo test
 	>>> # Edit a job, the modification is sent to the server at the end of the block
 	>>> with conn:
-	...		job.Title = "Test2"
-	...		job.Command = "echo test2"
-	>>> print job.Title
+	...		job.title = "Test2"
+	...		job.command = "echo test2"
+	>>> print job.title
 	Test2
 	>>> # Reload the job from the server to check it has been modified
-	>>> job = conn.getJob (job.ID)
-	>>> print job.Title
+	>>> job = conn.getJob (job.id)
+	>>> print job.title
 	Test2
 	>>> # Create a parent node, must NOT have a command
 	>>> parent_id = conn.newJob (0, "Parent")
@@ -87,7 +89,7 @@ class Connection:
 	>>> child_id = conn.newJob (parent_id, "Child", "echo child")
 	>>> # Get the parent children
 	>>> children = conn.getJobChildren (parent_id)
-	>>> for child in children: print child.Title
+	>>> for child in children: print child.title
 	Child
 	'''
 
@@ -106,10 +108,10 @@ class Connection:
 		else:
 			raise CoalitionError (res.read())
 
-	def newJob  (self, parent=0, title="", command = "", dir = "", environment = "", state="WAITING", priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", dependencies = []):
+	def newJob  (self, parent=0, title="", command = "", dir = "", environment = "", state="WAITING", priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", progress_pattern="", dependencies = []):
 		''' Create a job.
 
-		:param parent: the parent job.ID
+		:param parent: the parent job.id
 		:type parent: int
 		
 		:param title: the job title
@@ -141,6 +143,8 @@ class Connection:
 		:param user: the job user name.
 		:type user: str
 		
+		:param str progress_pattern: a regexp pattern which filters the logs and return the progression. The pattern must include a '%percent' or a '%one' keyword.
+
 		:param [int] dependencies: the jobs id on which the new job has dependencies. The job will run when the dependency jobs have been completed without error.
 
 		:rtype: the list of job id (int) on which the job depends
@@ -163,7 +167,7 @@ class Connection:
 	def getJobChildren (self, id):
 		''' Returns a :class:`Job` children objects.
 
-		:param id: the job.ID of the parent :class:`Job`
+		:param id: the job.id of the parent :class:`Job`
 		:rtype: a list of :class:`Job` objects
 
 		'''
@@ -177,7 +181,7 @@ class Connection:
 	def getJobDependencies (self, id):
 		''' Returns the :class:`Job` objects on which a job has a dependency.
 
-		:param id: the job.ID of the :class:`Job` with dependencies
+		:param id: the job.id of the :class:`Job` with dependencies
 		:rtype: the list of :class:`Job` objects on which the job depends
 		'''
 		res = self._send ("GET", '/api/jobs/'+str(id)+'/dependencies')
@@ -191,7 +195,7 @@ class Connection:
 		''' Set the :class:`Job` objects on which a job has a dependency.
 
 		:param id int: the id of the job with dependencies
-		:param ids [int]: the list of job.ID (int) on which the job depends
+		:param ids [int]: the list of job.id (int) on which the job depends
 		'''
 		res = self._send ("POST", '/api/jobs/'+str(id)+'/dependencies', ids)
 		return res

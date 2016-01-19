@@ -17,34 +17,34 @@ class DBSQL(DB):
 			cur.execute (req)
 
 	def newJob (self, parent, title, command, dir, environment, state, worker, starttime, duration, pingtime, _try, retry, timeout, 
-		priority, affinity, user, finished, errors, working, total, totalfinished, totalerrors, totalworking, url, localprogressionpattern, globalprogressionpattern):
+		priority, affinity, user, finished, errors, working, total, total_finished, total_errors, totalworking, url, progress, progress_pattern):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			self._execute(cur, "INSERT INTO Jobs (Parent, Title, Command, Dir, Environment, State, Worker, StartTime, Duration, PingTime, Try, Retry,"
-				"TimeOut, Priority, Affinity, User, Finished, Errors, Working, Total, TotalFinished, TotalErrors, TotalWorking, URL, LocalProgress, GlobalProgress)"
+			self._execute(cur, "INSERT INTO Jobs (parent, title, command, dir, environment, state, worker, start_time, duration, ping_time, run_done, retry,"
+				"timeout, priority, affinity, user, finished, errors, working, total, total_finished, total_errors, total_working, url, progress, progress_pattern)"
 				" VALUES (%d,%s,%s,%s,%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%s,%s,%d,%d,%d,%d,%d,%d,%d,%s,%s,%s)" % (parent, convdata(title), convdata(command), convdata(dir), convdata(environment), convdata(state), convdata(worker), starttime, duration, pingtime, _try, retry, timeout, 
-				priority, convdata(affinity), convdata(user), finished, errors, working, total, totalfinished, totalerrors, totalworking, convdata(url), convdata(localprogressionpattern), convdata(globalprogressionpattern)))
+				priority, convdata(affinity), convdata(user), finished, errors, working, total, total_finished, total_errors, totalworking, convdata(url), convdata(progress), convdata(progress_pattern)))
 			data = cur.fetchone()
 			return Job (self, cur.lastrowid, parent, title, command, dir, environment, state, worker, starttime, duration, pingtime, _try, retry, timeout, 
-				priority, affinity, user, finished, errors, working, total, totalfinished, totalerrors, totalworking, url, localprogressionpattern, globalprogressionpattern)
+				priority, affinity, user, finished, errors, working, total, total_finished, total_errors, totalworking, url, progress, progress_pattern)
 
 	def removeJob (self, id):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			self._execute(cur, "DELETE FROM Jobs WHERE ID=%d" % id);
+			self._execute(cur, "DELETE FROM Jobs WHERE id=%d" % id);
 
 	def getJob (self, id):
 		if id == 0:
 			return self.getRoot ()
 
-		# First try the DB cache
+		# First try the db cache
 		job = self.Jobs.get (id)
 		if job:
 			return job
 
 		with self.Conn:
 			cur = self.Conn.cursor()
-			self._execute(cur, "SELECT * FROM Jobs WHERE ID=%d" % id);
+			self._execute(cur, "SELECT * FROM Jobs WHERE id=%d" % id);
 			row = cur.fetchone()
 			if row:
 				return Job (self, *row)
@@ -52,7 +52,7 @@ class DBSQL(DB):
 	def getJobChildren (self, id):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			self._execute(cur, "SELECT * FROM Jobs WHERE Parent=%d" % id);
+			self._execute(cur, "SELECT * FROM Jobs WHERE parent=%d" % id);
 			rows = cur.fetchall()
 			return [(self.Jobs.get (row[0]) or Job (self, *row)) for row in rows]
 
@@ -60,24 +60,24 @@ class DBSQL(DB):
 	def hasJobChildren (self, id):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			self._execute(cur, "SELECT COUNT(Parent) FROM Jobs WHERE Parent=%d" % id);
+			self._execute(cur, "SELECT COUNT(Parent) FROM Jobs WHERE parent=%d" % id);
 			rows = cur.fetchone()
 			return rows[0] > 0
 
 	def getJobDependencies (self, id):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			self._execute(cur, "SELECT job.* FROM Jobs job INNER JOIN Dependencies dep ON job.ID = dep.Dependency WHERE dep.JobId=%d" % id);
+			self._execute(cur, "SELECT job.* FROM Jobs job INNER JOIN Dependencies dep ON job.id = dep.dependency WHERE dep.job_id=%d" % id);
 			rows = cur.fetchall()
 			return [(self.Jobs.get (row[0]) or Job (self, *row)) for row in rows]
 
 	def setJobDependencies (self, id, dependencies):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			req= "DELETE FROM Dependencies WHERE JobID=%d" % int(id)
+			req= "DELETE FROM Dependencies WHERE job_id=%d" % int(id)
 			self._execute(cur, req)
 			for dep in dependencies:
-				req = "INSERT INTO Dependencies (JobId, Dependency) VALUES ("+str(id)+","+str(dep)+")"
+				req = "INSERT INTO Dependencies (job_id, dependency) VALUES ("+str(id)+","+str(dep)+")"
 				self._execute(cur, req)
 			cur.fetchall()
 
@@ -98,7 +98,7 @@ class DBSQL(DB):
 	def getWorker (self, name):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			self._execute(cur, "SELECT * FROM Workers WHERE Name=%s" % convdata(name));
+			self._execute(cur, "SELECT * FROM Workers WHERE name=%s" % convdata(name));
 			rows = cur.fetchone()
 			if rows:
 				return Worker (self, *rows)
@@ -106,14 +106,14 @@ class DBSQL(DB):
 	def newEvent (self, worker, job, jobTitle, state, start, duration):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			self._execute(cur, "INSERT INTO Events (Worker, JobID, JobTitle, State, Start, Duration) VALUES (%s, %d, %s, %s, %d, %d)" % (convdata(worker), job, convdata(jobTitle), convdata(state), start, duration))
+			self._execute(cur, "INSERT INTO Events (worker, job_id, job_title, state, start, duration) VALUES (%s, %d, %s, %s, %d, %d)" % (convdata(worker), job, convdata(jobTitle), convdata(state), start, duration))
 			data = cur.fetchone()
 			return Event (self, cur.lastrowid, worker, job, jobTitle, state, start, duration)
 
 	def getEvent (self, id):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			self._execute(cur, "SELECT * FROM Events WHERE ID=%d" % id);
+			self._execute(cur, "SELECT * FROM Events WHERE id=%d" % id);
 			rows = cur.fetchone()
 			if rows:
 				return Event (self, *rows)
@@ -121,11 +121,11 @@ class DBSQL(DB):
 	def getEvents (self, job, worker, howlong):
 		with self.Conn:
 			cur = self.Conn.cursor()
-			req = "SELECT * FROM Events WHERE Start>%d" % (int(time.time())-howlong)
+			req = "SELECT * FROM Events WHERE start>%d" % (int(time.time())-howlong)
 			if worker:
-				req += " AND Worker=%s" % convdata(worker)
+				req += " AND worker=%s" % convdata(worker)
 			if job > 0:
-				req += " AND JobID=%d" % job
+				req += " AND job_id=%d" % job
 			self._execute(cur, req);
 			rows = cur.fetchall()
 			return [Event (self, *row) for row in rows]
@@ -136,19 +136,19 @@ class DBSQL(DB):
 			cur = self.Conn.cursor()
 			for id,attr in jobs.iteritems():
 				# Remove dependencies from the list
-				toUpdate = [k+"="+convdata(v) for k,v in attr.iteritems() if k != 'Dependencies']
+				toUpdate = [k+"="+convdata(v) for k,v in attr.iteritems() if k != 'dependencies']
 				if toUpdate:
-					req = "UPDATE Jobs SET " + ",".join(toUpdate) + " WHERE ID=" + str(id) + ""
+					req = "UPDATE Jobs SET " + ",".join(toUpdate) + " WHERE id=" + str(id) + ""
 					self._execute(cur, req)
 					cur.fetchall()
 				# Special case for dependencies
-				if attr.get('Dependencies'):
-					self.setJobDependencies (id, attr['Dependencies'])
+				if attr.get('dependencies'):
+					self.setJobDependencies (id, attr['dependencies'])
 			for name,attr in workers.iteritems():
-				req = "UPDATE Workers SET " + ",".join([k+"="+convdata(v) for k,v in attr.iteritems()]) + " WHERE Name='" + name + "'"
+				req = "UPDATE Workers SET " + ",".join([k+"="+convdata(v) for k,v in attr.iteritems()]) + " WHERE name='" + name + "'"
 				self._execute(cur, req)
 				cur.fetchall()
 			for id,attr in events.iteritems():
-				req = "UPDATE Events SET " + ",".join([k+"="+convdata(v) for k,v in attr.iteritems()]) + " WHERE ID=" + str(id)
+				req = "UPDATE Events SET " + ",".join([k+"="+convdata(v) for k,v in attr.iteritems()]) + " WHERE id=" + str(id)
 				self._execute(cur, req)
 				cur.fetchall()

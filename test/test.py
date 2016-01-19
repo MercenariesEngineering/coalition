@@ -33,53 +33,53 @@ try:
 			childrenID.append (conn.newJob (command="echo 'job%d'" % i, title="job%d" % i, parent=parentID, state='PAUSED'))
 
 		depJob = conn.getJob (depJobID)
-		self.assertEqual(depJob.ID, depJobID)
-		self.assertEqual(depJob.Title, 'jobDependencies')
-		self.assertEqual(depJob.Command, 'echo dependencies')
-		self.assertEqual(depJob.State, "PAUSED")
+		self.assertEqual(depJob.id, depJobID)
+		self.assertEqual(depJob.title, 'jobDependencies')
+		self.assertEqual(depJob.command, 'echo dependencies')
+		self.assertEqual(depJob.state, "PAUSED")
 
 		# Set the dependencies
-		conn.setJobDependencies (depJob.ID, childrenID)
-		depsJobs = conn.getJobDependencies (depJob.ID)
-		depsID = [job.ID for job in depsJobs]
+		conn.setJobDependencies (depJob.id, childrenID)
+		depsJobs = conn.getJobDependencies (depJob.id)
+		depsID = [job.id for job in depsJobs]
 		# Check childrenID and depsID are equal
 		self.assertTrue(any(map(lambda v: v in childrenID, depsID)))
 
 		# Start all the jobs
 		with conn:
-			depJob.State = 'WAITING'
+			depJob.state = 'WAITING'
 			jobs = conn.getJobChildren (parentID)
 			for job in jobs:
-				job.State = 'WAITING'
+				job.state = 'WAITING'
 
 		depJob = conn.getJob (depJobID)
-		self.assertNotEqual(depJob.State, "PAUSED")
+		self.assertNotEqual(depJob.state, "PAUSED")
 
 		jobs = conn.getJobChildren (parentID)
 		for k,job in enumerate(jobs):
-			self.assertEqual(job.ID, childrenID[k])
-			self.assertEqual(job.Title, 'job%d'%k)
-			self.assertEqual(job.Command, "echo 'job%d'"%k)
-			self.assertNotEqual(job.State, 'PAUSED')
+			self.assertEqual(job.id, childrenID[k])
+			self.assertEqual(job.title, 'job%d'%k)
+			self.assertEqual(job.command, "echo 'job%d'"%k)
+			self.assertNotEqual(job.state, 'PAUSED')
 
 		print "Waiting job end.."
 		sys.stdout.flush ()
 	  	while (True):
 			depJob = conn.getJob (depJobID)
-			if depJob.State == "FINISHED":
+			if depJob.state == "FINISHED":
 				
 				# All children must be finished
 				for id in childrenID:
 					job = conn.getJob (id)
-					self.assertEqual(job.State, "FINISHED")
+					self.assertEqual(job.state, "FINISHED")
 
 				# The parent node must by finished without errors
 				parent = conn.getJob (parentID)
-				self.assertEqual (parent.State, "FINISHED")
-				self.assertEqual (parent.Finished, jobCount)
-				self.assertEqual (parent.Working, 0)
-				self.assertEqual (parent.Errors, 0)
-				self.assertEqual (parent.Try, 0)
+				self.assertEqual (parent.state, "FINISHED")
+				self.assertEqual (parent.finished, jobCount)
+				self.assertEqual (parent.working, 0)
+				self.assertEqual (parent.errors, 0)
+				self.assertEqual (parent.run_done, 0)
 
 				return
 			time.sleep (.1)

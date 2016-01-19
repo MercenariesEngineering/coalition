@@ -11,11 +11,11 @@ var selectedActivities = {};
 var workers = [];
 var parents = [];
 var activities = [];
-var jobsSortKey = "ID";
+var jobsSortKey = "id";
 var jobsSortKeyToUpper = true;
-var workersSortKey = "Name";
+var workersSortKey = "name";
 var workersSortKeyToUpper = true;
-var activitiesSortKey = "Start";
+var activitiesSortKey = "start";
 var activitiesSortKeyToUpper = false;
 var selectionStart = 0;
 var showTools = true;
@@ -161,7 +161,7 @@ function getSelectedWorkers ()
     var workers = [];
 	for (j=workers.length-1; j >= 0; j--)
 	{
-		var name = workers[j].Name;
+		var name = workers[j].name;
 		if (selectedWorkers[name])
 		    workers.push (name);
 	}
@@ -319,7 +319,7 @@ function renderParents ()
 	for (i=0; i < parents.length; i++)
 	{
 		var parent = parents[i];
-    	$("#parents").append((i == 0 ? "" : " > ") + ("<a href='javascript:goToJob("+parent.ID+")'>" + parent.Title + "</a>"));
+    	$("#parents").append((i == 0 ? "" : " > ") + ("<a href='javascript:goToJob("+parent.id+")'>" + parent.title + "</a>"));
 	}
 }
 
@@ -328,42 +328,14 @@ function renderJobs ()
 {
 	$("#jobs").empty ();
 	var table = "<table id='jobsTable'>";
-
-    function getJobProgress (job)
-    {
-	    if (job.Total > 0)
-	    {
-            // A bar div
-            lProgress = job.TotalFinished / job.Total;
-            gProgress = job.TotalFinished / job.Total;
-	    }
-	    else
-	    {
-	        gProgress = job.State == "FINISHED"  ? 
-	                        1.0 :
-	                        ( 
-		                            job.GlobalProgress == null ? 
-		                                0.0 : 
-		                                parseFloat(job.GlobalProgress)
-                            );
-	        lProgress = job.State == "FINISHED"  ? 
-	                        1.0 :
-	                        ( 
-		                            job.LocalProgress == null ? 
-		                                gProgress : 
-		                                parseFloat(job.LocalProgress)
-                            );
-        }
-        return lProgress, gProgress;
-    }
     
 	function _sort (a,b)
 	{
 		if (jobsSortKey == "Progress")
 		{
-		    var lProgressA, gProgressA = getJobProgress (a);
-		    var lProgressB, gProgressB = getJobProgress (b);
-		    return compareNumbers (gProgressA, gProgressB, jobsSortKeyToUpper);
+		    var progressA = a.progress;
+		    var progressB = b.progress;
+		    return compareNumbers (progressA, progressB, jobsSortKeyToUpper);
 	    }
 	    else
 	    {
@@ -402,26 +374,26 @@ function renderJobs ()
 
 	table += "<tr class='title'>";
 	//addTitleHTML ("Order");
-	addTitleHTML ("ID");
-	addTitleHTML ("Title");
-	addTitleHTML ("URL");
-	addTitleHTML ("User");
-	addTitleHTML ("State");
-	addTitleHTML ("Priority");
-	addTitleHTMLEx ("TotalFinished", "Ok");
-	addTitleHTMLEx ("TotalWorking", "Wrk");
-	addTitleHTMLEx ("TotalErrors", "Err");
-	addTitleHTML ("Total");
-	addTitleHTML ("Progress");
-	addTitleHTML ("Affinity");
-	addTitleHTML ("TimeOut");
-	addTitleHTML ("Worker");
-	addTitleHTML ("StartTime");
-	addTitleHTML ("Duration");
-	addTitleHTML ("Try");
-	addTitleHTML ("Command");
-	addTitleHTML ("Dir");
-	addTitleHTML ("Dependencies");
+	addTitleHTML ("id");
+	addTitleHTML ("title");
+	addTitleHTML ("url");
+	addTitleHTML ("user");
+	addTitleHTML ("state");
+	addTitleHTML ("priority");
+	addTitleHTMLEx ("total_finished", "ok");
+	addTitleHTMLEx ("total_working", "wrk");
+	addTitleHTMLEx ("total_errors", "err");
+	addTitleHTML ("total");
+	addTitleHTML ("progress");
+	addTitleHTML ("affinity");
+	addTitleHTML ("timeout");
+	addTitleHTML ("worker");
+	addTitleHTML ("start_time");
+	addTitleHTML ("duration");
+	addTitleHTML ("run");
+	addTitleHTML ("command");
+	addTitleHTML ("dir");
+	addTitleHTML ("dependencies");
 	table += "</tr>\n";
 
 	for (i=0; i < jobs.length; i++)
@@ -430,30 +402,30 @@ function renderJobs ()
 
         var mouseDownEvent = "onMouseDown='onClickList(event,"+i+")' onDblClick='onDblClickList(event,"+i+")'";
         
-		table += "<tr id='jobtable"+i+"' "+mouseDownEvent+" class='entry"+(i%2)+(selectedJobs[job.ID]?"Selected":"")+"'>";
+		table += "<tr id='jobtable"+i+"' "+mouseDownEvent+" class='entry"+(i%2)+(selectedJobs[job.id]?"Selected":"")+"'>";
 		function addTD (attr)
 		{
 			table += "<td>" + attr + "</td>";
 		}
 		//addTD (job.Order);
-		addTD (job.ID);
-		table += "<td>" + job.Title + "</td>\n";
+		addTD (job.id);
+		table += "<td>" + job.title + "</td>\n";
 
-        // URL
-		if (job.URL != "")
-		    addTD ("<a href='"+job.URL+"'>Open</a>")
+        // url
+		if (job.url != "")
+		    addTD ("<a href='"+job.url+"'>Open</a>")
         else
             addTD ("")
 		
-		addTD (job.User);
-	    table += "<td class='"+job.State+"'>"+job.State+"</td>";
-		addTD (job.Priority);
-		if (job.Total > 0)
+		addTD (job.user);
+	    table += "<td class='"+job.state+"'>"+job.state+"</td>";
+		addTD (job.priority);
+		if (job.total > 0)
 		{
-		    table += "<td class='"+(job.TotalFinished > 0 ? "FINISHED" : "WAITING")+"' width=30>"+job.TotalFinished+"</td>";
-		    table += "<td class='"+(job.TotalWorking > 0 ? "WORKING" : "WAITING")+"' width=30>"+job.TotalWorking+"</td>";
-		    table += "<td class='"+(job.TotalErrors > 0 ? "ERROR" : "WAITING")+"' width=30>"+job.TotalErrors+"</td>";
-		    table += "<td class='"+(job.Total == job.TotalFinished ? "FINISHED" : "WAITING")+"' width=30>"+job.Total+"</td>";
+		    table += "<td class='"+(job.total_finished > 0 ? "FINISHED" : "WAITING")+"' width=30>"+job.total_finished+"</td>";
+		    table += "<td class='"+(job.total_working > 0 ? "WORKING" : "WAITING")+"' width=30>"+job.total_working+"</td>";
+		    table += "<td class='"+(job.total_errors > 0 ? "ERROR" : "WAITING")+"' width=30>"+job.total_errors+"</td>";
+		    table += "<td class='"+(job.total == job.total_finished ? "FINISHED" : "WAITING")+"' width=30>"+job.total_finished+"</td>";
 		}
 		else
 		{
@@ -465,30 +437,29 @@ function renderJobs ()
 		
 		// *** Progress bar
         var progress = ""
-        var lProgress, gProgress = getJobProgress (job)
-        lProgress = Math.floor(lProgress*100.0);
-        gProgress = Math.floor(gProgress*100.0);
+        var _progress = job.progress
+        _progress = Math.floor(_progress*100.0);
 
         // A bar div
         progress = "<div class='progress'>";
-        progress += "<div class='lprogressbar' style='width:" + lProgress + "%' />";
-        progress += "<div class='progresslabel'>" + gProgress + "%</div>";
+        progress += "<div class='lprogressbar' style='width:" + _progress + "%' />";
+        progress += "<div class='progresslabel'>" + _progress + "%</div>";
         progress += "</div>";
         		
 		addTD (progress);
-		addTD (job.Affinity);
-		addTD (job.TimeOut);
-		addTD (job.Worker);
-		addTD (formatDate (job.StartTime));
-		addTD (formatDuration (job.Duration));
-		addTD (job.Try+"/"+job.Retry);
-		addTD (job.Command);
-		addTD (job.Dir);
+		addTD (job.affinity);
+		addTD (job.timeout);
+		addTD (job.worker);
+		addTD (formatDate (job.start_time));
+		addTD (formatDuration (job.duration));
+		addTD (job.run_done+"/"+job.retry);
+		addTD (job.command);
+		addTD (job.dir);
 		// Compute the dependencies
-		var deps = "<spawn id='job"+job.ID+"Deps'>";
+		var deps = "<spawn id='job"+job.id+"Deps'>";
 		var j;
-		for (j = 0; j < job.Dependencies.length; j++)
-			deps += job.Dependencies[j] + " ";
+		for (j = 0; j < job.dependencies.length; j++)
+			deps += job.dependencies[j] + " ";
 		deps += "</spawn>"
 		addTD (deps);
 
@@ -502,18 +473,18 @@ function renderJobs ()
 	table += addSumSimple (jobs);
 	table += addSumEmpty ();
 	table += addSumEmpty ();
-	table += addSumFinished (jobs, "State");
+	table += addSumFinished (jobs, "state");
 	table += addSumEmpty ();
-	table += addSum (jobs, "TotalFinished");
-	table += addSum (jobs, "TotalWorking");
-	table += addSum (jobs, "TotalErrors");
-	table += addSum (jobs, "Total");
-	table += addSumEmpty ();
-	table += addSumEmpty ();
+	table += addSum (jobs, "total_finished");
+	table += addSum (jobs, "total_working");
+	table += addSum (jobs, "total_errors");
+	table += addSum (jobs, "total");
 	table += addSumEmpty ();
 	table += addSumEmpty ();
 	table += addSumEmpty ();
-	table += addSumAvgDuration (jobs, "Duration");
+	table += addSumEmpty ();
+	table += addSumEmpty ();
+	table += addSumAvgDuration (jobs, "duration");
 	table += addSumEmpty ();
 	table += addSumEmpty ();
 	table += addSumEmpty ();
@@ -529,8 +500,8 @@ function logSelection ()
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
-		if (selectedJobs[job.ID])
-			renderLog (job.ID);
+		if (selectedJobs[job.id])
+			renderLog (job.id);
 	}
 }
 
@@ -549,16 +520,16 @@ function reloadJobs ()
 			{
 				function getDeps (job)
 				{
-					job.Dependencies = ""
-					$.ajax({ type: "GET", url: "/api/jobs/"+job.ID+"/dependencies", dataType: "json", success: 
+					job.dependencies = ""
+					$.ajax({ type: "GET", url: "/api/jobs/"+job.id+"/dependencies", dataType: "json", success: 
 						function(data) 
 						{
 							var deps = []
 							for (var i = 0; i < data.length; ++i)
-								deps.push (data[i].ID)
+								deps.push (data[i].id)
 							deps = deps.join (",")
-							$("#job"+job.ID+"Deps").text (deps)
-							job.Dependencies = deps
+							$("#job"+job.id+"Deps").text (deps)
+							job.dependencies = deps
 						}
 					});
 				}
@@ -573,7 +544,7 @@ function reloadJobs ()
     {
     	if (id == 0)
     	{
-    		parents.unshift ({ID:0,Title:"Root"});
+    		parents.unshift ({id:0,title:"Root"});
         	renderParents ();
     	}
     	else
@@ -582,7 +553,7 @@ function reloadJobs ()
 		        function(data) 
 		        {
 			        parents.unshift (data);
-			        getParent (data.Parent);
+			        getParent (data.parent);
 		        }
 		    });
     	}
@@ -615,9 +586,9 @@ function workerActivity ()
 	for (j=workers.length-1; j >= 0; j--)
 	{
 		var worker = workers[j];
-		if (selectedWorkers[worker.Name])
+		if (selectedWorkers[worker.name])
 		{
-		    title:$('#activityWorker').attr("value", worker.Name)
+		    title:$('#activityWorker').attr("value", worker.name)
 		    title:$('#activityJob').attr("value", "")
            	break;
         }
@@ -633,10 +604,10 @@ function jobActivity ()
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
-		if (selectedJobs[job.ID])
+		if (selectedJobs[job.id])
 		{
 		    title:$('#activityWorker').attr("value", "")
-		    title:$('#activityJob').attr("value", job.ID)
+		    title:$('#activityJob').attr("value", job.id)
            	break;
         }
 	}
@@ -720,7 +691,7 @@ function sendSelectionPropChanges (list, idName, values, props, objects, selecte
 		        {
 		            var prop = props[i][0];
 		            var value = $('#'+props[i][1]).attr("value");
-		            if (prop == "Dependencies")
+		            if (prop == "dependencies")
 		            	value = value.split(",");
 		            _props[prop] = value;
 		        }
@@ -754,13 +725,13 @@ function setSelectionDefaultProperties (props)
 
 var WorkerProps =
 [
-    [ "Affinity", "waffinity", "" ],
+    [ "affinity", "waffinity", "" ],
 ];
 var updatedWorkerProps = {}
 
 function updateWorkerProps ()
 {
-    updatedWorkerProps = checkSelectionProperties (workers, WorkerProps, selectedWorkers, "Name");
+    updatedWorkerProps = checkSelectionProperties (workers, WorkerProps, selectedWorkers, "name");
 }
 
 function onchangeworkerprop (prop)
@@ -770,7 +741,7 @@ function onchangeworkerprop (prop)
 
 function updateworkers ()
 {
-    sendSelectionPropChanges (workers, 'Name', updatedWorkerProps, WorkerProps, "Workers", selectedWorkers,
+    sendSelectionPropChanges (workers, 'name', updatedWorkerProps, WorkerProps, "Workers", selectedWorkers,
         function ()
         {
             reloadWorkers ();
@@ -830,16 +801,16 @@ function renderWorkers ()
 		table += "</th>";
 	}
 
-    addTitleHTML ("Name");
-    addTitleHTML ("Active");
-    addTitleHTML ("State");
-    addTitleHTML ("Affinity");
-    addTitleHTML ("CPU");
-    addTitleHTML ("Memory");
-    addTitleHTML ("LastJob");
-    addTitleHTML ("Finished");
-    addTitleHTML ("Error");
-    addTitleHTML ("IP");
+    addTitleHTML ("name");
+    addTitleHTML ("active");
+    addTitleHTML ("state");
+    addTitleHTML ("affinity");
+    addTitleHTML ("cpu");
+    addTitleHTML ("memory");
+    addTitleHTML ("last_job");
+    addTitleHTML ("finished");
+    addTitleHTML ("error");
+    addTitleHTML ("ip");
 
 	table += "</tr>\n";
 
@@ -861,21 +832,21 @@ function renderWorkers ()
         // *** Build the load tab for this worker		
         // A global div
 	    var load = "<div class='load'>";
-	        // Add each CPU load
+	        // Add each cpu load
 	        var loadValue = 0;
-    	    for (j=0; j < worker.CPU.length; j++)
+    	    for (j=0; j < worker.cpu.length; j++)
     	    {
-        	    load += "<div class='loadbar' style='width:" + worker.CPU[j] + "%;height:" + 16/worker.CPU.length + "' />";
-    	        loadValue += worker.CPU[j]
+        	    load += "<div class='loadbar' style='width:" + worker.cpu[j] + "%;height:" + 16/worker.cpu.length + "' />";
+    	        loadValue += worker.cpu[j]
             }
 
             // Add the numerical value of the load
-   	        load += "<div class='loadlabel'>" + Math.floor(loadValue/worker.CPU.length) + "%</div>";
+   	        load += "<div class='loadlabel'>" + Math.floor(loadValue/worker.cpu.length) + "%</div>";
 	    load += "</div>";
     
         // *** Build the memory tab for this worker		
 	    var memory = "<div class='mem'>";
-   	    memory += "<div class='membar' style='width:" + 100*(worker.TotalMemory-worker.FreeMemory)/worker.TotalMemory + "%' />";
+   	    memory += "<div class='membar' style='width:" + 100*(worker.total_memory-worker.free_memory)/worker.TotalMemory + "%' />";
 
         function formatMem (a)
         {
@@ -885,25 +856,25 @@ function renderWorkers ()
                 return str(a) + " Mo";
         }
         
-        memLabel = formatMem (worker.TotalMemory-worker.FreeMemory);
+        memLabel = formatMem (worker.total_memory-worker.free_memory);
         memLabel += " / ";
-        memLabel += formatMem (worker.TotalMemory);
+        memLabel += formatMem (worker.total_memory);
 
         // Add the numerical value of the mem
         memory += "<div class='memlabel'>" + memLabel + "</div>";
 	    memory += "</div>";
 	    
-		table += "<tr id='workertable"+i+"' class='entry"+(i%2)+(selectedWorkers[worker.Name]?"Selected":"")+"'>"+
-		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Name+"</td>"+
-		         "<td class='Active"+worker.Active+"' onMouseDown='onClickList(event,"+i+")'>"+worker.Active+"</td>"+
-		         "<td class='"+worker.State+"' onMouseDown='onClickList(event,"+i+")'>"+worker.State+"</td>"+
-		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Affinity+"</td>"+
+		table += "<tr id='workertable"+i+"' class='entry"+(i%2)+(selectedWorkers[worker.name]?"Selected":"")+"'>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.name+"</td>"+
+		         "<td class='active"+worker.active+"' onMouseDown='onClickList(event,"+i+")'>"+worker.active+"</td>"+
+		         "<td class='"+worker.state+"' onMouseDown='onClickList(event,"+i+")'>"+worker.state+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.affinity+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+load+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+memory+"</td>"+
-		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.LastJob+"</td>"+
-		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Finished+"</td>"+
-		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.Error+"</td>"+
-		         "<td>"+worker.IP+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.last_job+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.finished+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.error+"</td>"+
+		         "<td>"+worker.ip+"</td>"+
 		         "</tr>\n";
 	}
 	table += "</table>";
@@ -971,12 +942,12 @@ function renderActivities ()
 		table += "</th>";
 	}
 
-    addTitleHTML ("Start");
-    addTitleHTML ("JobID");
-    addTitleHTML ("JobTitle");
-    addTitleHTML ("State");
-    addTitleHTML ("Worker");
-    addTitleHTML ("Duration");
+    addTitleHTML ("start");
+    addTitleHTML ("job_id");
+    addTitleHTML ("job_title");
+    addTitleHTML ("state");
+    addTitleHTML ("worker");
+    addTitleHTML ("duration");
 
 	table += "</tr>\n";
 
@@ -995,17 +966,17 @@ function renderActivities ()
 	{
 		var activity = activities[i];
 
-		date = formatDate (activity.Start);
-		dura = formatDuration (activity.Duration);
+		date = formatDate (activity.start);
+		dura = formatDuration (activity.duration);
 
         var mouseDownEvent = "onMouseDown='onClickList(event,"+i+")' onDblClick='onDblClickList(event,"+i+")'";
-		table += "<tr id='activitytable"+i+"' "+mouseDownEvent+" class='entry"+(i%2)+(selectedActivities[activity.ID]?"Selected":"")+"'>"+
-		// table += "<tr id='activitytable"+i+"' class='entry"+(i%2)+(selectedActivities[activity.ID]?"Selected":"")+"'>"+
+		table += "<tr id='activitytable"+i+"' "+mouseDownEvent+" class='entry"+(i%2)+(selectedActivities[activity.id]?"Selected":"")+"'>"+
+		// table += "<tr id='activitytable"+i+"' class='entry"+(i%2)+(selectedActivities[activity.id]?"Selected":"")+"'>"+
 		         "<td>"+date+"</td>"+
-		         "<td>"+activity.JobID+"</td>"+
-		         "<td>"+activity.JobTitle+"</td>"+
-		         "<td class='"+activity.State+"'>"+activity.State+"</td>"+
-		         "<td>"+activity.Worker+"</td>"+
+		         "<td>"+activity.job_id+"</td>"+
+		         "<td>"+activity.job_title+"</td>"+
+		         "<td class='"+activity.state+"'>"+activity.state+"</td>"+
+		         "<td>"+activity.worker+"</td>"+
 		         "<td>"+dura+"</td>"+
 		         "</tr>\n";
 	}
@@ -1015,9 +986,9 @@ function renderActivities ()
 	table += addSumEmpty ("TOTAL");
 	table += addSumSimple (activities);
 	table += addSumEmpty ();
-	table += addSumFinished (activities, "State");
+	table += addSumFinished (activities, "state");
 	table += addSumEmpty ();
-	table += addSumAvgDuration (activities, "Duration");
+	table += addSumAvgDuration (activities, "duration");
 	table += "</tr>\n";
 
 	table += "</table>";
@@ -1027,17 +998,17 @@ function renderActivities ()
 
 var JobProps =
 [
-    [ "Title", "title", "" ],
-    [ "Command", "cmd", "" ],
-    [ "Dir", "dir", "." ],
-    [ "Priority", "priority", "1000" ],
-    [ "Affinity", "affinity", "" ],
-    [ "TimeOut", "timeout", "0" ],
-    [ "Dependencies", "dependencies", "" ],
-    [ "Retry", "retry", "10" ],
-    [ "User", "user", "" ],
-    [ "URL", "url", "" ],
-    [ "Environment", "env", "" ]
+    [ "title", "title", "" ],
+    [ "command", "cmd", "" ],
+    [ "dir", "dir", "." ],
+    [ "priority", "priority", "1000" ],
+    [ "affinity", "affinity", "" ],
+    [ "timeout", "timeout", "0" ],
+    [ "dependencies", "dependencies", "" ],
+    [ "retry", "retry", "10" ],
+    [ "user", "user", "" ],
+    [ "url", "url", "" ],
+    [ "environment", "env", "" ]
 ];
 var updatedJobProps = {}
 
@@ -1048,7 +1019,7 @@ function onchangejobprop (prop)
 
 function updatejobs ()
 {
-    sendSelectionPropChanges (jobs, 'ID', updatedJobProps, JobProps, "Jobs", selectedJobs,
+    sendSelectionPropChanges (jobs, 'id', updatedJobProps, JobProps, "Jobs", selectedJobs,
         function ()
         {
             reloadJobs ();
@@ -1102,12 +1073,12 @@ function onDblClickList (e, i)
     if (page == "activities")
     {
         var activity = activities[i];
-	    renderLog (activity.JobID);
+	    renderLog (activity.job_id);
     }
     else
     {
         var job = jobs[i];
-	    job.Command != "" ? renderLog (job.ID) : goToJob (job.ID);
+	    job.command != "" ? renderLog (job.id) : goToJob (job.id);
 	}
 }
 
@@ -1139,21 +1110,21 @@ function onClickList (e, i)
     {
         thelist = jobs;
         selectedList = selectedJobs;
-        idName = "ID";
+        idName = "id";
         tableId = "jobtable";
     }
     else if (page == "workers")
     {
         thelist = workers;
         selectedList = selectedWorkers;
-        idName = "Name";
+        idName = "name";
         tableId = "workertable";
     }
     else if (page == "activities")
     {
         thelist = activities;
         selectedList = selectedActivities;
-        idName = "ID";
+        idName = "id";
         tableId = "activitytable";
     }
     else
@@ -1200,7 +1171,7 @@ function selectAll (state, filter)
         thelist = jobs;
         selectedJobs = {};
         selectedList = selectedJobs;
-        idName = "ID";
+        idName = "id";
         tableId = "jobtable";
     }
     else if (page == "workers")
@@ -1208,7 +1179,7 @@ function selectAll (state, filter)
         thelist = workers;
         selectedWorkers = {};
         selectedList = selectedWorkers;
-        idName = "Name";
+        idName = "name";
         tableId = "workertable";
     }
     else
@@ -1224,7 +1195,7 @@ function selectAll (state, filter)
 	    for (j=0; j < thelist.length; j++)
 	    {
 		    var item = thelist[j];
-		    if (filter == null || item.State == filter)
+		    if (filter == null || item.state == filter)
 		    {
 		        selectedList[item[idName]] = true;
    			    document.getElementById(tableId+j).className = "entry"+(j%2)+"Selected";
@@ -1249,8 +1220,8 @@ function removeSelection ()
 		for (j=jobs.length-1; j >= 0; j--)
 		{
 			var job = jobs[j];
-			if (selectedJobs[job.ID])
-			    data.push (job.ID);
+			if (selectedJobs[job.id])
+			    data.push (job.id);
 		}
         $.ajax({ type: "POST", url: "/api/clearjobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
@@ -1269,8 +1240,8 @@ function startSelection ()
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
-		if (selectedJobs[job.ID])
-		    data.push (job.ID);
+		if (selectedJobs[job.id])
+		    data.push (job.id);
 	}
     $.ajax({ type: "POST", url: "/api/startjobs", data: JSON.stringify(data), dataType: "json", success: 
         function () 
@@ -1285,8 +1256,8 @@ function viewSelection()
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
-		if (selectedJobs[job.ID] && job.URL)
-		    window.open(job.URL);
+		if (selectedJobs[job.id] && job.url)
+		    window.open(job.url);
 	}
 }
 
@@ -1298,8 +1269,8 @@ function resetSelection ()
 		for (j=jobs.length-1; j >= 0; j--)
 		{
 			var job = jobs[j];
-			if (selectedJobs[job.ID])
-			    data.push (job.ID);
+			if (selectedJobs[job.id])
+			    data.push (job.id);
 		}
         $.ajax({ type: "POST", url: "/api/resetjobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
@@ -1318,8 +1289,8 @@ function resetErrorSelection ()
 		for (j=jobs.length-1; j >= 0; j--)
 		{
 			var job = jobs[j];
-			if (selectedJobs[job.ID])
-			    data.push (job.ID);
+			if (selectedJobs[job.id])
+			    data.push (job.id);
 		}
         $.ajax({ type: "POST", url: "/api/reseterrorjobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
@@ -1336,8 +1307,8 @@ function pauseSelection ()
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
-		if (selectedJobs[job.ID])
-		    data.push (job.ID);
+		if (selectedJobs[job.id])
+		    data.push (job.id);
 	}
     $.ajax({ type: "POST", url: "/api/pausejobs", data: JSON.stringify(data), dataType: "json", success: 
         function () 
@@ -1349,7 +1320,7 @@ function pauseSelection ()
 
 function updateJobProps ()
 {
-    updatedJobProps = checkSelectionProperties (jobs, JobProps, selectedJobs, "ID");
+    updatedJobProps = checkSelectionProperties (jobs, JobProps, selectedJobs, "id");
 }
 
 function exportCSV()
@@ -1363,9 +1334,9 @@ function cutSelection ()
 	for (j=jobs.length-1; j >= 0; j--)
 	{
 		var job = jobs[j];
-		if (selectedJobs[job.ID])
+		if (selectedJobs[job.id])
 		{
-		    cutJobs[job.ID] = true
+		    cutJobs[job.id] = true
         }
 	}
 	selectAll (false)
@@ -1376,7 +1347,7 @@ function pasteSelection ()
     var count = 0;
     var data = {}
 	for (var id in cutJobs)
-		data[id] = {Parent:viewJob}
+		data[id] = {parent:viewJob}
     $.ajax({ type: "POST", url: "/api/jobs", data: JSON.stringify(data), dataType: "json", success: 
         function () 
         {
