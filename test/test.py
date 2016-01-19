@@ -1,4 +1,4 @@
-import subprocess, time, os, unittest, httplib, json, coalition, sys
+import subprocess, time, os, unittest, httplib, json, coalition, sys, doctest
 
 workerCount = 1
 server = True
@@ -85,7 +85,8 @@ try:
 			time.sleep (.1)
 
 	if __name__ == '__main__':
-		suite = unittest.TestLoader().loadTestsFromTestCase(TestCoalition)
+   		doctest.testmod(coalition)
+   		suite = unittest.TestLoader().loadTestsFromTestCase(TestCoalition)
 		unittest.TextTestRunner(verbosity=2).run(suite)		
 
 finally:

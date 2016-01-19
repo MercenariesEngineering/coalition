@@ -167,36 +167,3 @@ class Job(object):
 				else:
 					raise Exception
 		super(Job, self).__setattr__(attr, value)
-
-"""
-	def __init__ (self, title, cmd = "", dir = "", environment = None, priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", localprogress = '', globalprogress = ''):
-		self.__initialized = False
-		self.ID = None						# Job ID
-		self.Parent = None					# Parent Job ID
-		self.Title = title					# Job title
-		self.Command = cmd					# Job command to execute
-		self.Dir = dir						# Job working directory
-		self.Environment = environment		# Job environment
-		self.State = "WAITING"				# Job state, can be WAITING, WORKING, FINISHED or ERROR
-		self.Worker = ""					# Worker hostname
-		self.StartTime = time.time()		# Start working time 
-		self.Duration = 0					# Duration of the process
-		self.PingTime = self.StartTime		# Last worker ping time
-		self.Try = 0						# Number of try
-		self.Retry = strToInt (retry)		# Number of try max
-		self.TimeOut = strToInt (timeout)	# Timeout in seconds
-		self.Priority = strToInt (priority)	# Job priority
-		self.Affinity = affinity			# Job affinity
-		self.User = user					# Job user
-		self.Finished = 0					# Number of finished children
-		self.Errors = 0						# Number of error children
-		self.Working = 0					# Number of children working
-		self.Total = 0						# Total number of (grand)children
-		self.TotalFinished = 0				# Total number of (grand)children finished
-		self.TotalErrors = 0				# Total number of (grand)children in error
-		self.TotalWorking = 0				# Total number of children working
-		self.URL = ""						# URL to open
-		self.LocalProgress = localprogress
-		self.GlobalProgress = globalprogress
-
-"""
