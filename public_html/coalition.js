@@ -11,6 +11,7 @@ var selectedActivities = {};
 var workers = [];
 var parents = [];
 var activities = [];
+var affinities = [];
 var jobsSortKey = "id";
 var jobsSortKeyToUpper = true;
 var workersSortKey = "name";
@@ -74,7 +75,7 @@ $(document).ready(function()
 	reloadJobs ();
 	reloadWorkers ();
 	reloadActivities ();
-	showJobs ();
+	showPage ("jobs");
 	timer=setTimeout(timerCB,4000);
 });
 
@@ -119,18 +120,37 @@ function goToJob (jobId)
     reloadJobs ();
 }
 
-function showLog ()
-{
-	$("#jobsTab").hide ();
-	$("#workersTab").hide ();
-	$("#activitiesTab").hide ();
-	$("#logsTab").show ();
-	document.getElementById("jobtab").className = "unactivetab";
-	document.getElementById("workertab").className = "unactivetab";
-	document.getElementById("activitytab").className = "unactivetab";
-	document.getElementById("logtab").className = "activetab";
+var tabs =
+[
+	[ "jobs", "#jobsTab", "jobtab" ],
+	[ "workers", "#workersTab", "workertab" ],
+	[ "activities", "#activitiesTab", "activitytab" ],
+	[ "logs", "#logsTab", "logtab" ],
+	[ "affinities", "#affinitiesTab", "affinitytab" ]
+]
 
-	page = "logs";
+function showTab (tab)
+{
+	for (i = 0; i < tabs.length; ++i)
+	{
+		tabdef = tabs[i];
+		if (tabdef[0] == tab)
+		{
+			$(tabdef[1]).show ();
+			document.getElementById(tabdef[2]).className = "activetab";
+		}
+		else
+		{
+			$(tabdef[1]).hide ();
+			document.getElementById(tabdef[2]).className = "unactivetab";
+		}
+	}
+}
+
+function showPage (thepage)
+{
+	page = thepage;
+	showTab (page);
 	updateTools ();
 }
 
@@ -141,7 +161,7 @@ function clearLog ()
 
 function renderLog (jobId)
 {
-    showLog ();
+    showPage ("logs");
 	logId = jobId;
     $.ajax({ type: "GET", url: "/api/jobs/"+jobId+"/log", dataType: "json", success: 
         function (data) 
@@ -225,6 +245,8 @@ function refresh ()
 		reloadActivities ();
 	else if (page == "logs") 
 		renderLog (logId);
+	else if (page == "affinities") 
+		renderAffinities ();
 }
 
 function compareStrings (a,b,toupper)
@@ -239,21 +261,6 @@ function compareStrings (a,b,toupper)
 function compareNumbers (a,b,toupper)
 {
 	return toupper ? a-b : b-a;
-}
-
-function showJobs ()
-{
-	$("#jobsTab").show ();
-	$("#workersTab").hide ();
-	$("#activitiesTab").hide ();
-	$("#logsTab").hide ();
-	document.getElementById("jobtab").className = "activetab";
-	document.getElementById("workertab").className = "unactivetab";
-	document.getElementById("activitytab").className = "unactivetab";
-	document.getElementById("logtab").className = "unactivetab";
-
-	page = "jobs";
-	updateTools ();
 }
 
 // Returns the HTML code for a job title column
@@ -416,16 +423,19 @@ function renderJobs ()
 		    addTD ("<a href='"+job.url+"'>Open</a>")
         else
             addTD ("")
+
+        // check group state!
+        var	mystate = job.paused ? "PAUSED" : job.state;
 		
 		addTD (job.user);
-	    table += "<td class='"+job.state+"'>"+job.state+"</td>";
+	    table += "<td class='"+mystate+"'>"+mystate+"</td>";
 		addTD (job.priority);
 		if (job.total > 0)
 		{
 		    table += "<td class='"+(job.total_finished > 0 ? "FINISHED" : "WAITING")+"' width=30>"+job.total_finished+"</td>";
 		    table += "<td class='"+(job.total_working > 0 ? "WORKING" : "WAITING")+"' width=30>"+job.total_working+"</td>";
 		    table += "<td class='"+(job.total_errors > 0 ? "ERROR" : "WAITING")+"' width=30>"+job.total_errors+"</td>";
-		    table += "<td class='"+(job.total == job.total_finished ? "FINISHED" : "WAITING")+"' width=30>"+job.total_finished+"</td>";
+		    table += "<td class='"+(job.total == job.total_finished ? "FINISHED" : "WAITING")+"' width=30>"+job.total+"</td>";
 		}
 		else
 		{
@@ -450,18 +460,12 @@ function renderJobs ()
 		addTD (job.affinity);
 		addTD (job.timeout);
 		addTD (job.worker);
-		addTD (formatDate (job.start_time));
+		addTD (job.start_time > 0 ? formatDate (job.start_time) : "");
 		addTD (formatDuration (job.duration));
-		addTD (job.run_done+"/"+job.retry);
+		addTD (job.run_done);
 		addTD (job.command);
 		addTD (job.dir);
-		// Compute the dependencies
-		var deps = "<spawn id='job"+job.id+"Deps'>";
-		var j;
-		for (j = 0; j < job.dependencies.length; j++)
-			deps += job.dependencies[j] + " ";
-		deps += "</spawn>"
-		addTD (deps);
+		addTD (job.dependencies);
 
 		table += "</td></tr>\n";
 	}
@@ -510,33 +514,64 @@ function reloadJobs ()
 {
     parents = [];
     var tag = document.getElementById("filterJobs").value;
+    var affinity = document.getElementById("filterJobsAffinity").value;
+    var title = document.getElementById("filterJobsTitle").value;
     tag = tag == "NONE" ? "" : tag;
     var data = {filter:tag}
     $.ajax({ type: "GET", url: "/api/jobs/"+viewJob+"/children", data: JSON.stringify(data), dataType: "json", success: 
         function(data) 
         {
-			jobs = data
+        	if (tag != "" || title != "" || affinity != "")
+        	{
+        		var newdata = [];
+        		for (i = 0; i < data.length; ++i)
+        		{
+        			var	filtered = true;
+        			if (tag != "" && data[i].state != tag)
+        				filtered = false;
+        			if (title != "" && data[i].title.search (title) < 0)
+        				filtered = false;
+        			if (affinity != "" && data[i].affinity.search (affinity) < 0)
+        				filtered = false;
+        			if (filtered)
+        				newdata.push (data[i]);
+        		}
+        		data = newdata;
+
+        	}
+			jobs = data;
+
+			var	idtojob = {}
 			for (i = 0; i < jobs.length; ++i)
 			{
-				function getDeps (job)
-				{
-					job.dependencies = ""
-					$.ajax({ type: "GET", url: "/api/jobs/"+job.id+"/dependencies", dataType: "json", success: 
-						function(data) 
-						{
-							var deps = []
-							for (var i = 0; i < data.length; ++i)
-								deps.push (data[i].id)
-							deps = deps.join (",")
-							$("#job"+job.id+"Deps").text (deps)
-							job.dependencies = deps
-						}
-					});
-				}
-				getDeps (jobs[i])
+				var job = jobs[i]
+				idtojob[job.id] = job
+				job.dependencies = []
 			}
-	        renderJobs ();
-            document.getElementById("refreshbutton").className = "refreshbutton";
+
+			$.ajax({ type: "GET", url: "/api/jobs/"+viewJob+"/childrendependencies", dataType: "json", success: 
+				function(data) 
+				{
+					for (var i = 0; i < data.length; ++i)
+					{
+						var	job = idtojob[data[i].id];
+						if (job)
+							job.dependencies.push (data[i].dependency);
+					}
+
+					for (var i = 0; i < jobs.length; ++i)
+					{
+						var	job = jobs[i];
+						job.dependencies = job.dependencies.join (",");
+					}
+
+			        renderJobs ();
+
+//					for (i = 0; i < jobs.length; ++i)
+//						$("#job"+jobs[i].id+"Deps").text (jobs[i].dependencies)
+		            document.getElementById("refreshbutton").className = "refreshbutton";
+				}
+			});
         }
     });
 
@@ -596,7 +631,7 @@ function workerActivity ()
 
     reloadActivities ()
 	page = "activities"
-	showActivities ()
+	showPage ("activities")
 }
 
 function jobActivity ()
@@ -614,7 +649,7 @@ function jobActivity ()
 
     reloadActivities ()
 	page = "activities"
-	showActivities ()
+	showPage ("activities")
 }
 
 var MultipleSelection = {}
@@ -761,21 +796,6 @@ function reloadWorkers ()
     });
 }
 
-function showWorkers ()
-{
-	$("#jobsTab").hide ();
-	$("#workersTab").show ();
-	$("#activitiesTab").hide ();
-	$("#logsTab").hide ();
-	document.getElementById("jobtab").className = "unactivetab";
-	document.getElementById("workertab").className = "activetab";
-	document.getElementById("activitytab").className = "unactivetab";
-	document.getElementById("logtab").className = "unactivetab";
-
-	page = "workers";
-	updateTools ();
-}
-
 function renderWorkers ()
 {
 	$("#workers").empty ();
@@ -805,6 +825,7 @@ function renderWorkers ()
     addTitleHTML ("active");
     addTitleHTML ("state");
     addTitleHTML ("affinity");
+    addTitleHTML ("ping_time");
     addTitleHTML ("cpu");
     addTitleHTML ("memory");
     addTitleHTML ("last_job");
@@ -833,21 +854,20 @@ function renderWorkers ()
         // A global div
 	    var load = "<div class='load'>";
 	        // Add each cpu load
-	        var loadValue = 0;
-	        var cpu = JSON.parse (worker.cpu)
-    	    for (j=0; j < cpu.length; j++)
-    	    {
-        	    load += "<div class='loadbar' style='width:" + cpu[j] + "%;height:" + 16/cpu.length + "' />";
-    	        loadValue += cpu[j]
-            }
-
-            // Add the numerical value of the load
-   	        load += "<div class='loadlabel'>" + Math.floor(loadValue/cpu.length) + "%</div>";
+        var loadValue = 0;
+        var workerload = JSON.parse (worker.cpu)
+		for (j=0; j < workerload.length; ++j)
+		{
+			load += "<div class='loadbar' style='width:" + workerload[j] + "%;height:" + 16/workerload.length + "' />";
+			loadValue += workerload[j]
+		}
+        // Add the numerical value of the load
+		load += "<div class='loadlabel'>" + Math.floor(loadValue/workerload.length) + "%</div>";
 	    load += "</div>";
     
         // *** Build the memory tab for this worker		
 	    var memory = "<div class='mem'>";
-   	    memory += "<div class='membar' style='width:" + 100*(worker.total_memory-worker.free_memory)/worker.TotalMemory + "%' />";
+   	    memory += "<div class='membar' style='width:" + 100*(worker.total_memory-worker.free_memory)/worker.total_memory + "%' />";
 
         function formatMem (a)
         {
@@ -864,12 +884,13 @@ function renderWorkers ()
         // Add the numerical value of the mem
         memory += "<div class='memlabel'>" + memLabel + "</div>";
 	    memory += "</div>";
-	    
+
 		table += "<tr id='workertable"+i+"' class='entry"+(i%2)+(selectedWorkers[worker.name]?"Selected":"")+"'>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.name+"</td>"+
 		         "<td class='active"+worker.active+"' onMouseDown='onClickList(event,"+i+")'>"+worker.active+"</td>"+
 		         "<td class='"+worker.state+"' onMouseDown='onClickList(event,"+i+")'>"+worker.state+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.affinity+"</td>"+
+		         "<td onMouseDown='onClickList(event,"+i+")'>"+formatDate (worker.ping_time)+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+load+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+memory+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.last_job+"</td>"+
@@ -901,21 +922,6 @@ function reloadActivities ()
             document.getElementById("refreshbutton").className = "refreshbutton";
         }
     });
-}
-
-function showActivities ()
-{
-	$("#jobsTab").hide ();
-	$("#workersTab").hide ();
-	$("#activitiesTab").show ();
-	$("#logsTab").hide ();
-	document.getElementById("jobtab").className = "unactivetab";
-	document.getElementById("workertab").className = "unactivetab";
-	document.getElementById("activitytab").className = "activetab";
-	document.getElementById("logtab").className = "unactivetab";
-
-	page = "activities";
-	updateTools ();
 }
 
 function renderActivities ()
@@ -997,16 +1003,101 @@ function renderActivities ()
 	$("#activities").append("<br>");
 }
 
+function renderAffinities ()
+{
+	$("#affinities").empty ();
+
+	var table = "<table id='affinitiesTable'>";
+	table += "<tr class='title'>\n";
+
+	// Returns the HTML code for a worker title column
+	function addTitleHTML (attribute)
+	{
+        table += "<th class='headerCell' onclick='"+"setActivityKey(\""+attribute+"\")'>";	
+		var value = activities[0];
+		if (value && value[attribute] != null)
+		{
+			table += attribute;
+			if (attribute == activitiesSortKey && activitiesSortKeyToUpper)
+				table += " &#8595;";
+			if (attribute == activitiesSortKey && !activitiesSortKeyToUpper)
+				table += " &#8593;";
+		}
+		else
+			table += attribute;
+		table += "</th>";
+	}
+
+    addTitleHTML ("id");
+    addTitleHTML ("name");
+
+	table += "</tr>\n";
+
+	for (i = 1; i <= 63; ++i)
+	{
+		table += "<tr>";
+		table += "<td width='50px'>"+i+"</td><td width='200px'><input type='edit' class='ttedit' id='affinity"+i+"' name='affinity' value='' onchange='onchangeaffinityprop ("+i+")'></td>"
+		table += "</tr>\n";
+	}
+
+	updateAffinities ();
+
+	table += "</table>";
+	$("#affinities").append(table);
+	$("#affinities").append("<br>");
+}
+
+function onchangeaffinityprop (affinity)
+{
+    $('#affinity'+affinity).css("background-color", "greenyellow");
+}
+
+function updateAffinities ()
+{
+    $.ajax({ type: "GET", url: "/api/affinities", dataType: "json", success: 
+        function (data) 
+        {
+	        affinities = data;
+	        for (i = 1; i <= 63; ++i)
+	        {
+	        	var def = affinities[i];
+	        	if (def)
+			        $("#affinity"+i).attr("value", def);
+			    $("#affinity"+i).css("background-color", "white");
+	        }
+            document.getElementById("refreshbutton").className = "refreshbutton";
+        }
+    });
+}
+
+function sendAffinities ()
+{
+	var affinities = {};
+	for (i = 1; i <= 63; ++i)
+	{
+		var affinity = $("#affinity"+i).attr ("value");
+		if (affinity != null)
+			affinities[i] = affinity;
+	}
+
+	var data = JSON.stringify(affinities)
+    $.ajax({ type: "POST", url: "/api/affinities", data: data, dataType: "json", success: 
+        function (data) 
+        {
+			updateAffinities ();
+        }
+    });
+}
+
 var JobProps =
 [
     [ "title", "title", "" ],
     [ "command", "cmd", "" ],
     [ "dir", "dir", "." ],
-    [ "priority", "priority", "1000" ],
+    [ "priority", "priority", "127" ],
     [ "affinity", "affinity", "" ],
     [ "timeout", "timeout", "0" ],
     [ "dependencies", "dependencies", "" ],
-    [ "retry", "retry", "10" ],
     [ "user", "user", "" ],
     [ "url", "url", "" ],
     [ "environment", "env", "" ]
@@ -1040,7 +1131,6 @@ function addjob ()
         dir:$('#dir').attr("value"), 
         env:$('#env').attr("value"), 
         priority:$('#priority').attr("value"), 
-        retry:$('#retry').attr("value"),
         timeout:$('#timeout').attr("value"),
         affinity:$('#affinity').attr("value"),
         dependencies:dependencies,

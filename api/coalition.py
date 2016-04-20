@@ -5,7 +5,7 @@ class CoalitionError(Exception):
 
 class Job(object):
 	''' A job object returned by the :class:`Connection`. Don't create such objects yourself.
-	Job properties should be modified into a Connection block. Don't modify the id or the state properties directly.
+	Job properties should be modified into a Connection with block. Don't modify the id or the state properties directly.
 	'''
 
 	def __init__ (self, d, conn):
@@ -16,16 +16,16 @@ class Job(object):
 		""":var int id: the job id
 		:var int parent: the parent job id
 		:var str title: the job title
-		:var str command: the job command to execute
+		:var str command: the job command to execute, or an empty string if the job is a parent node.
 		:var str dir: the job working directory
 		:var str environment: the job environment
-		:var str state: the job state. It can be "WAITING", "WORKING", "PAUSED", "FINISHED" or "ERROR"
+		:var str state: the job state. It can be "WAITING", "PAUSED", "WORKING", "PENDING", "FINISHED" or "ERROR"
+		:var str paused: the job is paused, which is an alias for state == "PAUSED".
 		:var str worker: the last worker name who took the job
 		:var int start_time: the job start time (in seconds after epoch)
 		:var int duration: the job duration (in seconds)
 		:var int ping_time: the last time a worker ping on this job (in seconds after epoch)
 		:var int run_done: number of run done on this job
-		:var int retry: the job run count. If the job fails, the server will retry to run it this number of time.
 		:var int timeout: maximum duration a job run can take in seconds. If timeout=0, no limit on the job run.
 		:var int priority: the job priority. For a given job hierarchy level, the job with the biggest priority is taken first.
 		:var str affinity: the job affinity string. Affinities are coma separated keywords. To run a job, the worker affinities must match all the job affinities.
@@ -37,6 +37,7 @@ class Job(object):
 		:var int total_finished: number of finished (grand)children jobs. For parent node only. 
 		:var int total_errors: number of faulty (grand)children jobs. For parent node only. 
 		:var int total_working: number of working (grand)children jobs. For parent node only. 
+		:var array dependencies: the ids of jobs this job is dependent on. 
 		:var str url: an URL to the job result. If available, a link to this URL will be shown in the interface.
 		:var float progress: the job progression between 0 and 1.
 		:var str progress_pattern: a regexp pattern which filters the logs and return the progression. The pattern must include a '%percent' or a '%one' keyword.
@@ -84,7 +85,7 @@ class Connection:
 	>>> print job.title
 	Test2
 	>>> # Create a parent node, must NOT have a command
-	>>> parent_id = conn.newJob (0, "Parent")
+	>>> parent_id = conn.newJob (title = "Parent")
 	>>> # Create a job in the parent node
 	>>> child_id = conn.newJob (parent_id, "Child", "echo child")
 	>>> # Get the parent children
@@ -108,7 +109,7 @@ class Connection:
 		else:
 			raise CoalitionError (res.read())
 
-	def newJob  (self, parent=0, title="", command = "", dir = "", environment = "", state="WAITING", priority = 1000, retry = 10, timeout = 0, affinity = "", user = "", progress_pattern="", dependencies = []):
+	def newJob  (self, parent=0, title="", command = "", dir = "", environment = "", state="WAITING", paused = False, priority = 1000, timeout = 0, affinity = "", user = "", progress_pattern="", dependencies = []):
 		''' Create a job.
 
 		:param parent: the parent job.id
@@ -117,7 +118,7 @@ class Connection:
 		:param title: the job title
 		:type title: str
 		
-		:param command: the job command
+		:param command: the job command, or an empty string for a parent node
 		:type command: str
 		
 		:param dir: the job directory. This is the current directory when the job is run.
@@ -132,9 +133,6 @@ class Connection:
 		:param priority: the job priority. For a given job hierarchy level, the job with the biggest priority is taken first.
 		:type priority: int
 		
-		:param retry: the job run count. If the job fails, the server will retry to run it this number of time.
-		:type retry: int
-
 		:param timeout int: maximum duration a job run can take in seconds. If timeout=0, no limit on the job run.
 		
 		:param affinity: the job affinity string. Affinities are coma separated keywords. To run a job, the worker affinities must match all the job affinities.
@@ -180,6 +178,8 @@ class Connection:
 
 	def getJobDependencies (self, id):
 		''' Returns the :class:`Job` objects on which a job has a dependency.
+		Alternatively, the dependencies attribute of a Job contains the list
+		of dependent jobs ids.
 
 		:param id: the job.id of the :class:`Job` with dependencies
 		:rtype: the list of :class:`Job` objects on which the job depends
@@ -193,6 +193,7 @@ class Connection:
 
 	def setJobDependencies (self, id, ids):
 		''' Set the :class:`Job` objects on which a job has a dependency.
+		Alternatively, one can set the dependencies attribute of a Job.
 
 		:param id int: the id of the job with dependencies
 		:param ids [int]: the list of job.id (int) on which the job depends

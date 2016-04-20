@@ -65,6 +65,20 @@ h2
 	bottom: 58px;
 }
 
+#affinities
+{
+	position: fixed;
+	left: 10px;
+	right: 10px;
+	top: 65px;
+	bottom: 58px;
+	overflow: auto;
+	border-top:1px solid #888888;
+	border-left:1px solid #888888;
+	border-right:1px solid #000000;
+	border-bottom:1px solid #000000;
+}
+
 #logs
 {
 	color: White;
@@ -82,8 +96,22 @@ h2
 	text-align: right;
 }
 
+#affinitiesTable
+{
+	border-collapse:  collapse;
+	text-align: right;
+}
+
 #jobsTable td, #workersTable td, #activitiesTable td
 {
+	border-right:1px solid black;
+}
+
+#affinitiesTable td
+{
+	font-size: 8pt; 
+	text-align: center;
+	color: #FFFFFF;
 	border-right:1px solid black;
 }
 
@@ -92,7 +120,7 @@ h2
 	color: #DDDDDD;
 }
 
-#jobsTable th, #workersTable th, #activitiesTable th
+#jobsTable th, #workersTable th, #activitiesTable th, #affinitiesTable th
 {
 	text-align: center;
 	border-right:1px solid black;
@@ -136,7 +164,7 @@ h2
 	background-color: #555577;
 }
 
-.FINISHED, .PAUSED, .ERROR, .TIMEOUT, .WAITING, .WORKING, .ACTIVEtrue, .ACTIVEfalse
+.FINISHED, .PAUSED, .ERROR, .TIMEOUT, .WAITING, .WORKING, .PENDING, .ACTIVEtrue, .ACTIVEfalse, .ACTIVE1, .ACTIVE0
 {
 	text-align: center;
 	color: White;
@@ -152,6 +180,11 @@ h2
 	background-color: #000090;
 }
 
+.PENDING
+{
+	background-color: #303060;
+}
+
 .ERROR, .TIMEOUT
 {
 	background-color: #900000;
@@ -162,12 +195,12 @@ h2
 	background-color: #009090;
 }
 
-.ACTIVEtrue
+.ACTIVEtrue, .ACTIVE1
 {
 	background-color: #009000;
 }
 
-.ACTIVEfalse
+.ACTIVEfalse, .ACTIVE0
 {
 	background-color: #900000;
 }
@@ -298,7 +331,7 @@ h2
 	background: #00F000;
 }
 
-#jobtools, #workertools, #logtools, #activitiestools
+#jobtools, #workertools, #logtools, #activitiestools, #affinitiestools
 {
 	position: fixed;
 	left: 10px;
@@ -352,6 +385,15 @@ h2
 	right: 8px;
 }
 
+#affinitytoolstable
+{
+	position: fixed;
+	bottom: 8px;
+	height: 43px;
+	left: 8px;
+	right: 8px;
+}
+
 .ttr1
 {
 	width: 10%;
@@ -376,6 +418,18 @@ h2
 .ttedit
 {
 	width: 100%;
+	border: 0;
+}
+
+#filterJobsAffinity
+{
+	width: 70px;
+	border: 0;
+}
+
+#filterJobsTitle
+{
+	width: 70px;
 	border: 0;
 }
 

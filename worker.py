@@ -1,4 +1,5 @@
 import socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser, httplib, urllib, datetime, threading
+import random
 from sys import modules
 from os.path import splitext, abspath
 
@@ -171,6 +172,10 @@ if cpus != None:
 
 vprint ("Running with " + str (workers) + " workers.")
 
+random.seed ()
+def shuffleSleepTime (sleepTime):
+	return sleepTime * (1.0 + (random.random ()-0.5)*0.2)
+
 # Safe method to run a command on the server, if retry is true, the function won't return until the message is passed
 def workerRun (worker, func, retry):
 	global sleepTime, gogogo
@@ -191,7 +196,7 @@ def workerRun (worker, func, retry):
 			break
 		vprint ("No server")
 		if gogogo:
-			time.sleep (sleepTime)
+			time.sleep (shuffleSleepTime (sleepTime))
 
 # A Singler worker
 class Worker:
@@ -210,7 +215,7 @@ class Worker:
 	# LoadAvg
 	def workerGetLoadAvg (self):
 		usage = self.HostCPU.getUsage ()
-		return self.HostCPU.getUsage ()
+		return usage
 
 	def workerEvalEnv (self, _str, _env):
 		if platform.system () != 'Windows':
@@ -303,7 +308,7 @@ class Worker:
 			except:
 				self.ErrorCode = -1
 				print ("Fatal error executing the job...")
-				time.sleep (sleepTime)
+				time.sleep (shuffleSleepTime (sleepTime))
 		# Signal to the main process the job is finished
 		self.Working = False
 		Event.set ()
@@ -444,7 +449,7 @@ class Worker:
 			while (self.Working):
 				self.heartbeat (jobId, False)
 				Event.clear ()
-				Event.wait (sleepTime)
+				Event.wait (shuffleSleepTime (sleepTime))
 
 			# Flush for real for the last time
 			self.heartbeat (jobId, True)
@@ -465,7 +470,7 @@ class Worker:
 			# Block until this message to handled by the server
 			workerRun (self, endFunc, True)
 		else:
-			time.sleep (sleepTime)
+			time.sleep (shuffleSleepTime (sleepTime))
 
 def main ():
 	global	name, serverUrl, sleepTime, broadcastPort, gogogo, workers, startup
@@ -519,7 +524,7 @@ def main ():
 				except:
 					print ("Fatal error, retry...")
 					if gogogo:
-						time.sleep (sleepTime)
+						time.sleep (shuffleSleepTime (sleepTime))
 		vprint ("WORKER " + worker.Name + " is kindly asked to quit.")
 		# kill any job in process
 		worker.killJob ()
@@ -530,7 +535,7 @@ def main ():
 		thread.start_new_thread (threadfunc, (worker,))
 	# and let the main thread wait
 	while gogogo:
-		time.sleep (sleepTime)
+		time.sleep (shuffleSleepTime (sleepTime))
 
 if not service:
 	main()

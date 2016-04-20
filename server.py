@@ -116,6 +116,8 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
+	print ("  --reset\t\tReset the database (warning: all previous data are lost)")
+	print ("  --test\t\tPerform the database unit tests")
 	if sys.platform == "win32":	
 		print ("  -c, --console=\t\tRun as a windows console application")
 		print ("  -s, --service=\t\tRun as a windows service")
@@ -124,9 +126,12 @@ def usage():
 # Service only on Windows
 service = service and sys.platform == "win32"
 
+resetDb = False
+testDb = False
+
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=", "verbose"])
+	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=", "verbose", "reset", "test"])
 	if len(args) != 0:
 		usage()
 		sys.exit(2)
@@ -143,6 +148,10 @@ for o, a in opts:
 		verbose = True
 	elif o in ("-p", "--port"):
 		port = int(a)
+	elif o in ("--reset"):
+		resetDb = True
+	elif o in ("--test"):
+		testDb = True
 	else:
 		assert False, "unhandled option " + o
 
@@ -223,8 +232,8 @@ class LogFilter:
 				progress = float(capture) / (self.IsPercent and 100.0 or 1.0)
 			except ValueError:
 				pass
-		return self.RE.sub ("", log), progress
-		#return log, progress
+		#return self.RE.sub ("", log), progress
+		return log, progress
 		
 LogFilterCache = {}
 
@@ -238,559 +247,10 @@ def getLogFilter (pattern):
 		LogFilterCache[pattern] = filter
 	return filter
 
-def compareJobs (self, other):
-	if self.priority < other.priority:
-		return 1
-	if self.priority > other.priority:
-		return -1
-	if self.id > other.id:
-		return 1
-	if self.id < other.id:
-		return -1
-	return 0
-
-def compareAffinities (jobAffinity, workerAffinity):
-	# check for job with no affinity -- always success
-	if jobAffinity == "" :
-		return True
-	# check for worker with no affinity -- always failure unless no affinity
-	if workerAffinity == "" :
-		return False
-	jobWords = jobAffinity.split (',')
-
-	workerWords = workerAffinity.split (',')
-	for jobWord in jobWords:
-		found = False
-		for workerWord in workerWords:
-			if workerWord == jobWord:
-				found = True
-		if not found:
-			return False
-	return True
-
 def writeJobLog (jobId, log):
 	logFile = open (getLogFilename (jobId), "a")
 	logFile.write (log)
 	logFile.close ()	
-			
-# State of the master
-# Rules for picking a job:
-# If the job has children, they must be finished before
-# If no child can be ran (exceeded retries count), then the job cannot be ran
-# Children are picked according to their priority
-DBVersion = 8
-class CState:
-
-	def __init__ (self):
-		self.clear ()
-
-	# Clear the whole database
-	def clear (self) :
-		self._ActiveJobs = set ()
-		self._Affinities = {}			# dynamic affinity, job affinity concatened to the children jobs affinity
-
-	def update (self) :
-		global	TimeOut
-		_time = time.time ()
-		for id in State._ActiveJobs.copy () :
-			job = db.getJob (id)
-			if job.state == "WORKING" and job.command != "":	# Don't update timeout if it is a folder job
-				if _time - job.ping_time > TimeOut :
-					# Job times out, no heartbeat received for too long
-					vprint ("Job " + str(job.id) + " is AWOL")
-					self.updateJobState (id, "ERROR")
-					self.updateWorkerState (State.getWorker (job.worker), "TIMEOUT")
-					writeJobLog (job.id, "SERVER: Worker "+job.worker+" doesn't respond, timeout.")
-				elif job.timeout > 0 and _time - job.start_time > job.timeout:
-					# job exceeded run time
-					vprint ("Job " + str(job.id) + " timeout, exceeded run time")
-					self.updateJobState (id, "ERROR")
-					self.updateWorkerState (State.getWorker (job.worker), "ERROR")
-					writeJobLog (job.id, "SERVER: Job " + str(job.id) + " timeout, exceeded run time")
-				if not job.hasChildren () :
-					job.duration = _time - job.start_time
-					try:
-						worker = State.getWorker (job.worker)
-						if worker.current_event != -1:
-							activity = db.getEvent (worker.current_event)
-							if activity.job_id == job.id:
-								activity.duration = job.duration
-					except KeyError:
-						pass
-		# Timeout workers
-		workers = db.getWorkers ()
-		for worker in workers:
-			if worker.state != "TIMEOUT" and _time - worker.ping_time > TimeOut:
-				self.updateWorkerState (worker, "TIMEOUT")
-
-	# -----------------------------------------------------------------------
-	# job handling
-
-	# Is job dependent on another
-	def doesJobDependOn (self, id0, id1):
-		if id0 == id1:
-			return True
-		try:
-			job0 = db.getJobs (id0)
-			dependencies = job0.getDependencies ()
-			for dep in dependencies:
-				if self.doesJobDependOn (dep.id, id1):
-					return True
-		except KeyError:
-			pass
-		return False
-
-	# Find a job by its title
-	'''	def findJobByTitle (self, title):
-		for id, job in self.Jobs.iteritems ():
-			if job.title == title:
-				return id'''
-
-	# Find a job by its path, job path atoms are separated by pipe '|'
-	'''	def findJobByPath (self, path):
-		job = db.getRoot ()
-		atoms = re.findall ('([^|]+)', path)
-		for atom in atoms :
-			found = False
-			for id in job.Children :
-				try :
-					child = db.getJob (id)
-					if child.title == atom :
-						job = child
-						found = True
-						break
-				except KeyError:
-					pass
-			if not found :
-				return None
-		return job.id'''
-
-	# Add a job
-	def newJob (self, parent, title, command, dir, environment, state, priority, retry, timeout, affinity, 
-		user, dependencies, progress_pattern, url):
-		try:
-			job = db.newJob (
-			parent, title, command, dir, environment, state, "", int(time.time()), 0, int(time.time()), 0, retry, timeout, priority,
-			affinity, user, 0, 0, 0, 0, 0, 0, 0, url, 0, progress_pattern)
-			db.setJobDependencies (job.id, dependencies)
-
-			if job.id != 0:
-				job.parent = parent
-				self._updateAffinity (job.id)
-				self._updateParentState (parent)
-			return job.id
-
-		except KeyError:
-			print ("Can't add job to parent " + str (parent) + " type", type (parent))
-
-	# Remove a job
-	def deleteJob (self, id, updateParentState = True):
-		if id != 0:
-			try:
-				job = db.getJob (id)
-				# remove children first
-				children = db.getJobChildren (job.id)
-				for child in children:
-					self.deleteJob (child.id)
-				# remove self from parent
-				parentId = job.parent
-				# and unmap
-				try:
-					db.deleteJob (id)
-				except KeyError:
-					pass
-				try:
-					del self._Affinities[id]
-				except KeyError:
-					pass
-				try:
-					self._ActiveJobs.remove (id)
-				except KeyError:
-					pass
-				# only update parent's state when required (for instance in removeChildren, it is done after removing all children)
-				if updateParentState:
-					self._updateParentState (parentId)
-			except KeyError:
-				pass
-
-	# Remove children jobs
-	def removeChildren (self, id) :
-		job = db.getJob (id)
-		children = db.getJobChildren (job.id)
-		for child in children:
-			self.deleteJob (child.id, False)
-		self._updateParentState (id)
-
-	# Change job affinity
-	def setAffinity (self, id, affinity) :
-		try:
-			job = db.getJob (id)
-			job.affinity = affinity
-			self._updateParentState (id)
-		except:
-			pass
-
-	# Reset a job
-	def resetJob (self, id) :
-		try:
-			job = db.getJob (id)
-			job.state = "WAITING"
-			job.run_done = 0
-			job.worker = ""
-			if getattr(job, "progress", False):
-				job.progress = 0
-			try:
-				self._ActiveJobs.remove (id)
-			except KeyError:
-				pass
-			self._updateParentState (job.parent)
-			children = db.getJobChildren (job.id)
-			for child in children:
-				self.resetJob (child.id)
-
-			# Clear the logs
-			try:
-				os.unlink (getLogFilename (id))
-			except OSError:
-				pass
-
-		except KeyError:
-			pass
-
-	# Reset a job and its error children
-	def resetErrorJob (self, id) :
-		try:
-			job = db.getJob (id)
-			job.state = "WAITING"
-			job.run_done = 0
-			job.worker = ""
-			if getattr(job, "progress", False):
-				job.progress = 0
-			try:
-				self._ActiveJobs.remove (id)
-			except KeyError:
-				pass
-			self._updateParentState (job.parent)
-			children = db.getJobChildren (job.id)
-			for child in children:
-				if child.state == "ERROR":
-					self.resetErrorJob (child.id)
-		except KeyError:
-			pass
-
-	# Reset a job
-	def startJob (self, id) :
-		try:
-			job = db.getJob (id)
-			job.state = "WAITING"
-			job.run_done = 0
-			job.worker = ""
-			if getattr(job, "progress", False):
-				job.progress = 0
-			try:
-				self._ActiveJobs.remove (id)
-			except KeyError:
-				pass
-			self._updateParentState (id)
-		except KeyError:
-			pass
-
-	# Start a paused job
-	def startJob (self, id) :
-		try:
-			job = db.getJob (id)
-			if job.state == "PAUSED" :
-				job.state = "WAITING"
-				self._updateParentState (id)
-		except KeyError:
-			pass
-
-	# Pause a job
-	def pauseJob (self, id) :
-		try:
-			job = db.getJob (id)
-			job.state = "PAUSED"
-			try:
-				self._ActiveJobs.remove (id)
-			except KeyError:
-				pass
-			self._updateParentState (id)
-		except KeyError:
-			pass
-
-	# Move a job
-	def moveJob (self, id, dest) :
-		try:
-			if id != dest:
-				job = db.getJob (id)
-				oldParentID = job.parent
-				job.parent = dest
-				self._updateParentState (dest)
-				self._updateParentState (oldParentID)
-		except KeyError:
-			vprint ("moveJob key error")
-			pass
-
-	# Can be executed
-	def canExecute (self, id) :
-		# Root
-		if id == 0:
-			return False
-		job = db.getJob (id)
-
-		# Don't execute a finished job or a working job
-		if job.state == "FINISHED" or job.state == "PAUSED" :
-			return False
-
-		# Waiting jobs can be executed only if all dependencies are finished
-		# Error jobs can be ran only if they have no children and tries left
-		dependencies = job.getDependencies ()
-		for dep in dependencies:
-			if dep.state != "FINISHED" :
-				return False
-
-		# Visit parents, or waiting jobs or error jobs with enough retry
-		hasChildren = job.hasChildren ()
-		return hasChildren or (not hasChildren and (job.state == "WAITING" or (job.state == "ERROR" and job.run_done < job.retry)))
-
-	# Can be executed
-	def compatibleAffinities (self, jobAffinity, workerAffinity) :
-		job = frozenset (re.findall ('([^,]+)', jobAffinity))
-		worker = frozenset (re.findall ('([^,]+)', workerAffinity))
-		if worker >= job:
-			return True
-		return False
-		
-	def pickJob (self, id, affinity) :
-		job = db.getJob (id)
-		nextChild = None
-		nextJobID = None
-
-		# Look for the next job
-		allFinished = True
-		children = db.getJobChildren (job.id)
-		for child in children:
-			if child.state != "FINISHED" :
-				allFinished = False
-			# if job can be executed and worker affinity is compatible, add this job as a potential one
-			if self.canExecute (child.id):
-				if self.compatibleAffinities (child.affinity, affinity):
-					#vprint ("++ worker "+str (affinity)+" compatible with job "+str (child.id)+" "+str (self._Affinities[child.id]))
-					if nextChild == None or child.priority > nextChild.priority or (child.priority == nextChild.priority and (child.total_working+child.total_finished < nextChild.total_working+nextChild.total_finished)) :
-						tryJobId = None
-						if child.hasChildren () :
-							tryJobId = self.pickJob (child.id, affinity)
-						else :
-							tryJobId = child.id
-						if tryJobId != None:
-							nextChild = child
-							nextJobID = tryJobId
-		return nextJobID
-
-	# Update job state
-	def updateJobState (self, id, state) :
-		global GErr, GOk
-		if state == "ERROR" :
-			GErr += 1
-		if state == "FINISHED" :
-			GOk += 1
-		try :
-			job = db.getJob (id)
-			if job.state != state :
-				job.state = state
-				
-				# Update the event
-				activity = None
-				try :
-					worker = self.getWorker (job.worker)
-					if worker.current_event != -1:
-						activity = db.getEvent (worker.current_event)
-						if activity.job_id == id:
-							activity.state = state
-				except KeyError:
-					pass
-				
-				if state == "WORKING" :
-					job.run_done += 1
-					job.start_time = time.time ()
-					self._ActiveJobs.add (id)
-				elif state == "ERROR" or state == "FINISHED":
-					if state == "ERROR" :
-						job.priority = max (job.priority-1, 0)
-						notifyError (job)
-					if state == "FINISHED" :
-						notifyFinished (job)
-						job.progress = 1
-					if not job.hasChildren () :
-						_time = time.time()
-						job.duration = _time - job.start_time
-						if activity:
-							activity.duration = job.duration
-					try:
-						self._ActiveJobs.remove (id)
-					except KeyError:
-						pass
-				self._updateParentState (job.parent)
-		except KeyError:
-			pass
-
-	# Update parent state
-	def _updateParentState (self, id) :
-		if id == 0 :
-			return																																			
-		try:
-			job = db.getJob (id)
-			jobsToDo = False
-			hasError = False
-			total = 0
-			total_finished = 0
-			total_errors = 0
-			total_working = 0
-			finished = 0
-			errors = 0
-			working = 0
-			durationAvg = 0;
-			durationCount = 0;
-			children = db.getJobChildren (job.id)
-			for child in children:
-				if self.canExecute (child.id):
-					jobsToDo = True
-				state = child.state
-				if child.hasChildren () :
-					total += child.total or 0
-					total_errors += child.total_errors or 0
-					total_finished += child.total_finished or 0
-					total_working += child.total_working or 0
-					durationAvg += child.duration * child.total;
-					durationCount += child.total;
-				else :
-					total += 1
-					if state == "ERROR":
-						errors += 1
-					elif state == "FINISHED":
-						finished += 1
-					elif state == "WORKING":
-						working += 1
-					durationAvg += child.duration;
-					durationCount += 1;
-			if durationCount > 0 :
-				durationAvg /= durationCount
-			else :
-				durationAvg = 0
-			total_errors += errors
-			total_finished += finished
-			total_working += working
-
-			# If this parent job has finished the notifyafter first jobs, notify the user
-			if job.finished < notifyafter and finished >= notifyafter :
-				notifyFirstFinished (job)
-
-			# If this parent job has finished the notifyafter first jobs, notify the user
-			if job.errors < decreasepriorityafter and errors >= decreasepriorityafter :
-				job.priority = max (job.priority-1, 0)
-
-			job.finished = finished
-			job.errors = errors
-			job.working = working
-			job.total = total
-			job.total_errors = total_errors
-			job.total_finished = total_finished
-			job.total_working = total_working
-			job.duration = durationAvg
-			if job.total > 0:
-				job.progress = float (total_finished)/float (total)
-			
-			# New job state
-			newState = "WAITING"
-			if job.total_working > 0 :
-				newState = "WORKING"
-			elif job.total_errors > 0 :
-				newState = "ERROR"
-			elif job.total > 0 and job.total == job.total_finished :
-				newState = "FINISHED"
-			
-			if job.state != "PAUSED" and newState != job.state:
-				if newState == "FINISHED" :
-					notifyFinished (job)
-				if newState == "ERROR" :
-					notifyError (job)
-				job.state = newState
-			self._updateAffinity (id)
-			self._updateParentState (job.parent)
-		except KeyError:
-			pass
-
-	# Update job affinity
-	def _updateAffinity (self, id) :
-		job = db.getJob (id)
-		self._Affinities[id] = frozenset (re.findall ('([^,]+)', job.affinity))
-
-	# -----------------------------------------------------------------------
-	# worker handling
-
-	# get a worker
-	def getWorker (self, name) :
-		worker = db.getWorker (name)
-		if worker:
-			worker.ping_time = time.time()
-			return worker
-		else:
-			# Worker not found, add it
-			db.newWorker (name, int(time.time()))
-			worker = db.getWorker (name)
-			return worker
-
-	def stopWorker (self, name):
-		worker = db.getWorker (name)
-		worker.active = False
-
-		# Try to stop the worker's jobs
-		job = db.getJob (worker.last_job)
-		if job and job.worker == name and job.state == "WORKING":
-			job.state = "WAITING"
-
-	def startWorker (self, name):
-		worker = db.getWorker (name)
-		worker.active = True
-
-	def updateWorkerState (self, worker, state) :
-		try:
-			if state != worker.state:
-				if state == "ERROR" :
-					worker.error += 1
-					worker.state = "WAITING"
-				elif state == "FINISHED" :
-					worker.finished += 1
-					worker.state = "WAITING"
-				elif state == "TIMEOUT" :
-					worker.error += 1
-					worker.state = "WAITING"
-				else:
-					worker.state = state
-		except KeyError:
-			pass
-
-	# -----------------------------------------------------------------------
-	# debug/dump
-
-	def dump (self) :
-		def dumpJob (id, depth) :
-			try:
-				job = db.getJob (id)
-				print (" "*(depth*2)) + str (job.id) + " " + job.title + " " + job.state + " cmd='" + job.dir + "/" + job.command + "' prio=" + str (job.priority) + " retry=" + str (job.run_done) + "/" + str (job.retry)
-				try:
-					dyn = self._Affinities[id]
-					print (" "*(depth*2+1)), "Dyn:", dyn
-				except:
-					pass
-				children = db.getJobChildren (job.id)
-				for child in children:
-					dumpJob (child.id, depth+1)
-			except KeyError:
-				print (" "*(depth*2)) + "<<< Unknown job " + str (id) + " >>>"
-		dumpJob (0, 0)
-
-State = CState()
 
 
 
@@ -870,7 +330,6 @@ class Master (xmlrpc.XMLRPC):
 	def render (self, request):
 		with db:
 			vprint ("[" + request.method + "] "+request.path)
-			global State
 			if authenticate (request):
 				# If not autenticated, user == ""
 				self.user = request.getUser ()
@@ -891,44 +350,36 @@ class Master (xmlrpc.XMLRPC):
 					if environment == "":
 						environment = None
 					priority = getArg ("priority", "1000")
-					retry = getArg ("retry", "10")
 					timeout = getArg ("timeout", "0")
 					affinity = getArg ("affinity", "")
 					dependencies = getArg ("dependencies", "")
 					progress_pattern = getArg ("localprogress", "")
 					url = getArg ("url", "")
 					user = getArg ("user", "")
+					state = getArg ("state", "WAITING")
+					paused = getArg ("paused", "0")
 					if self.user != "":
 						user = self.user
 
 					if grantAddJob (self.user, cmd):
 						vprint ("Add job : " + cmd)
-						if isinstance (parent, str):
-							try:
-								# try as an int
-								parent = int (parent)
-							except ValueError:
-								bypath = db.findJobByPath (parent)
-								if bypath:
-									parent = bypath
-								else:
-									parenttitle = parent
-									parent = db.findJobByTitle (parent)
-									if parent == None:
-										print ("Error : can't find job " + str (parenttitle))
-										return -1
+						# try as an int
+						parent = int (parent)
 						if type(dependencies) is str:
 							# Parse the dependencies string
 							dependencies = re.findall ('(\d+)', dependencies)
 						for i, dep in enumerate (dependencies) :
 							dependencies[i] = int (dep)
-					
-						id = State.newJob (parent, str (title), str (cmd), str (dir), str (environment), "WAITING", int (priority), int (retry), int (timeout), str (affinity), str (user), dependencies, progress_pattern, url)
 
-						State.update ()
-						return str(id)
-					else:
-						return -1
+						job = db.newJob (parent, str (title), str (cmd), str (dir), str (environment),
+									str (state), int (paused), int (timeout), int (priority), str (affinity),
+									str (user), str (url), str (progress_pattern))
+						if job is not None:
+							db.setJobDependencies (job['id'], dependencies)
+							return str(job['id'])
+
+					return "-1"
+
 				else:
 					value = request.content.getvalue()
 					if request.method != "GET":
@@ -957,45 +408,62 @@ class Master (xmlrpc.XMLRPC):
 					def api_rest ():
 						if request.method == "PUT":
 							if request.path == "/api/jobs":
-								jod_id = State.newJob ((getArg ("parent",0)), (getArg("title","")), (getArg("command","")), (getArg("dir","")), (getArg("environment","")), 
-									(getArg("state","WAITING")),	(getArg("priority",1000)), (getArg("retry",1000)), (getArg("timeout",1000)), (getArg("affinity", "")), 
-									(getArg("user", "")), getArg("dependencies", []), (getArg("progress_pattern", "")), (getArg("url", "")))
-								State.update ()
-								return jod_id
+								job = db.newJob ((getArg ("parent",0)),
+												 (getArg("title","")),
+												 (getArg("command","")),
+												 (getArg("dir","")),
+												 (getArg("environment","")), 
+												 (getArg("state","WAITING")),
+												 (getArg("paused",0)),
+												 (getArg("timeout",1000)),
+												 (getArg("priority",1000)),
+												 (getArg("affinity", "")), 
+												 (getArg("user", "")),
+												 (getArg("url", "")),
+												 (getArg("progress_pattern", "")),
+												 (getArg("dependencies", [])))
+								return job['id']
 
 						elif request.method == "GET":
 							m = re.match(r"^/api/jobs/(\d+)$", request.path)
 							if m:
-								return self.getJob (int(m.group (1)))
+								return db.getJob (int(m.group (1)))
 
 							m = re.match(r"^/api/jobs/(\d+)/children$", request.path)
 							if m:
-								return self.getJobChildren (int(m.group (1)))
+								return db.getJobChildren (int(m.group (1)), {})
 
 							m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
 							if m:
-								return self.getJobDependencies (int(m.group (1)))
+								return db.getJobDependencies (int(m.group (1)))
+
+							m = re.match(r"^/api/jobs/(\d+)/childrendependencies$", request.path)
+							if m:
+								return db.getChildrenDependencyIds (int(m.group (1)))
 
 							m = re.match(r"^/api/jobs/(\d+)/log$", request.path)
 							if m:
 								return self.getLog (int(m.group (1)))
 
 							if request.path == "/api/jobs":
-								return self.getJobChildren (0)
+								return db.getJobChildren (0, {})
 
 							if request.path == "/api/workers":
-								return self.getWorkers ()
+								return db.getWorkers ()
 
 							if request.path == "/api/events":
-								return self.getEvents (getArg ("job", -1), getArg ("worker", ""), getArg ("howlong", -1))
+								return db.getEvents (getArg ("job", -1), getArg ("worker", ""), getArg ("howlong", -1))
+
+							if request.path == "/api/affinities":
+								return db.getAffinities ()
 
 						elif request.method == "POST":
 							if request.path == "/api/jobs":
-								db.edit (data, {}, {})
+								db.editJobs (data)
 								return 1
 
 							if request.path == "/api/workers":
-								db.edit ({}, data, {})
+								db.editWorkers (data)
 								return 1
 
 							m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
@@ -1004,30 +472,53 @@ class Master (xmlrpc.XMLRPC):
 								return 1
 
 							if request.path == "/api/resetjobs":
-								return self.resetJobs (data)
+								for jobId in data:
+									db.resetJob (int(jobId))
+								return 1
 
 							if request.path == "/api/reseterrorjobs":
-								return self.resetErrorJobs (data)
+								for jobId in data:
+									db.resetErrorJob (int(jobId))
+								return 1
 
 							if request.path == "/api/startjobs":
-								return self.startJobs (data)
+								for jobId in data:
+									db.startJob (int(jobId))
+								return 1
 
 							if request.path == "/api/pausejobs":
-								return self.pauseJobs (data)
+								for jobId in data:
+									db.pauseJob (int(jobId))
+								return 1
 
 							if request.path == "/api/stopworkers":
-								return self.stopWorkers (data)
+								for name in data:
+									db.stopWorker (name)
+								return 1
 
 							if request.path == "/api/startworkers":
-								return self.startWorkers (data)
+								for name in data:
+									db.startWorker (name)
+								return 1
+
+							if request.path == "/api/affinities":
+								db.setAffinities (data)
+								return 1
 
 						elif request.method == "DELETE":
 
 							if request.path == "/api/jobs":
-								return self.deleteJobs (data)
+								for jobId in data:
+									deletedJobs = []
+									db.deleteJob (int(jobId), deletedJobs)
+									for deleteJobId in deletedJobs:
+										self.deleteLog (deleteJobId)
+								return 1
 
 							if request.path == "/api/workers":
-								return self.deleteWorkers (data)
+								for name in data:
+									db.deleteWorker (name)
+								return 1
 
 
 					result = api_rest ()
@@ -1040,71 +531,7 @@ class Master (xmlrpc.XMLRPC):
 						return "Web service not found"
 			return 'Authorization required!'
 
-	def getJob (self, id):
-		job = db.getJob (id)
-		if job:
-			d = job.__dict__.copy ()
-			del d['db']
-			del d['_Job__initialized']
-			return d
-
-	def getJobChildren (self, id):
-		jobs = db.getJobChildren (id)
-		r = []
-		for job in jobs:
-			d = job.__dict__.copy ()
-			del d['db']
-			del d['_Job__initialized']
-			r.append (d)
-		return r
-
-	def getJobDependencies (self, id):
-		jobs = db.getJobDependencies (id)
-		r = []
-		for job in jobs:
-			d = job.__dict__.copy ()
-			del d['db']
-			del d['_Job__initialized']
-			r.append (d)
-		return r
-
-	def deleteJobs (self, ids):
-		global State
-		for jobId in ids:
-			State.deleteJob (int(jobId))
-		State.update ()
-		return "1"
-
-	def resetJobs (self, ids):
-		global State
-		for jobId in ids:
-			State.resetJob (int(jobId))
-		State.update ()
-		return "1"
-
-	def resetErrorJobs (self, ids):
-		global State
-		for jobId in ids:
-			State.resetErrorJob (int(jobId))
-		State.update ()
-		return "1"
-
-	def startJobs (self, ids):
-		global State
-		for jobId in ids:
-			State.startJob (int(jobId))
-		State.update ()
-		return "1"
-
-	def pauseJobs (self, ids):
-		global State
-		for jobId in ids:
-			State.pauseJob (int(jobId))
-		State.update ()
-		return "1"
-
 	def getLog (self, jobId):
-		global State
 		# Look for the job
 		log = ""
 		try:
@@ -1121,46 +548,12 @@ class Master (xmlrpc.XMLRPC):
 			pass
 		return log
 
-	def getWorkers (self):
-		workers = db.getWorkers ()
-		r = []
-		for worker in workers:
-			d = worker.__dict__.copy ()
-			del d['db']
-			del d['_Worker__initialized']
-			r.append (d)
-		return r
-
-	def deleteWorkers (self, names):
-		global State
-		for name in names:
-			db.deleteWorker (name)
-		State.update ()
-		return "1"
-
-	def stopWorkers (self, names):
-		global State
-		for name in names:
-			State.stopWorker (name)
-		State.update ()
-		return "1"
-
-	def startWorkers (self, names):
-		global State
-		for name in names:
-			State.startWorker (name)
-		State.update ()
-		return "1"
-
-	def getEvents (self, job, worker, howlong):
-		events = db.getEvents (job, worker, howlong)
-		r = []
-		for event in events:
-			d = event.__dict__.copy ()
-			del d['db']
-			del d['_Event__initialized']
-			r.append (d)
-		return r
+	def deleteLog (self, jobId):
+		# Look for the job
+		try:
+			os.remove (getLogFilename (jobId))
+		except OSError:
+			pass
 
 # Unauthenticated connection for workers
 class Workers(xmlrpc.XMLRPC):
@@ -1168,8 +561,7 @@ class Workers(xmlrpc.XMLRPC):
 
 	def render (self, request):
 		with db:
-			global State
-
+			vprint ("[" + request.method + "] "+request.path)
 			def getArg (name, default):
 				value = request.args.get (name, [default])
 				return value[0]
@@ -1185,120 +577,39 @@ class Workers(xmlrpc.XMLRPC):
 				return xmlrpc.XMLRPC.render (self, request)
 
 	def json_heartbeat (self, hostname, jobId, log, load, free_memory, total_memory, ip):
-		"""Get infos from the workers."""
-		global State
-		_time = time.time ()
-		vprint ("Heart beat for " + str(jobId) + " " + str(load))
-		# Update the worker load and ping time
-		worker = State.getWorker (hostname)
-		worker.cpu = load
-		worker.free_memory = int(free_memory)
-		worker.total_memory = int(total_memory)
-		worker.ip = str(ip)
-		workingJob = None
-		jobId = int(jobId)
-		try :
-			job = db.getJob (jobId)
-			if job.state == "WORKING" and job.worker == hostname :
-				State.updateWorkerState (worker, "WORKING")
-				workingJob = job
-				job.ping_time = _time
-				if log != "" :
-					try:
-						logFile = open (getLogFilename (jobId), "a")
-						log = base64.decodestring(log)
-						
-						# Filter the log progression message
-						progress = None
-						progress_pattern = getattr(job, "progress_pattern", DefaultLocalProgressPattern)
-						if progress_pattern != "":
-							vprint ("progressPattern : \n" + str(progress_pattern))
-							lp = None
-							gp = None
-							lFilter = getLogFilter (progress_pattern)
-							log, lp = lFilter.filterLogs (log)
-							if lp != None:
-								vprint ("lp : "+ str(lp)+"\n")
-								job.progress = lp
-						
-						logFile.write (log)
-						logFile.close ()
-					except IOError:
-						vprint ("Error in logs")
-		except KeyError:
-			pass
-		State.update ()
-		if worker.state == "WORKING" and workingJob != None and workingJob.state == "WORKING":
-			return "true"
-		# Stop
-		vprint ("Error at " + hostname + " heartbeat, set to WAITING")
-		State.updateWorkerState (worker, "WAITING")
-		if workingJob:
-			State.updateJobState (jobId, "WAITING")
-		return "false"
+		result = db.heartbeat (hostname, int(jobId), load, int(free_memory), int(total_memory), str(ip))
+		if log != "" :
+			try:
+				logFile = open (getLogFilename (jobId), "a")
+				log = base64.decodestring(log)
+				
+				# Filter the log progression message
+				progress = None
+				job = db.getJob (int (jobId))
+				progress_pattern = getattr (job, "progress_pattern", DefaultLocalProgressPattern)
+				if progress_pattern != "":
+					vprint ("progressPattern : \n" + str(progress_pattern))
+					lp = None
+					gp = None
+					lFilter = getLogFilter (progress_pattern)
+					log, lp = lFilter.filterLogs (log)
+					if lp != None:
+						vprint ("lp : "+ str(lp)+"\n")
+						if lp != job['progress']:
+							db.setJobProgress (int (jobId), lp)				
+				logFile.write (log)
+				if not result:
+					logFile.write ("KillJob: server required worker to kill job.\n")
+				logFile.close ()
+			except IOError:
+				vprint ("Error in logs")
+		return result and "true" or "false"
 
 	def json_pickjob (self, hostname, load, free_memory, total_memory, ip):
-		"""A worker ask for a job."""
-		global State
-		vprint (hostname + " wants some job" + " " + load)
-		worker = State.getWorker (hostname)
-		worker.cpu = load
-		worker.free_memory = int(free_memory)
-		worker.total_memory = int(total_memory)
-		worker.ip = str(ip)
-		if not worker.active:
-			State.updateWorkerState (worker, "WAITING")
-			return '-1,"","","",None'
-#		affinity = frozenset (re.findall ('([^,]+)', worker.affinity))
-		jobId = State.pickJob (0, worker.affinity)
-		if jobId != None :
-			job = db.getJob (jobId)
-			if job.state == "FINISHED":
-				vprint (hostname + " picked a finished job!")
-			job.worker = hostname
-			job.ping_time = time.time()
-			job.start_time = job.ping_time
-			job.duration = 0
-			State.updateJobState (jobId, "WORKING")
-			worker.last_job = job.id
-			worker.ping_time = job.ping_time
-			State.updateWorkerState (worker, "WORKING")
-			State.update ()
-			vprint (hostname + " picked job " + str (jobId) + " " + worker.state)
-			
-			# Create the event
-			event = db.newEvent (hostname, job.id, job.title, 'WORKING', int(time.time()), 0)
-			worker.current_event = event.id
-
-			if job.user != None and job.user != "":
-				return repr (job.id)+","+repr (job.command)+","+repr (job.dir)+","+repr (job.user)+","+repr (job.environment)
-			else:
-				return repr (job.id)+","+repr (job.command)+","+repr (job.dir)+","+'""'+","+repr (job.environment)
-
-		State.updateWorkerState (worker, "WAITING")
-		State.update ()
-		return '-1,"","","",None'
+		return str (db.pickJob (hostname, load, int(free_memory), int(total_memory), str(ip)))
 
 	def json_endjob (self, hostname, jobId, errorCode, ip):
-		"""A worker finished a job."""
-		global State
-		worker = State.getWorker (hostname)
-		worker.ip = str(ip)
-		vprint ("End job " + str(jobId) + " with code " + str (errorCode))
-		jobId = int(jobId)
-		errorCode = int(errorCode)
-		try:
-			job = db.getJob (jobId)
-			if job.state == "WORKING" and job.worker == hostname :
-				result = "FINISHED"
-				if errorCode != 0 :
-					result = "ERROR"
-				State.updateJobState (jobId, result)
-				State.updateWorkerState (worker, result)
-		except KeyError:
-			pass
-		State.update ()
-		return "1"
+		return str (db.endJob (hostname, int(jobId), int(errorCode), str(ip)))
 
 # Listen to an UDP socket to respond to the workers broadcast
 def listenUDP():
@@ -1359,16 +670,26 @@ def sendEmail (to, message) :
 				pass
 
 def notifyError (job):
-	if job.user :
-		sendEmail (job.user, 'ERRORS in job ' + job.title + ' (' + str(job.id) + ').')
+	if job['user'] :
+		sendEmail (job['user'], 'ERRORS in job ' + job['title'] + ' (' + str(job['id']) + ').')
 
 def notifyFinished (job):
-	if job.user :
-		sendEmail (job.user, 'The job ' + job.title + ' (' + str(job.id) + ') is FINISHED.')
+	if job['user'] :
+		sendEmail (job['user'], 'The job ' + job['title'] + ' (' + str(job['id']) + ') is FINISHED.')
 
 def notifyFirstFinished (job):
-	if job.user :
-		sendEmail (job.user, 'The job ' + job.title + ' (' + str(job.id) + ') has finished ' + str(notifyafter) + ' jobs.')
+	if job['user'] :
+		sendEmail (job['user'], 'The job ' + job['title'] + ' (' + str(job['id']) + ') has finished ' + str(notifyafter) + ' jobs.')
+
+db.NotifyError = notifyError
+db.NotifyFinished = notifyFinished
+db.Verbose = verbose
+
+with db:
+	if resetDb:
+		db.reset ()
+	if testDb:
+		db.test ()
 
 if sys.platform=="win32" and service:
 

@@ -15,10 +15,11 @@
     <div id="subtitle">- A small but beautiful job manager by <a href="http://www.mercenaries-engineering.com">Mercenaries Engineering</a> - GPL licence - <a href="iphone.html">iPhone</a></div>
 
     <div id="tabs">
-            <div id="jobtab" class="activetab" onclick='showJobs()'>Jobs</div>
-            <div id="workertab" class="unactivetab" onclick='showWorkers()'>Workers</div>
-            <div id="activitytab" class="unactivetab" onclick='showActivities()'>Activities</div>
-            <div id="logtab" class="unactivetab" onclick='showLog ()'>Log</div>
+            <div id="jobtab" class="activetab" onclick='showPage("jobs")'>Jobs</div>
+            <div id="workertab" class="unactivetab" onclick='showPage("workers")'>Workers</div>
+            <div id="activitytab" class="unactivetab" onclick='showPage("activities")'>Activities</div>
+            <div id="logtab" class="unactivetab" onclick='showPage("logs")'>Log</div>
+            <div id="affinitytab" class="unactivetab" onclick='showPage("affinities")'>Affinities</div>
     </div>
 
     <div class="refreshtools">
@@ -40,6 +41,14 @@
                     <option value='FINISHED'>FINISHED</option>
                     <option value='PAUSED'>PAUSED</option>
                 </select></div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='Div2'>Affinity
+                <input type='edit' id='filterJobsAffinity' onchange='javascript:reloadJobs ()'/>
+                </div>
+            <div class='buttonSep'>|</div>
+            <div class='button' id='Div3'>Title
+                <input type='edit' id='filterJobsTitle' onchange='javascript:reloadJobs ()'/>
+                </div>
             <div class='buttonSep'>|</div>
             <div class='button' id='b01''>Select
                 <select id='selectJobs' onchange='javascript:selectJobs ()' value='CUSTOM'>
@@ -81,7 +90,7 @@
         <table id="toolstable">
         <tr>
         <td class="ttr1">title:</td><td class="ttr2"><input type='edit' class="ttedit" id='title' name='title' value='Job' onchange='onchangejobprop ("title")'></td>
-        <td class="ttr3">priority:</td><td class="ttr4"><input type='edit' class="ttedit" id='priority' name='priority' value='1000' onchange='onchangejobprop ("priority")'></td>
+        <td class="ttr3">priority:</td><td class="ttr4"><input type='edit' class="ttedit" id='priority' name='priority' value='127' onchange='onchangejobprop ("priority")'></td>
         <td rowspan=4 id="toolbuttons">
             <div>
                 <input type='button' class='toolbutton' name='updatejobsButton' value='Update' onclick='updatejobs()' />
@@ -97,11 +106,11 @@
         </tr>
         <tr>
         <td class="ttr1">dependencies:</td><td><input type='edit' class="ttedit" id='dependencies' name='dependencies' value='' onchange='onchangejobprop ("dependencies")'></td>
-        <td class="ttr3">retry:</td><td><input type='edit' class="ttedit" id='retry' name='retry' value='10' onchange='onchangejobprop ("retry")'></td>
+        <td class="ttr3">user:</td><td><input type='edit' class="ttedit" id='user' name='user' value='' onchange='onchangejobprop ("user")'></td>
         </tr>
         <tr>
         <td class="ttr1">url:</td><td><input type='edit' class="ttedit" id='url' name='url' value='' onchange='onchangejobprop ("url")'></td>
-        <td class="ttr3">user:</td><td><input type='edit' class="ttedit" id='user' name='user' value='' onchange='onchangejobprop ("user")'></td>
+        <td class="ttr3"></td>
         </tr>
         <tr>
         <td class="ttr1">environment:</td><td><input type='edit' class="ttedit" id='env' name='env' value='' onchange='onchangejobprop ("env")'></td>
@@ -163,10 +172,24 @@
                     <option value='2592000'>Last month</option>
                     <option value='15552000'>Last 6 monthes</option>
                     <option value='100000000000'>All</option>
-                </select></div>
+                </select>
+            </div>
         </div>
         <div id="activities">
         </div>
+    </div>
+    <div id="affinitiesTab">
+        <div id="affinities">
+        </div>
+        <table id="affinitytoolstable">
+        <tr>
+        <td rowspan=4>
+            <div>
+                <input type='button' class='toolbutton' name='updateaffinitiesButton' value='Update' onclick='sendAffinities()' />
+            </div>
+        </td>
+        </tr>
+        </table>
     </div>
 </div>
 
