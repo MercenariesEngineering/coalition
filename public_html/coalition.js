@@ -855,14 +855,22 @@ function renderWorkers ()
 	    var load = "<div class='load'>";
 	        // Add each cpu load
         var loadValue = 0;
-        var workerload = JSON.parse (worker.cpu)
-		for (j=0; j < workerload.length; ++j)
-		{
-			load += "<div class='loadbar' style='width:" + workerload[j] + "%;height:" + 16/workerload.length + "' />";
-			loadValue += workerload[j]
-		}
+        try
+        {
+			var workerload = JSON.parse (worker.cpu)
+			for (j=0; j < workerload.length; ++j)
+			{
+				load += "<div class='loadbar' style='width:" + workerload[j] + "%;height:" + 16/workerload.length + "' />";
+				loadValue += workerload[j];
+			}
+			Math.floor(loadValue/workerload.length);
+        }
+        catch (err)
+        {
+        	loadValue = 0;
+        }
         // Add the numerical value of the load
-		load += "<div class='loadlabel'>" + Math.floor(loadValue/workerload.length) + "%</div>";
+		load += "<div class='loadlabel'>" + loadValue + "%</div>";
 	    load += "</div>";
     
         // *** Build the memory tab for this worker		
