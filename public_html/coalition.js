@@ -897,7 +897,7 @@ function renderWorkers ()
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.name+"</td>"+
 		         "<td class='active"+worker.active+"' onMouseDown='onClickList(event,"+i+")'>"+worker.active+"</td>"+
 		         "<td class='"+worker.state+"' onMouseDown='onClickList(event,"+i+")'>"+worker.state+"</td>"+
-		         "<td onMouseDown='onClickList(event,"+i+")'>"+worker.affinity+"</td>"+
+		         "<td class='worker_affinities' onMouseDown='onClickList(event,"+i+")'>"+worker.affinity+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+formatDate (worker.ping_time)+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+load+"</td>"+
 		         "<td onMouseDown='onClickList(event,"+i+")'>"+memory+"</td>"+

@@ -16,7 +16,7 @@ def launch_workers():
 
 def launch_server():
 
-    p = Popen( [ "python", "server.py" ], stdout = PIPE, stderr = PIPE ) # Launch a server process
+    p = Popen( [ "python", "server.py" ] ) # Launch a server process
     processes.append( p )
 
 def launch_test():
@@ -42,6 +42,16 @@ def launch_test():
     	  def test_000dependencies(self):
     		jobCount = 10
 
+
+    		affinities = {}
+    		for i in range( 1, 65 ):
+    			affinities[str(i)] = ""
+
+			affinities["1"] = "linux"
+			affinities["2"] = "windows"
+
+    		aff = conn.setAffinities( affinities )
+
     		depJobID = conn.newJob (command="echo dependencies", title="jobDependencies", state='PAUSED')
     		self.assertNotEqual (depJobID, None)
 
@@ -57,6 +67,52 @@ def launch_test():
     		self.assertEqual(depJob.title, 'jobDependencies')
     		self.assertEqual(depJob.command, 'echo dependencies')
     		self.assertEqual(depJob.state, "PAUSED")
+
+    		firstSleepJobId = conn.newJob( command = "sleep 3", title = "First Job", state = "WAITING", affinity = "linux", priority = 128 )
+    		firstSleepJob = conn.getJob( firstSleepJobId )
+    		self.assertEqual( firstSleepJob.id, firstSleepJobId )
+    		self.assertEqual( firstSleepJob.title, "First Job" )
+    		self.assertEqual( firstSleepJob.command, "sleep 3" )
+    		self.assertEqual( firstSleepJob.state, "WAITING" )
+    		self.assertEqual( firstSleepJob.affinity, "linux" )
+    		self.assertEqual( firstSleepJob.priority, 128 )
+
+    		secondSleepJobId = conn.newJob( command = "sleep 3", title = "Second Job", state = "WAITING", affinity = "windows", priority = 127 )
+    		secondSleepJob = conn.getJob( secondSleepJobId )
+    		self.assertEqual( secondSleepJob.id, secondSleepJobId )
+    		self.assertEqual( secondSleepJob.title, "Second Job" )
+    		self.assertEqual( secondSleepJob.command, "sleep 3" )
+    		self.assertEqual( secondSleepJob.state, "WAITING" )
+    		self.assertEqual( secondSleepJob.affinity, "windows" )
+    		self.assertEqual( secondSleepJob.priority, 127 )
+
+
+
+    		workers = conn.getWorkers()
+    		#print( type( workers ))
+
+    		new_workers = {}
+    		new_workers[workers[0]['name']] = {}
+    		new_workers[workers[0]['name']]['affinity'] = "windows\nlinux"
+
+    		updated_workers = conn.editWorkers( new_workers )
+
+
+
+    	  	while (True):
+    			secondSleepJob = conn.getJob( secondSleepJobId )
+    			firstSleepJob = conn.getJob( firstSleepJobId )
+    			if ( secondSleepJob.state == "FINISHED" ) & ( firstSleepJob.state == "FINISHED"):
+
+    				self.assertTrue( secondSleepJob.start_time < firstSleepJob.start_time )
+    				self.assertEqual( secondSleepJob.worker, workers[0]['name'] )
+    				self.assertEqual( firstSleepJob.worker, workers[0]['name'] )
+
+    				return
+
+    			time.sleep (.1)
+
+
 
     		# Set the dependencies
     		conn.setJobDependencies (depJob.id, childrenID)
@@ -125,7 +181,7 @@ def main():
     # Iterate over the processes
     for p in processes:
         # Kill the process when test is done
-        pass	
+        pass
 
 
 if __name__ == "__main__":

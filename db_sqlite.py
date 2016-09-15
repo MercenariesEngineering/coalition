@@ -6,6 +6,10 @@ class DBSQLite(DBSQL):
 		self.Conn = sqlite3.connect(database)
 		with self.Conn:
 			cur = self.Conn.cursor()
+
+			cur.execute( 'CREATE TABLE IF NOT EXISTS WorkerAffinities ( id INTEGER PRIMARY KEY AUTOINCREMENT, worker_name TEXT, affinity BIGINT DEFAULT 0, ordering INT DEFAULT 0 )' )
+			cur.execute( 'CREATE INDEX IF NOT EXISTS worker_name_index ON WorkerAffinities( worker_name ) ' )
+			
 			cur.execute('CREATE TABLE IF NOT EXISTS Jobs(id INTEGER PRIMARY KEY AUTOINCREMENT, '
 				'parent INT DEFAULT 0, title TEXT DEFAULT "", command TEXT DEFAULT "", dir TEXT DEFAULT ".", '
 				'environment TEXT DEFAULT "", state TEXT DEFAULT "WAITING", paused BOOLEAN DEFAULT 0, '
@@ -23,7 +27,7 @@ class DBSQLite(DBSQL):
 			cur.execute('CREATE INDEX IF NOT EXISTS JobId_index ON Dependencies(job_id)')
 			cur.execute('CREATE INDEX IF NOT EXISTS Dependency_index ON Dependencies(dependency)')
 
-			cur.execute('CREATE TABLE IF NOT EXISTS Workers(name TEXT, ip TEXT, affinity TEXT DEFAULT "", affinity_bits BIGINT DEFAULT 0, state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN)')
+			cur.execute('CREATE TABLE IF NOT EXISTS Workers(name TEXT, ip TEXT, affinity TEXT DEFAULT "", state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN)')
 			cur.execute('CREATE UNIQUE INDEX IF NOT EXISTS Name_index ON Workers (name)')
 
 			cur.execute('CREATE TABLE IF NOT EXISTS Events(id INTEGER PRIMARY KEY AUTOINCREMENT, worker TEXT, job_id INT, job_title TEXT, state TEXT, start INT, duration INT)')

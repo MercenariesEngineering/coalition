@@ -201,6 +201,21 @@ class Connection:
 		res = self._send ("POST", '/api/jobs/'+str(id)+'/dependencies', ids)
 		return res
 
+	def setAffinities( self, data ):
+		
+		res = self._send( "POST", "/api/affinities", data )
+		return res
+
+	def getWorkers ( self ):
+
+		res = self._send ("GET", '/api/workers')
+		res = json.loads( res )
+		return res
+
+	def editWorkers( self, workers ):
+
+		res = self._send( "POST", '/api/workers', workers )
+
 	def __enter__(self):
 		self.Jobs = {}
 		self.Workers = {}

@@ -19,6 +19,10 @@ class DBMySQL(DBSQL):
 				if not data:
 					cur.execute('CREATE %s INDEX %s_index ON %s(%s)' % (opt, column, table, column))
 
+
+			cur.execute( 'CREATE TABLE IF NOT EXISTS WorkerAffinities( id INTEGER PRIMARY KEY AUTO_INCREMENT, worker_name VARCHAR(255), affinity BIGINT DEFAULT 0, ordering INT DEFAULT 0)' )
+			createKeySafe( 'WorkerAffinities', 'worker_name' )
+
 			cur.execute('CREATE TABLE IF NOT EXISTS Jobs(id INTEGER PRIMARY KEY AUTO_INCREMENT, '
 				'parent INT DEFAULT 0, title TEXT DEFAULT "", command TEXT DEFAULT "", dir TEXT DEFAULT "", '
 				'environment TEXT DEFAULT "", state TEXT DEFAULT "", paused BOOLEAN DEFAULT 0, '
@@ -37,7 +41,7 @@ class DBMySQL(DBSQL):
 			createKeySafe ('Dependencies', 'job_id')
 			createKeySafe ('Dependencies', 'dependency')
 
-			cur.execute('CREATE TABLE IF NOT EXISTS Workers(name VARCHAR(255), ip TEXT, affinity TEXT DEFAULT "", affinity_bits BIGINT DEFAULT 0, state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN)')
+			cur.execute('CREATE TABLE IF NOT EXISTS Workers(name VARCHAR(255), ip TEXT, affinity TEXT DEFAULT "", state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN)')
 			createKeySafe ('Workers', 'name', 'UNIQUE')
 
 			cur.execute('CREATE TABLE IF NOT EXISTS Events(id INTEGER PRIMARY KEY AUTO_INCREMENT, worker VARCHAR(255), job_id INT, job_title TEXT, state TEXT, start INT, duration INT)')
