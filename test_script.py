@@ -47,8 +47,11 @@ def launch_test():
     		for i in range( 1, 65 ):
     			affinities[str(i)] = ""
 
-			affinities["1"] = "linux"
-			affinities["2"] = "windows"
+    		affinities["1"] = "linux"
+    		affinities["2"] = "win"
+    		affinities["3"] = "windows playmobil"
+    		affinities["4"] = "windows"
+    		affinities["5"] = "dos"
 
     		aff = conn.setAffinities( affinities )
 
@@ -86,14 +89,50 @@ def launch_test():
     		self.assertEqual( secondSleepJob.affinity, "windows" )
     		self.assertEqual( secondSleepJob.priority, 127 )
 
+    		# Test that all the jobs with an affinity are taken first (as long as there is a worker matching this affinity)
+    		windowsPlaymobilJobId = conn.newJob( command = "sleep 3", title = "Windows Playmobil", state = "WAITING", affinity = "windows playmobil", priority = 127 )
+    		windowsPlaymobilJob = conn.getJob( windowsPlaymobilJobId )
+    		self.assertEqual( windowsPlaymobilJob.id, windowsPlaymobilJobId )
+    		self.assertEqual( windowsPlaymobilJob.title, "Windows Playmobil" )
+    		self.assertEqual( windowsPlaymobilJob.command, "sleep 3" )
+    		self.assertEqual( windowsPlaymobilJob.state, "WAITING" )
+    		self.assertEqual( windowsPlaymobilJob.affinity, "windows playmobil" )
+    		self.assertEqual( windowsPlaymobilJob.priority, 127 )
 
+    		winJobId = conn.newJob( command = "sleep 3", title = "Win", state = "WAITING", affinity = "win", priority = 127 )
+    		winJob = conn.getJob( winJobId )
+    		self.assertEqual( winJob.id, winJobId )
+    		self.assertEqual( winJob.title, "Win" )
+    		self.assertEqual( winJob.command, "sleep 3" )
+    		self.assertEqual( winJob.state, "WAITING" )
+    		self.assertEqual( winJob.affinity, "win" )
+    		self.assertEqual( winJob.priority, 127 )
+
+    		dosJobId = conn.newJob( command = "sleep 3", title = "Dos", state = "WAITING", affinity = "dos", priority = 127 )
+    		dosJob = conn.getJob( dosJobId )
+    		self.assertEqual( dosJob.id, dosJobId )
+    		self.assertEqual( dosJob.title, "Dos" )
+    		self.assertEqual( dosJob.command, "sleep 3" )
+    		self.assertEqual( dosJob.state, "WAITING" )
+    		self.assertEqual( dosJob.affinity, "dos" )
+    		self.assertEqual( dosJob.priority, 127 )
+
+    		basicJobId = conn.newJob( command = "sleep 3", title="Basic", state = "WAITING", priority = 127 )
+    		basicJob = conn.getJob( basicJobId )
+    		self.assertEqual( basicJob.id, basicJobId )
+    		self.assertEqual( basicJob.title, "Basic" )
+    		self.assertEqual( basicJob.command, "sleep 3" )
+    		self.assertEqual( basicJob.state, "WAITING" )
+    		self.assertEqual( basicJob.priority, 127 )
 
     		workers = conn.getWorkers()
-    		#print( type( workers ))
 
     		new_workers = {}
     		new_workers[workers[0]['name']] = {}
     		new_workers[workers[0]['name']]['affinity'] = "windows\nlinux"
+
+    		new_workers[workers[1]['name']] = {}
+    		new_workers[workers[1]['name']]['affinity'] = "windows playmobil\nwin\ndos"
 
     		updated_workers = conn.editWorkers( new_workers )
 
@@ -112,6 +151,23 @@ def launch_test():
 
     			time.sleep (.1)
 
+    		while (True):
+
+    			windowsPlaymobilJob = conn.getJob( windowsPlaymobilJobId )
+    			winJob = conn.getJob( winJobId )
+    			dosJob = conn.getJob( dosJobId )
+    			basicJob = conn.getJob( basicJobId )
+
+    			if ( windowsPlaymobilJob.state == "FINISHED" ) & ( windowsJob.state == "FINISHED" ) & ( dosJob.state == "FINISHED" ) & ( basicJob.state == "FINISHED" ):
+
+    				self.assertTrue( windowsPlaymobilJob.start_time < winJob.start_time )
+    				self.assertTrue( winJob.start_time < dosJob.start_time )
+    				self.assertTrue( windowsPlaymobilJob.start_time < dosJob.start_time )
+    				self.assertTrue( ( dosJob.start_time < basicJob.start_time ) | ( dosJob.worker != basicJob.worker ) )
+
+    				return
+
+    			time.sleep (.1)
 
 
     		# Set the dependencies

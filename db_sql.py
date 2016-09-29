@@ -599,7 +599,7 @@ class DBSQL(DB):
 		# Here, we have an INNER JOIN query
 		# Fetch the FIRST job whose affinity match the worker's first affinity in the list (stored in WorkerAffinities)
 
-		self._execute( cur, "SELECT J.id, J.title, J.command, J.dir, J.user, J.environment FROM Jobs AS J INNER JOIN WorkerAffinities AS W ON ( ( J.h_affinity & W.affinity = J.h_affinity ) ) WHERE W.worker_name = '%s' AND J.state = 'WAITING' AND NOT J.h_paused AND J.command != '' ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1" % ( hostname ) )
+		self._execute( cur, "SELECT J.id, J.title, J.command, J.dir, J.user, J.environment FROM Jobs AS J INNER JOIN WorkerAffinities AS W ON ( ( J.h_affinity & W.affinity = J.h_affinity ) & ( J.h_affinity != 0 ) ) WHERE W.worker_name = '%s' AND J.state = 'WAITING' AND NOT J.h_paused AND J.command != '' ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1" % ( hostname ) )
 
 		job = cur.fetchone() # This instruction is redundant because there is a LIMIT 1 in the query
 
