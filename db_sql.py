@@ -253,7 +253,22 @@ class DBSQL(DB):
 			worker['total_memory'] = info['total_memory']
 		except:
 			pass
-		worker['affinity'] = self.getAffinityString (worker['affinity_bits'])
+		
+		self._execute (cur, "SELECT affinity FROM WorkerAffinities WHERE worker_name = '%s'" % ( hostname ) )
+		affinities = []
+		
+		data = cur.fetchone()
+
+		if data is None:
+    			
+			worker['affinity'] = ""
+			return worker
+
+		for data in cur:
+
+			affinities.append( self.getAffinityString( data ) )
+
+		worker['affinity'] = "\n".join( affinities )
 		return worker
 
 	def getWorkers (self):
@@ -270,8 +285,19 @@ class DBSQL(DB):
 				worker['total_memory'] = info['total_memory']
 			except:
 				pass
-			worker['affinity'] = self.getAffinityString (worker['affinity_bits'])
+
+			req = self.Conn.cursor()
+			self._execute( req, "SELECT affinity FROM WorkerAffinities WHERE worker_name = '%s'" % ( worker['name'] ) )
+			affinities = []
+
+			for d in req:
+
+				affinities.append( self.getAffinityString( d[0] ) )
+
+			worker['affinity'] = "\n".join( affinities )
+			print worker['affinity']
 			workers.append (worker)
+
 		return workers
 
 	def getEvents (self, job, worker, howlong):
@@ -433,14 +459,24 @@ class DBSQL(DB):
 
 	def newWorker (self, name):
 		cur = self.Conn.cursor ()
-		self._execute (cur, "INSERT INTO Workers (name,ip,affinity,affinity_bits,state,finished,"
+		self._execute (cur, "INSERT INTO Workers (name,ip,affinity, state,finished,"
 						"error,last_job,current_event,cpu,free_memory,total_memory,active) "
-						"VALUES ('%s','','',0,'WAITING',0,0,-1,-1,'[0]',0,0,1)" % name)
+						"VALUES ('%s','','','WAITING',0,0,-1,-1,'[0]',0,0,1)" % name)
 
 	def setWorkerAffinity (self, name, affinity):
-		cur = self.Conn.cursor ()
-		affinities = self.getAffinityMask (affinity)
-		self._execute (cur, "UPDATE Workers SET affinity = '%s', affinity_bits = %d WHERE name = '%s'" % (affinity, affinities, name))
+		cur = self.Conn.cursor()
+    	# Delete all the worker's affinities
+		self._execute( cur, "DELETE FROM WorkerAffinities WHERE worker_name = '%s'" % ( name ) )
+
+		if len( affinity ) > 0:
+
+			affinities = affinity.split( "\n" )
+
+			for index, aff in enumerate( affinities ):
+
+				query = "INSERT INTO WorkerAffinities ( worker_name, affinity, ordering ) VALUES( '%s', %d, %d )" % ( name, self.getAffinityMask( aff ), index+1 )
+				self._execute( cur, query )
+
 
 	def stopWorker (self, name):
 		cur = self.Conn.cursor ()
@@ -540,17 +576,17 @@ class DBSQL(DB):
 		self._updateWorkerInfo (hostname, cpu, free_memory, total_memory, ip)
 
 		# get the worker active and state
-		self._execute (cur, "SELECT active, affinity_bits, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+		self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
 		worker = cur.fetchone ()
 		if worker is None:
 			self.newWorker (hostname)
-			self._execute (cur, "SELECT active, affinity_bits, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+			self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
 			worker = cur.fetchone ()
 
 		# check the worker is not already working
 		# this can happen if the worker crashed and restarted before
 		# timeout is detected
-		if worker[2] == "WORKING":
+		if worker[1] == "WORKING":
 			# reset all working jobs assigned to this worker
 			self._execute (cur, "SELECT id FROM Jobs WHERE state = 'WORKING' and worker = '%s'" % hostname)
 			for job in cur:
@@ -560,23 +596,31 @@ class DBSQL(DB):
 		if not worker[0]:
 			return -1,"","","",None
 
-		# pick a job, ordered by priority and id
-		self._execute (cur, "SELECT id, title, command, dir, user, environment FROM Jobs "
-						"WHERE state = 'WAITING' AND NOT h_paused AND (h_affinity & %d = h_affinity) AND command != '' "
-						"ORDER BY h_priority DESC, id ASC "
-						"LIMIT 1" % worker[1])
-		job = cur.fetchone ()
+		# Here, we have an INNER JOIN query
+		# Fetch the FIRST job whose affinity match the worker's first affinity in the list (stored in WorkerAffinities)
+
+		self._execute( cur, "SELECT J.id, J.title, J.command, J.dir, J.user, J.environment FROM Jobs AS J INNER JOIN WorkerAffinities AS W ON ( ( J.h_affinity & W.affinity = J.h_affinity ) & ( J.h_affinity != 0 ) ) WHERE W.worker_name = '%s' AND J.state = 'WAITING' AND NOT J.h_paused AND J.command != '' ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1" % ( hostname ) )
+
+		job = cur.fetchone() # This instruction is redundant because there is a LIMIT 1 in the query
+
+		# At this point, the job will be set to None IF :
+		# * There is no Worker whose affinity match any Job affinity
+		# * A job has no affinity
+		# The former case is EXPECTED, but not the latter one
+		# Therefore, we need to add a query that take the first Job that has no affinity WHEN Workers are not doing anything
 		if job is None:
-			return -1,"","","",None
+			self._execute( cur, "SELECT id, title, command, dir, user, environment FROM Jobs WHERE state = 'WAITING' AND NOT h_paused AND affinity = '' AND command != '' ORDER BY h_priority DESC, id ASC LIMIT 1" )
+			job = cur.fetchone()
+			if job is None: # Finally, return nothing if there is no job.
+				return -1, "", "", "", None
 
 		# update the job and worker
-		job = self._rowAsDict (cur, job)
-		id = job['id']
+		id = job[0]
 
 		# create a new event
 		self._execute (cur, "INSERT INTO Events (worker, job_id, job_title, state, start, duration) "
 								"VALUES (%s, %d, %s, 'WORKING', %d, %d)" %
-								(convdata (hostname), job['id'], convdata (job['title']),
+								(convdata (hostname), job[0], convdata (job[1]),
 									current_time, 0))
 		cur.fetchone ()
 		eventid = cur.lastrowid
@@ -588,10 +632,10 @@ class DBSQL(DB):
 
 		self._setJobState (id, "WORKING", True)
 
-		if job['user'] != None and job['user'] != "":
-			return job['id'], job['command'], job['dir'], job['user'], job['environment']
+		if job[4] != None and job[4] != "":
+			return job[0], job[2], job[3], job[4], job[5]
 		else:
-			return job['id'], job['command'], job['dir'], "", job['environment']
+			return job[0], job[2], job[3], "", job[5]
 
 	def endJob (self, hostname, jobId, errorCode, ip):
 		current_time = int(time.time())
