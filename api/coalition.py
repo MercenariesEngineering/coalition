@@ -212,6 +212,18 @@ class Connection:
 		res = self._send( "POST", "/api/affinities", data )
 		return res
 
+	def getAffinities( self ):
+
+		''' Set the affinities.
+		Affinities need to be set before they can be assigned to :class:`Job` or Worker.
+
+		:param data: a dictionnary of affinities
+		'''
+
+		res = self._send( "GET", "/api/affinities" )
+		res = json.loads( res )
+		return res
+
 	def getWorkers ( self ):
 
 		'''Returns the :class:`Worker` objects.
