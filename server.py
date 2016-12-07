@@ -197,6 +197,9 @@ print ("[Init] "+time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(time.time
 if cfgStr ('db_type', 'sqlite') == "mysql":
 	vprint ("[Init] Use mysql")
 	db = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"), config=config, cloudconfig=cloudconfig)
+	if cfgStr ('db_mysql_install', "1")  == "1" :
+		vprint ("[Init] Install mysql ")
+		db.install()
 else:
 	vprint ("[Init] Use sqlite")
 	db = DBSQLite (cfgStr ('db_sqlite_file', "coalition.db"), config=config, cloudconfig=cloudconfig)

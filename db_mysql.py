@@ -6,6 +6,10 @@ class DBMySQL(DBSQL):
 		self.config = kwargs["config"]
 		self.cloudconfig = kwargs["cloudconfig"]
 		self.Conn = MySQLdb.connect(host, user, password, database)
+		self.Conn.ping(True)
+		# super is called *after* because DBSQL inits stuffs in the DB
+		super(DBMySQL, self).__init__ ()
+	def install (self):
 		with self.Conn:
 			cur = self.Conn.cursor()
 
@@ -54,5 +58,4 @@ class DBMySQL(DBSQL):
 			cur.execute('CREATE TABLE IF NOT EXISTS Affinities(id INTEGER, name TEXT)')
 
 			data = cur.fetchone()
-		# super is called *after* because DBSQL inits stuffs in the DB
-		super(DBMySQL, self).__init__ ()
+                
