@@ -1,4 +1,4 @@
-from twisted.web import xmlrpc, server, static, http
+mfrom twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random, shutil
 import atexit, json
@@ -201,7 +201,7 @@ if cfgStr ('db_type', 'sqlite') == "mysql":
 =======
 	db = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"))
 	if cfgStr ('db_mysql_install', "1")  == "1" :
-		vprint ("[Init] Install mysql")
+		vprint ("[Init] Install mysql ")
 		db.install()
 >>>>>>> ADDED use install paramter to not every try to create database structure
 else:
