@@ -1,6 +1,10 @@
 
 import sqlite3, MySQLdb, unittest, time, re, sys
 from db import DB
+from importlib import import_module
+import cloud
+from cloud.common import createWorkerInstanceName
+
 
 def convdata (d):
 	return isinstance(d, str) and repr (d) or (isinstance(d, bool) and (d and '1' or '0') or (isinstance(d, unicode) and repr(str(d)) or str(d)))
@@ -9,6 +13,7 @@ class DBSQL(DB):
 
 	def __init__ (self):
 		self.StartTime = time.time ()
+		self.lastworkerinstancestarttime = 0
 		self.LastUpdate = 0
 		self.EnterTime = 0
 		self.RunTime = 0.0
@@ -82,11 +87,29 @@ class DBSQL(DB):
 		for row in cur:
 			print (self._rowAsDict (cur, row))
 
+	def listJobsByStates(self, state, *argv):
+		cur = self.Conn.cursor ()
+		req = "SELECT * FROM Jobs WHERE state = '%s'" % state
+		if argv:
+			for arg in argv:
+				req += " OR state = '%s'" % arg
+		self._execute (cur, req)
+		return [self._rowAsDict (cur, row) for row in cur]
+
 	def listWorkers (self):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "SELECT * FROM Workers")
 		for row in cur:
 			print (row)
+
+	def listWorkersByStates(self, state, *argv):
+		cur = self.Conn.cursor ()
+		req = "SELECT * FROM Workers WHERE state = '%s'" % state
+		if argv:
+			for arg in argv:
+				req += " OR state = '%s'" % arg
+		self._execute (cur, req)
+		return [self._rowAsDict (cur, row) for row in cur]
 
 	def listAffinities (self):
 		cur = self.Conn.cursor ()
@@ -256,6 +279,11 @@ class DBSQL(DB):
 		worker['affinity'] = self.getAffinityString (worker['affinity_bits'])
 		return worker
 
+	def getWorkerStartTime(self, name):
+		cur = self.Conn.cursor ()
+		self._execute(cur, "SELECT start_time FROM Workers WHERE name = '%s'" % name)
+		return time.mktime(time.strptime(cur.fetchone ()[0], '%Y-%m-%d %H:%M:%S'))
+
 	def getWorkers (self):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "SELECT * FROM Workers")
@@ -270,6 +298,7 @@ class DBSQL(DB):
 				worker['total_memory'] = info['total_memory']
 			except:
 				pass
+			worker['start_time'] = worker['start_time'].isoformat(' ')
 			worker['affinity'] = self.getAffinityString (worker['affinity_bits'])
 			workers.append (worker)
 		return workers
@@ -435,7 +464,7 @@ class DBSQL(DB):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "INSERT INTO Workers (name,ip,affinity,affinity_bits,state,finished,"
 						"error,last_job,current_event,cpu,free_memory,total_memory,active) "
-						"VALUES ('%s','','',0,'WAITING',0,0,-1,-1,'[0]',0,0,1)" % name)
+						"VALUES ('%s', '', '', 0, 'STARTING', 0, 0, -1, -1, '[0]', 0, 0, 1)" % name)
 
 	def setWorkerAffinity (self, name, affinity):
 		cur = self.Conn.cursor ()
@@ -808,7 +837,7 @@ class DBSQL(DB):
 			self.LastUpdate = current_time
 			self.RunTime = 0
 			cur = self.Conn.cursor ()
-			TimeOut = 60
+			timeout = 60
 
 			# find all working jobs that are running out of time *or*
 			# all working jobs which worker is timing out
@@ -823,7 +852,7 @@ class DBSQL(DB):
 
 			for worker in self.Workers:
 				info = self.Workers[worker]
-				if current_time-info['ping_time'] > TimeOut and not info['timeout']:
+				if current_time-info['ping_time'] > timeout and not info['timeout']:
 					# worker timeout!
 					info['timeout'] = True
 					self._execute (cur, "SELECT last_job FROM Workers WHERE name = '%s' AND state = 'WORKING'" % worker)
@@ -831,6 +860,68 @@ class DBSQL(DB):
 					if data is not None:
 						self._setJobState (data[0], "WAITING", True)
 					self._setWorkerState (worker, "TIMEOUT")
+
+			# If cloud mode has been set via "servermode" option
+			if hasattr(self, 'cloudconfig'):
+				cloudprovider = self.config.get('server', 'servermode')
+                # Dynamic module loading for configured provider
+				self.cloudmanager = import_module('cloud.%s' %
+					cloudprovider)
+				waitingjobs = self.listJobsByStates("WAITING")
+				if len(waitingjobs):
+					self._manageWorkerInstanceStart(current_time,
+						waitingjobs)
+				else:
+					self._manageWorkerInstanceTerminate(current_time)
+
+	def _manageWorkerInstanceStart(self, current_time, waitingjobs):
+		"""
+		Manage worker starting. A new worker is started if the start
+		delay is reached, if there are more waiting jobs than available
+		workers and the maximum number of instances has not been reached.
+		Create an instance via the cloud provider module, create a
+		worker reference in the coalition DB and update the delay
+		timestamp.
+		"""
+		if current_time - self.lastworkerinstancestarttime < int(
+				self.cloudconfig.get("coalition", "workerinstancestartdelay")):
+			if self.Verbose:
+				print("[CLOUD] Start instance delay not yet exceeded")
+			return
+		availableworkers = self.listWorkersByStates("STARTING", "WAITING")
+		if len(waitingjobs) > len(availableworkers):
+			workers = self.getWorkers()
+			if len(workers) < int(
+					self.cloudconfig.get("coalition", "workerinstancemax")):
+				name = createWorkerInstanceName(
+					self.cloudconfig.get("worker", "nameprefix"))
+				self.cloudmanager.startInstance(name, self.cloudconfig)
+				self.newWorker(name)
+				self.lastworkerinstancestarttime = current_time
+				if self.Verbose:
+					print("[CLOUD] Starting new instance %s" % name)
+
+	def _manageWorkerInstanceTerminate(self, current_time):
+		"""
+		Manage worker termination. Worker instances are terminated if
+		they are not working and they have been living for at least the
+		number of second defined by "workerinstancestopdelay". Terminate
+		via the cloud provider module, update the coalition DB reference.
+		"""
+		uselessworkers = self.listWorkersByStates(
+			"STARTING", "WAITING", "TIMEOUT")
+		if len(uselessworkers):
+			for worker in uselessworkers:
+				name = worker["name"]
+				lastworkerstarttime = self.getWorkerStartTime(name)
+				if lastworkerstarttime and (
+						current_time - lastworkerstarttime > int(
+						self.cloudconfig.get("coalition",
+						"workerinstanceminimumlifetime"))):
+					self._setWorkerState(name, "TERMINATED")
+					self.cloudmanager.stopInstance(name)
+					if self.Verbose:
+						print("[CLOUD] Terminating instance %s" % name)
 
 	def reset (self):
 		cur = self.Conn.cursor ()
@@ -840,9 +931,7 @@ class DBSQL(DB):
 		self._execute (cur, "DELETE FROM Events");
 		self._execute (cur, "DELETE FROM Affinities");
 
-
 	def test (self):
-
 		self.startWorker ("worker1")
 		self.startWorker ("worker2")
 
