@@ -1,6 +1,10 @@
 
 import sqlite3, MySQLdb, unittest, time, re, sys
 from db import DB
+from importlib import import_module
+import cloud
+from cloud.common import createWorkerInstanceName
+
 
 def convdata (d):
 	return isinstance(d, str) and repr (d) or (isinstance(d, bool) and (d and '1' or '0') or (isinstance(d, unicode) and repr(str(d)) or str(d)))
@@ -9,6 +13,7 @@ class DBSQL(DB):
 
 	def __init__ (self):
 		self.StartTime = time.time ()
+		self.lastworkerinstancestarttime = 0
 		self.LastUpdate = 0
 		self.EnterTime = 0
 		self.RunTime = 0.0
@@ -82,11 +87,29 @@ class DBSQL(DB):
 		for row in cur:
 			print (self._rowAsDict (cur, row))
 
+	def listJobsByStates(self, state, *argv):
+		cur = self.Conn.cursor ()
+		req = "SELECT * FROM Jobs WHERE state = '%s'" % state
+		if argv:
+			for arg in argv:
+				req += " OR state = '%s'" % arg
+		self._execute (cur, req)
+		return [self._rowAsDict (cur, row) for row in cur]
+
 	def listWorkers (self):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "SELECT * FROM Workers")
 		for row in cur:
 			print (row)
+
+	def listWorkersByStates(self, state, *argv):
+		cur = self.Conn.cursor ()
+		req = "SELECT * FROM Workers WHERE state = '%s'" % state
+		if argv:
+			for arg in argv:
+				req += " OR state = '%s'" % arg
+		self._execute (cur, req)
+		return [self._rowAsDict (cur, row) for row in cur]
 
 	def listAffinities (self):
 		cur = self.Conn.cursor ()
@@ -262,7 +285,7 @@ class DBSQL(DB):
 		if data is None:
     			
 			worker['affinity'] = ""
-			return worker
+		return worker
 
 		for data in cur:
 
@@ -270,6 +293,11 @@ class DBSQL(DB):
 
 		worker['affinity'] = "\n".join( affinities )
 		return worker
+
+	def getWorkerStartTime(self, name):
+		cur = self.Conn.cursor ()
+		self._execute(cur, "SELECT start_time FROM Workers WHERE name = '%s'" % name)
+		return time.mktime(time.strptime(cur.fetchone ()[0], '%Y-%m-%d %H:%M:%S'))
 
 	def getWorkers (self):
 		cur = self.Conn.cursor ()
@@ -296,6 +324,7 @@ class DBSQL(DB):
 
 			worker['affinity'] = "\n".join( affinities )
 			print worker['affinity']
+			worker['start_time'] = worker['start_time'].isoformat(' ')
 			workers.append (worker)
 
 		return workers
@@ -461,10 +490,10 @@ class DBSQL(DB):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "INSERT INTO Workers (name,ip,affinity, state,finished,"
 						"error,last_job,current_event,cpu,free_memory,total_memory,active) "
-						"VALUES ('%s','','','WAITING',0,0,-1,-1,'[0]',0,0,1)" % name)
+						"VALUES ('%s', '', '', 0, 'STARTING', 0, 0, -1, -1, '[0]', 0, 0, 1)" % name)
 
 	def setWorkerAffinity (self, name, affinity):
-		cur = self.Conn.cursor()
+		cur = self.Conn.cursor ()
     	# Delete all the worker's affinities
 		self._execute( cur, "DELETE FROM WorkerAffinities WHERE worker_name = '%s'" % ( name ) )
 
@@ -576,17 +605,17 @@ class DBSQL(DB):
 		self._updateWorkerInfo (hostname, cpu, free_memory, total_memory, ip)
 
 		# get the worker active and state
-		self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+		self._execute (cur, "SELECT active, affinity_bits, state, last_job FROM Workers WHERE name = '%s'" % hostname)
 		worker = cur.fetchone ()
 		if worker is None:
 			self.newWorker (hostname)
-			self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+			self._execute (cur, "SELECT active, affinity_bits, state, last_job FROM Workers WHERE name = '%s'" % hostname)
 			worker = cur.fetchone ()
 
 		# check the worker is not already working
 		# this can happen if the worker crashed and restarted before
 		# timeout is detected
-		if worker[1] == "WORKING":
+		if worker[2] == "WORKING":
 			# reset all working jobs assigned to this worker
 			self._execute (cur, "SELECT id FROM Jobs WHERE state = 'WORKING' and worker = '%s'" % hostname)
 			for job in cur:
@@ -596,31 +625,23 @@ class DBSQL(DB):
 		if not worker[0]:
 			return -1,"","","",None
 
-		# Here, we have an INNER JOIN query
-		# Fetch the FIRST job whose affinity match the worker's first affinity in the list (stored in WorkerAffinities)
-
-		self._execute( cur, "SELECT J.id, J.title, J.command, J.dir, J.user, J.environment FROM Jobs AS J INNER JOIN WorkerAffinities AS W ON ( ( J.h_affinity & W.affinity = J.h_affinity ) & ( J.h_affinity != 0 ) ) WHERE W.worker_name = '%s' AND J.state = 'WAITING' AND NOT J.h_paused AND J.command != '' ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1" % ( hostname ) )
-
-		job = cur.fetchone() # This instruction is redundant because there is a LIMIT 1 in the query
-
-		# At this point, the job will be set to None IF :
-		# * There is no Worker whose affinity match any Job affinity
-		# * A job has no affinity
-		# The former case is EXPECTED, but not the latter one
-		# Therefore, we need to add a query that take the first Job that has no affinity WHEN Workers are not doing anything
+		# pick a job, ordered by priority and id
+		self._execute (cur, "SELECT id, title, command, dir, user, environment FROM Jobs "
+						"WHERE state = 'WAITING' AND NOT h_paused AND (h_affinity & %d = h_affinity) AND command != '' "
+						"ORDER BY h_priority DESC, id ASC "
+						"LIMIT 1" % worker[1])
+		job = cur.fetchone ()
 		if job is None:
-			self._execute( cur, "SELECT id, title, command, dir, user, environment FROM Jobs WHERE state = 'WAITING' AND NOT h_paused AND affinity = '' AND command != '' ORDER BY h_priority DESC, id ASC LIMIT 1" )
-			job = cur.fetchone()
-			if job is None: # Finally, return nothing if there is no job.
-				return -1, "", "", "", None
+			return -1,"","","",None
 
 		# update the job and worker
-		id = job[0]
+		job = self._rowAsDict (cur, job)
+		id = job['id']
 
 		# create a new event
 		self._execute (cur, "INSERT INTO Events (worker, job_id, job_title, state, start, duration) "
 								"VALUES (%s, %d, %s, 'WORKING', %d, %d)" %
-								(convdata (hostname), job[0], convdata (job[1]),
+								(convdata (hostname), job['id'], convdata (job['title']),
 									current_time, 0))
 		cur.fetchone ()
 		eventid = cur.lastrowid
@@ -632,10 +653,10 @@ class DBSQL(DB):
 
 		self._setJobState (id, "WORKING", True)
 
-		if job[4] != None and job[4] != "":
-			return job[0], job[2], job[3], job[4], job[5]
+		if job['user'] != None and job['user'] != "":
+			return job['id'], job['command'], job['dir'], job['user'], job['environment']
 		else:
-			return job[0], job[2], job[3], "", job[5]
+			return job['id'], job['command'], job['dir'], "", job['environment']
 
 	def endJob (self, hostname, jobId, errorCode, ip):
 		current_time = int(time.time())
@@ -852,7 +873,7 @@ class DBSQL(DB):
 			self.LastUpdate = current_time
 			self.RunTime = 0
 			cur = self.Conn.cursor ()
-			TimeOut = 60
+			timeout = 60
 
 			# find all working jobs that are running out of time *or*
 			# all working jobs which worker is timing out
@@ -867,7 +888,7 @@ class DBSQL(DB):
 
 			for worker in self.Workers:
 				info = self.Workers[worker]
-				if current_time-info['ping_time'] > TimeOut and not info['timeout']:
+				if current_time-info['ping_time'] > timeout and not info['timeout']:
 					# worker timeout!
 					info['timeout'] = True
 					self._execute (cur, "SELECT last_job FROM Workers WHERE name = '%s' AND state = 'WORKING'" % worker)
@@ -875,6 +896,68 @@ class DBSQL(DB):
 					if data is not None:
 						self._setJobState (data[0], "WAITING", True)
 					self._setWorkerState (worker, "TIMEOUT")
+
+			# If cloud mode has been set via "servermode" option
+			if hasattr(self, 'cloudconfig'):
+				cloudprovider = self.config.get('server', 'servermode')
+                # Dynamic module loading for configured provider
+				self.cloudmanager = import_module('cloud.%s' %
+					cloudprovider)
+				waitingjobs = self.listJobsByStates("WAITING")
+				if len(waitingjobs):
+					self._manageWorkerInstanceStart(current_time,
+						waitingjobs)
+				else:
+					self._manageWorkerInstanceTerminate(current_time)
+
+	def _manageWorkerInstanceStart(self, current_time, waitingjobs):
+		"""
+		Manage worker starting. A new worker is started if the start
+		delay is reached, if there are more waiting jobs than available
+		workers and the maximum number of instances has not been reached.
+		Create an instance via the cloud provider module, create a
+		worker reference in the coalition DB and update the delay
+		timestamp.
+		"""
+		if current_time - self.lastworkerinstancestarttime < int(
+				self.cloudconfig.get("coalition", "workerinstancestartdelay")):
+			if self.Verbose:
+				print("[CLOUD] Start instance delay not yet exceeded")
+			return
+		availableworkers = self.listWorkersByStates("STARTING", "WAITING")
+		if len(waitingjobs) > len(availableworkers):
+			workers = self.getWorkers()
+			if len(workers) < int(
+					self.cloudconfig.get("coalition", "workerinstancemax")):
+				name = createWorkerInstanceName(
+					self.cloudconfig.get("worker", "nameprefix"))
+				self.cloudmanager.startInstance(name, self.cloudconfig)
+				self.newWorker(name)
+				self.lastworkerinstancestarttime = current_time
+				if self.Verbose:
+					print("[CLOUD] Starting new instance %s" % name)
+
+	def _manageWorkerInstanceTerminate(self, current_time):
+		"""
+		Manage worker termination. Worker instances are terminated if
+		they are not working and they have been living for at least the
+		number of second defined by "workerinstancestopdelay". Terminate
+		via the cloud provider module, update the coalition DB reference.
+		"""
+		uselessworkers = self.listWorkersByStates(
+			"STARTING", "WAITING", "TIMEOUT")
+		if len(uselessworkers):
+			for worker in uselessworkers:
+				name = worker["name"]
+				lastworkerstarttime = self.getWorkerStartTime(name)
+				if lastworkerstarttime and (
+						current_time - lastworkerstarttime > int(
+						self.cloudconfig.get("coalition",
+						"workerinstanceminimumlifetime"))):
+					self._setWorkerState(name, "TERMINATED")
+					self.cloudmanager.stopInstance(name)
+					if self.Verbose:
+						print("[CLOUD] Terminating instance %s" % name)
 
 	def reset (self):
 		cur = self.Conn.cursor ()
