@@ -617,7 +617,7 @@ class DBSQL(DB):
 			self._execute( cur, "SELECT id, title, command, dir, user, environment FROM Jobs WHERE state = 'WAITING' AND NOT h_paused AND affinity = '' AND command != '' ORDER BY h_priority DESC, id ASC LIMIT 1" )
 		job = cur.fetchone ()
 			if job is None: # Finally, return nothing if there is no job.
-			return -1,"","","",None
+				return -1,"","","",None
 
 		# update the job and worker
 		id = job[0]
