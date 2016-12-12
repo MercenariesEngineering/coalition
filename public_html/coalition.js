@@ -190,7 +190,7 @@ function getSelectedWorkers ()
 
 function clearWorkers ()
 {
-	if (confirm("Do you really want the selected workers?"))
+	if (confirm("Do you really want to delete the selected workers?"))
 	{
         $.ajax({ type: "DELETE", url: "/api/workers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
             function () 
@@ -632,6 +632,19 @@ function workerActivity ()
     reloadActivities ()
 	page = "activities"
 	showPage ("activities")
+}
+
+function terminateWorkers ()
+{
+	if (confirm("Do you really want to terminate the selected worker instances?"))
+	{
+		$.ajax({ type: "POST", url: "/api/terminateworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
+			function () 
+			{
+				reloadWorkers ();
+			}
+		});
+	}
 }
 
 function jobActivity ()

@@ -530,9 +530,15 @@ def main ():
 		worker.killJob ()
 
 	# start each thread
-	for k in range (workers):
-		worker = Worker (name + "-" + str (k+1))
+	if workers == 1:
+		# No suffix if one worker
+		worker = Worker (name)
 		thread.start_new_thread (threadfunc, (worker,))
+	else:
+		for k in range (workers):
+			worker = Worker (name + "-" + str (k+1))
+			thread.start_new_thread (threadfunc, (worker,))
+
 	# and let the main thread wait
 	while gogogo:
 		time.sleep (shuffleSleepTime (sleepTime))
