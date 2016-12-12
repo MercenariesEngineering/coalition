@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 from db_sqlite import DBSQLite
 from db_mysql import DBMySQL
 
+
 GErr=0
 GOk=0
 
@@ -34,10 +35,11 @@ try:
 except OSError:
 	pass
 
-global TimeOut, port, verbose, config
+global timeout, port, verbose, config
 config = ConfigParser.SafeConfigParser()
 config.read ("coalition.ini")
 
+# Manage configuration
 def cfgInt (name, defvalue):
 	global config
 	if config.has_option('server', name):
@@ -66,7 +68,8 @@ def cfgStr (name, defvalue):
 	return defvalue
 
 port = cfgInt ('port', 19211)
-TimeOut = cfgInt ('timeout', 60)
+
+timeout = cfgInt ('timeout', 60)
 verbose = cfgBool ('verbose', False)
 service = cfgBool ('service', True)
 notifyafter = cfgInt ('notifyafter', 10)
@@ -129,6 +132,18 @@ service = service and sys.platform == "win32"
 resetDb = False
 testDb = False
 
+# Cloud mode
+servermode = cfgStr ('servermode', 'normal')
+if servermode != "normal":
+	cloudconfig = ConfigParser.SafeConfigParser()
+	if servermode == "aws":
+		cloudconfig.read("cloud_aws.ini")
+	elif servermode == "gcloud":
+		cloudconfig.read("cloud_gloud.ini")
+	elif servermode == "qarnot":
+		cloudconfig.read("cloud_qarnot.ini")
+	cloudconfig.set("coalition", "port", str(port))
+
 # Parse the options
 try:
 	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=", "verbose", "reset", "test"])
@@ -169,7 +184,6 @@ if not verbose or service:
 	except:
 		pass
 
-
 # Log function
 def vprint (str):
 	if verbose:
@@ -182,10 +196,10 @@ print ("[Init] "+time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(time.time
 # Init the good database
 if cfgStr ('db_type', 'sqlite') == "mysql":
 	vprint ("[Init] Use mysql")
-	db = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"))
+	db = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"), config=config, cloudconfig=cloudconfig)
 else:
 	vprint ("[Init] Use sqlite")
-	db = DBSQLite (cfgStr ('db_sqlite_file', "coalition.db"))
+	db = DBSQLite (cfgStr ('db_sqlite_file', "coalition.db"), config=config, cloudconfig=cloudconfig)
 
 if service:
 	vprint ("[Init] Running service")
@@ -251,8 +265,6 @@ def writeJobLog (jobId, log):
 	logFile = open (getLogFilename (jobId), "a")
 	logFile.write (log)
 	logFile.close ()	
-
-
 
 # Authenticate the user
 def authenticate (request):
@@ -504,6 +516,16 @@ class Master (xmlrpc.XMLRPC):
 							if request.path == "/api/affinities":
 								db.setAffinities (data)
 								return 1
+
+							if request.path == "/api/terminateworkers":
+								if servermode != "normal":
+									# Cloud mode
+									for name in data:
+										db.cloudmanager.stopInstance(name)
+										db._setWorkerState(name, "TERMINATED")
+									return 1
+								else:
+									return None
 
 						elif request.method == "DELETE":
 

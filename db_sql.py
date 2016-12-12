@@ -271,6 +271,11 @@ class DBSQL(DB):
 		worker['affinity'] = "\n".join( affinities )
 		return worker
 
+	def getWorkerStartTime(self, name):
+		cur = self.Conn.cursor ()
+		self._execute(cur, "SELECT start_time FROM Workers WHERE name = '%s'" % name)
+		return time.mktime(time.strptime(cur.fetchone ()[0], '%Y-%m-%d %H:%M:%S'))
+
 	def getWorkers (self):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "SELECT * FROM Workers")
@@ -296,8 +301,8 @@ class DBSQL(DB):
 
 			worker['affinity'] = "\n".join( affinities )
 			print worker['affinity']
+			worker['start_time'] = worker['start_time'].isoformat(' ')
 			workers.append (worker)
-
 		return workers
 
 	def getEvents (self, job, worker, howlong):
@@ -464,7 +469,7 @@ class DBSQL(DB):
 						"VALUES ('%s','','','WAITING',0,0,-1,-1,'[0]',0,0,1)" % name)
 
 	def setWorkerAffinity (self, name, affinity):
-		cur = self.Conn.cursor()
+		cur = self.Conn.cursor ()
     	# Delete all the worker's affinities
 		self._execute( cur, "DELETE FROM WorkerAffinities WHERE worker_name = '%s'" % ( name ) )
 
@@ -610,9 +615,9 @@ class DBSQL(DB):
 		# Therefore, we need to add a query that take the first Job that has no affinity WHEN Workers are not doing anything
 		if job is None:
 			self._execute( cur, "SELECT id, title, command, dir, user, environment FROM Jobs WHERE state = 'WAITING' AND NOT h_paused AND affinity = '' AND command != '' ORDER BY h_priority DESC, id ASC LIMIT 1" )
-			job = cur.fetchone()
+		job = cur.fetchone ()
 			if job is None: # Finally, return nothing if there is no job.
-				return -1, "", "", "", None
+			return -1,"","","",None
 
 		# update the job and worker
 		id = job[0]

@@ -1,8 +1,11 @@
 import sqlite3, unittest, time
 from db_sql import DBSQL
 
+
 class DBSQLite(DBSQL):
-	def __init__ (self, database):
+	def __init__ (self, database, **kwargs):
+		self.config = kwargs["config"]
+		self.cloudconfig = kwargs["cloudconfig"]
 		self.Conn = sqlite3.connect(database)
 		with self.Conn:
 			cur = self.Conn.cursor()
@@ -27,7 +30,7 @@ class DBSQLite(DBSQL):
 			cur.execute('CREATE INDEX IF NOT EXISTS JobId_index ON Dependencies(job_id)')
 			cur.execute('CREATE INDEX IF NOT EXISTS Dependency_index ON Dependencies(dependency)')
 
-			cur.execute('CREATE TABLE IF NOT EXISTS Workers(name TEXT, ip TEXT, affinity TEXT DEFAULT "", state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN)')
+			cur.execute('CREATE TABLE IF NOT EXISTS Workers(name TEXT, start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ip TEXT, affinity TEXT DEFAULT "", state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN)')
 			cur.execute('CREATE UNIQUE INDEX IF NOT EXISTS Name_index ON Workers (name)')
 
 			cur.execute('CREATE TABLE IF NOT EXISTS Events(id INTEGER PRIMARY KEY AUTOINCREMENT, worker TEXT, job_id INT, job_title TEXT, state TEXT, start INT, duration INT)')

@@ -2,7 +2,9 @@ import MySQLdb, unittest
 from db_sql import DBSQL
 
 class DBMySQL(DBSQL):
-	def __init__ (self, host, user, password, database):
+	def __init__ (self, host, user, password, database, **kwargs):
+		self.config = kwargs["config"]
+		self.cloudconfig = kwargs["cloudconfig"]
 		self.Conn = MySQLdb.connect(host, user, password, database)
 		with self.Conn:
 			cur = self.Conn.cursor()
@@ -37,11 +39,11 @@ class DBMySQL(DBSQL):
 			createKeySafe ('Jobs', 'parent')
 
 			cur.execute('CREATE TABLE IF NOT EXISTS Dependencies(job_id Int, dependency INT)')
-
+			
 			createKeySafe ('Dependencies', 'job_id')
 			createKeySafe ('Dependencies', 'dependency')
 
-			cur.execute('CREATE TABLE IF NOT EXISTS Workers(name VARCHAR(255), ip TEXT, affinity TEXT, state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN)')
+			cur.execute('CREATE TABLE IF NOT EXISTS Workers(name VARCHAR(255), start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ip TEXT, affinity TEXT, state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN)')
 			createKeySafe ('Workers', 'name', 'UNIQUE')
 
 			cur.execute('CREATE TABLE IF NOT EXISTS Events(id INTEGER PRIMARY KEY AUTO_INCREMENT, worker VARCHAR(255), job_id INT, job_title TEXT, state TEXT, start INT, duration INT)')
