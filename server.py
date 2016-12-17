@@ -200,7 +200,6 @@ if cfgStr ('db_type', 'sqlite') == "mysql":
 	if cfgStr ('db_mysql_install', "1")  == "1" :
 		vprint ("[Init] Install mysql ")
 		db.install()
->>>>>>> ADDED use install paramter to not every try to create database structure
 else:
 	vprint ("[Init] Use sqlite")
 	db = DBSQLite (cfgStr ('db_sqlite_file', "coalition.db"), config=config, cloudconfig=cloudconfig)
