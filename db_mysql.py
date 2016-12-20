@@ -1,7 +1,11 @@
+# -*- coding: utf-8 -*-
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
+
 import MySQLdb, unittest
 from db_sql import DBSQL
 
 class DBMySQL(DBSQL):
+
 	def __init__ (self, host, user, password, database, **kwargs):
 		self.config = kwargs["config"]
 		self.cloudconfig = kwargs["cloudconfig"]
@@ -9,6 +13,7 @@ class DBMySQL(DBSQL):
 		self.Conn.ping(True)
 		# super is called *after* because DBSQL inits stuffs in the DB
 		super(DBMySQL, self).__init__ ()
+
 	def install (self):
 		with self.Conn:
 			cur = self.Conn.cursor()

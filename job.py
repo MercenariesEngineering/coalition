@@ -1,4 +1,11 @@
-# Simulate a job ending in error
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
+
+"""
+Simulate a job ending in error
+"""
+
 import time, sys
 
 for i in range(1000) :

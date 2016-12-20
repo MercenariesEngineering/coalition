@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 #
 # Coalition documentation build configuration file, created by
 # sphinx-quickstart on Mon Jan 18 10:12:25 2016.

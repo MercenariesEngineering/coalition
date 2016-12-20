@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
+
 import sqlite3, unittest, time
 from db_sql import DBSQL
 

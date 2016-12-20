@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
+
 import os
 
 nbP = 20	# nb parents

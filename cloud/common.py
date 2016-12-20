@@ -1,5 +1,9 @@
-"""This module contains functions common to various cloud providers."""
+# -*- coding: utf-8 -*-
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
+"""
+This module contains functions common to various cloud providers.
+"""
 
 from time import time
 import subprocess

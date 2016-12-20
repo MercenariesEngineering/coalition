@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
 import sqlite3, MySQLdb, unittest, time, re, sys
 from db import DB
@@ -405,6 +407,15 @@ class DBSQL(DB):
 	def setJobProgress (self, jobId, progress):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "UPDATE Jobs SET progress = %f WHERE id = %d" % (progress, jobId))
+
+	def migrate(self):
+		"""Migrate the database from current version to the coalition version."""
+		databaseversion = self.getDbVersion(self)
+		coalitionversion = self.getCoalitionVersion(self)
+		if databaseversion < coalitionversion:
+			print("Migration wil upgrade the database.")
+		else:
+			print("Migration will downgrade the databse.")
 
 	def moveJob (self, jobId, parent):
 		cur = self.Conn.cursor ()
@@ -963,9 +974,16 @@ class DBSQL(DB):
 						self.cloudconfig.get("coalition",
 						"workerinstanceminimumlifetime"))):
 					self._setWorkerState(name, "TERMINATED")
-					self.cloudmanager.stopInstance(name, self.cloudconfig)
+					self.cloudmanager.stopInstance(name)
 					if self.Verbose:
 						print("[CLOUD] Terminating instance %s" % name)
+
+	def requiresMigration(self):
+		"""
+		Decide if DB requires migration.
+		Returns a boolean.
+		"""
+		return False
 
 	def reset (self):
 		cur = self.Conn.cursor ()
