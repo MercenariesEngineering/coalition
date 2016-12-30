@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
 import sys, getopt, urllib, httplib, re
 
@@ -51,10 +50,10 @@ try:
 		usage()
 		sys.exit(2)
 	serverUrl = args[0]
-        while serverUrl[-1] == '/':
-            serverUrl = serverUrl[:-1]
+	while serverUrl[-1] == '/':
+		serverUrl = serverUrl[:-1]
 	action = args[1]
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
 	# print help information and exit:
 	print str(err) # will print something like "option -a not recognized"
 	usage()
@@ -143,3 +142,6 @@ elif action=="remove":
 		conn.close()
 else:
 	print("I don't know what to do with myself. Use another action")
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
+

@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
 import sqlite3, MySQLdb, unittest, time, re, sys
 from db import DB
 from importlib import import_module
 import cloud
 from cloud.common import createWorkerInstanceName
+from textwrap import dedent
+import os
 
 
 def convdata (d):
@@ -22,35 +23,18 @@ class DBSQL(DB):
 		self.HeartBeats = 0
 		self.PickJobs = 0
 		self.Verbose = False
-
 		self.NotifyFinished = None
 		self.NotifyError = None
+		self.Workers = dict()
+		self.AffinityBitsToName = dict()
 
-		# populate Workers cache with what was
-		# previously in db
-		self.Workers = {}
-		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT name FROM Workers")
-		for worker in cur:
-			info = {}
-			info['ping_time'] = int (time.time ())
-			info['cpu'] = ''
-			info['free_memory'] = 0
-			info['total_memory'] = 0
-			info['ip'] = ''
-			info['timeout'] = False
-			self.Workers[worker[0]] = info
+		tables = self._getDatabaseTables()
 
-		# init affinities
-		self.AffinityBitsToName = {}
-		with self.Conn:
-			affinities = {}
-			self._execute (cur, "SELECT id, name FROM Affinities")
-			for row in cur:
-				affinities[int (row[0])] = row[1]
-			for i in range (1, 64):
-				if not i in affinities:
-					self._execute (cur, "INSERT INTO Affinities (id, name) VALUES (%d,'')" % i)
+		if ("Workers",) in tables:
+			self._populateWorkersCache()
+
+		if ("Affinities",) in tables:
+			self._populateAffinitiesTable()
 
 	def __enter__(self):
 		self.EnterTime = time.time ()
@@ -82,6 +66,32 @@ class DBSQL(DB):
 			return result
 		else:
 			return None
+
+	def _populateWorkersCache(self):
+		"""Populate cache with pre-existent data in Workers table."""
+		cur = self.Conn.cursor ()
+		self._execute (cur, "SELECT name FROM Workers")
+		for worker in cur:
+			info = {}
+			info['ping_time'] = int (time.time ())
+			info['cpu'] = ''
+			info['free_memory'] = 0
+			info['total_memory'] = 0
+			info['ip'] = ''
+			info['timeout'] = False
+			self.Workers[worker[0]] = info
+
+	def _populateAffinitiesTable(self):
+		"""Populate Affinities table with pre-existent data having an id < 64."""
+		cur = self.Conn.cursor ()
+		with self.Conn:
+			affinities = {}
+			self._execute (cur, "SELECT id, name FROM Affinities")
+			for row in cur:
+				affinities[int (row[0])] = row[1]
+			for i in range (1, 64):
+				if not i in affinities:
+					self._execute (cur, "INSERT INTO Affinities (id, name) VALUES (%d,'')" % i)
 
 	def listJobs (self):
 		cur = self.Conn.cursor ()
@@ -160,7 +170,7 @@ class DBSQL(DB):
 		if affinity_bits in self.AffinityBitsToName:
 			return self.AffinityBitsToName[affinity_bits]
 		names = []
-		aff = self.getAffinities ()
+		aff = self.getAffinities()
 		for id, name in aff.iteritems ():
 			bit = (1L << (id-1));
 			if affinity_bits & bit != 0:
@@ -295,11 +305,15 @@ class DBSQL(DB):
 		return worker
 
 	def getWorkerStartTime(self, name):
+		"""Get the number of seconds since epoch."""
 		cur = self.Conn.cursor ()
 		self._execute(cur, "SELECT start_time FROM Workers WHERE name = '%s'" % name)
-		# FIXME if mysql
-		# worker['start_time'] = worker['start_time'].isoformat(' ')
-		return time.mktime(time.strptime(cur.fetchone ()[0], '%Y-%m-%d %H:%M:%S'))
+		db_type = self._getDatabaseType()
+		if db_type == "mysql":
+			start_time = cur.fetchone()[0].timetuple()
+		else:
+			start_time = time.strptime(cur.fetchone()[0], '%Y-%m-%d %H:%M:%S')
+		return time.mktime(start_time)
 
 	def getWorkers (self):
 		cur = self.Conn.cursor ()
@@ -408,14 +422,75 @@ class DBSQL(DB):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "UPDATE Jobs SET progress = %f WHERE id = %d" % (progress, jobId))
 
-	def migrate(self):
-		"""Migrate the database from current version to the coalition version."""
-		databaseversion = self.getDbVersion(self)
-		coalitionversion = self.getCoalitionVersion(self)
-		if databaseversion < coalitionversion:
-			print("Migration wil upgrade the database.")
+	def _getDatabaseType(self):
+		"""Get the database type."""
+		if self.config.has_option("server", "db_type"):
+			if self.config.get("server", "db_type") == "mysql":
+				db_type = "mysql"
 		else:
-			print("Migration will downgrade the databse.")
+			db_type = "sqlite"
+		return db_type
+
+	def _getDatabaseTables(self):
+		"""Return list of database tables."""
+		cur = self.Conn.cursor()
+		db_type = self._getDatabaseType()
+		if db_type == "mysql":
+			req = "SHOW TABLES;"
+		else:
+			req = "SELECT name FROM	sqlite_master WHERE type = 'table';"
+		self._execute(cur, req)
+		return cur.fetchall()
+
+	def _getDatabaseVersion(self):
+		"""Return database version."""
+		cur = self.Conn.cursor()
+		tables = self._getDatabaseTables()
+		if not ("Migrations",) in tables:
+			current_version = [("0000",)]
+		else:
+			req = "SELECT database_version FROM Migrations;"
+			self._execute(cur, req)
+			current_version = cur.fetchall()
+		return int(current_version[0][0])
+
+	def _getMigrationVersion(self):
+		"""Return latest migration version."""
+		return int(max([re.sub(r'_.*$', '', f) for f in
+			os.walk("migrations").next()[2]]))
+
+	def initDatabase(self):
+		"""Initialize the database."""
+		if len(self._getDatabaseTables()):
+			print("The database is not empty, it will not be initialized.")
+			return False
+		print("Initializing database.")
+		return self.migrateDatabase(init=True)
+
+	def migrateDatabase(self, init=False):
+		"""Migrate the database."""
+		db_type = self._getDatabaseType()
+		current = self._getDatabaseVersion()
+		target = self._getMigrationVersion()
+		if init:
+			# Init with the '0000' migration
+			current -= 1
+		cur = self.Conn.cursor()
+		print("The database version is {current} and the migration target is {target}. Migrating.".format(current=current, target=target))
+		while current < target:
+			current += 1
+			migration_module_name = "{current:04d}_db_{db_type}".format(current=current, db_type=db_type)
+			migration_module = import_module("migrations.{}".format(migration_module_name))
+			with self.Conn:
+				for step in migration_module.steps:
+					self._execute(cur, step.strip())
+		if init:
+			with self.Conn:
+				for i in range(1, 64):
+					self._execute(cur, dedent("""
+					INSERT INTO Affinities (id, name)
+					VALUES ('{}', '')""".format(i)))
+		return True
 
 	def moveJob (self, jobId, parent):
 		cur = self.Conn.cursor ()
@@ -610,26 +685,26 @@ class DBSQL(DB):
 	def pickJob (self, hostname, cpu, free_memory, total_memory, ip):
 		self.PickJobs += 1
 		current_time = int(time.time())
-		cur = self.Conn.cursor ()
+		cur = self.Conn.cursor()
 
-		self._updateWorkerInfo (hostname, cpu, free_memory, total_memory, ip)
+		self._updateWorkerInfo(hostname, cpu, free_memory, total_memory, ip)
 
 		# get the worker active and state
-		self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
-		worker = cur.fetchone ()
+		self._execute(cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+		worker = cur.fetchone()
 		if worker is None:
-			self.newWorker (hostname)
-			self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
-			worker = cur.fetchone ()
+			self.newWorker(hostname)
+			self._execute(cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+			worker = cur.fetchone()
 
 		# check the worker is not already working
 		# this can happen if the worker crashed and restarted before
 		# timeout is detected
 		if worker[1] == "WORKING":
 			# reset all working jobs assigned to this worker
-			self._execute (cur, "SELECT id FROM Jobs WHERE state = 'WORKING' and worker = '%s'" % hostname)
+			self._execute(cur, "SELECT id FROM Jobs WHERE state = 'WORKING' and worker = '%s'" % hostname)
 			for job in cur:
-				self._setJobState (job[0], "WAITING", True)
+				self._setJobState(job[0], "WAITING", True)
 
 		# worker is not active, drop now
 		if not worker[0]:
@@ -637,8 +712,16 @@ class DBSQL(DB):
 
 		# Here, we have an INNER JOIN query
 		# Fetch the FIRST job whose affinity match the worker's first affinity in the list (stored in WorkerAffinities)
-
-		self._execute( cur, "SELECT J.id, J.title, J.command, J.dir, J.user, J.environment FROM Jobs AS J INNER JOIN WorkerAffinities AS W ON ( ( J.h_affinity & W.affinity = J.h_affinity ) & ( J.h_affinity != 0 ) ) WHERE W.worker_name = '%s' AND J.state = 'WAITING' AND NOT J.h_paused AND J.command != '' ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1" % ( hostname ) )
+		self._execute(cur, dedent("""
+			SELECT J.id, J.title, J.command, J.dir, J.user, J.environment
+			FROM Jobs AS J
+			INNER JOIN WorkerAffinities AS W
+			ON (( J.h_affinity & W.affinity = J.h_affinity ) & ( J.h_affinity != 0 ))
+			WHERE W.worker_name = '{}'
+			AND J.state = 'WAITING'
+			AND NOT J.h_paused
+			AND J.command != ''
+			ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1""".format(hostname)))
 
 		job = cur.fetchone() # This instruction is redundant because there is a LIMIT 1 in the query
 
@@ -648,10 +731,19 @@ class DBSQL(DB):
 		# The former case is EXPECTED, but not the latter one
 		# Therefore, we need to add a query that take the first Job that has no affinity WHEN Workers are not doing anything
 		if job is None:
-			self._execute( cur, "SELECT id, title, command, dir, user, environment FROM Jobs WHERE state = 'WAITING' AND NOT h_paused AND affinity = '' AND command != '' ORDER BY h_priority DESC, id ASC LIMIT 1" )
-		job = cur.fetchone ()
-		if job is None: # Finally, return nothing if there is no job.
-			return -1,"","","",None
+			self._execute(cur, dedent("""
+				SELECT id, title, command, dir, user, environment
+				FROM Jobs
+				WHERE state = 'WAITING'
+				AND NOT h_paused
+				AND affinity = ''
+				AND command != ''
+				ORDER BY h_priority DESC, id ASC LIMIT 1"""))
+
+			job = cur.fetchone ()
+
+			if job is None: # Finally, return nothing if there is no job.
+				return -1, "", "", "", None
 
 		# update the job and worker
 		id = job[0]
@@ -920,11 +1012,10 @@ class DBSQL(DB):
 						self._setWorkerState (worker, "TIMEOUT")
 
 			# If cloud mode has been set via "servermode" option
-			if hasattr(self, 'cloudconfig'):
+			if self.cloudconfig:
 				cloudprovider = self.config.get('server', 'servermode')
 				# Dynamic module loading for configured provider
-				self.cloudmanager = import_module('cloud.%s' %
-					cloudprovider)
+				self.cloudmanager = import_module('cloud.{}'.format(cloudprovider))
 				waitingjobs = self.listJobsByStates("WAITING")
 				if len(waitingjobs):
 					self._manageWorkerInstanceStart(current_time,
@@ -980,10 +1071,10 @@ class DBSQL(DB):
 
 	def requiresMigration(self):
 		"""
-		Decide if DB requires migration.
+		Check if database requires migration.
 		Returns a boolean.
 		"""
-		return False
+		return self._getDatabaseVersion() < self._getMigrationVersion()
 
 	def reset (self):
 		cur = self.Conn.cursor ()
@@ -992,371 +1083,8 @@ class DBSQL(DB):
 		self._execute (cur, "DELETE FROM Dependencies");
 		self._execute (cur, "DELETE FROM Events");
 		self._execute (cur, "DELETE FROM Affinities");
+		self._execute (cur, "DELETE FROM WorkerAffinities");
 
 
-	def test (self):
-
-		self.startWorker ("worker1")
-		self.startWorker ("worker2")
-
-		print ("create job1")
-		job1 = self.newJob (0, "Test-1", "ls /", ".", "", "WAITING", False, 100, 15, "" , "", "", "") ['id']
-
-		print ("create job2")
-		job2 = self.newJob (0, "Test-2", "ls /", ".", "", "WAITING", False, 100, 15, "" , "", "", "") ['id']
-
-		print ("set job2 dependent on job1")
-		self.setJobDependencies (job2, [ job1 ])
-		assert (len (self.getJobDependencies (job2)) == 1)
-		assert (self.getJob (job2) ['state'] == "PENDING")
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job1)
-		assert (self.getWorker ('worker1') ['state'] == "WORKING")
-		assert (self.getJob (job1) ['state'] == "WORKING")
-
-		print ("worker2 pick job")
-		pick2 = self.pickJob ("worker2", 1, 1, 1, "127.0.0.1")
-		assert (pick2[0] == -1)
-		assert (self.getJob (job2) ['state'] == "PENDING")
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (h1)
-		assert (self.getWorker ('worker1') ['state'] == "WORKING")
-
-		print ("worker2 heartbeats")
-		h2 = self.heartbeat ("worker2", pick2[0], 1, 1, 1, '127.0.0.1')
-		assert (not h2)
-		assert (self.getWorker ('worker2') ['state'] == "WAITING")
-
-		print ("worker1 finish job")
-		self.endJob ("worker1", pick1[0], 0, "127.0.0.1")
-		assert (self.getWorker ('worker1') ['state'] == "WAITING")
-		assert (self.getJob (job1) ['state'] == "FINISHED")
-		assert (self.getJob (job2) ['state'] == "WAITING")
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job2)
-		assert (self.getWorker ('worker1') ['state'] == "WORKING")
-		assert (self.getJob (job2) ['state'] == "WORKING")
-
-		print ("worker1 finish job")
-		self.endJob ("worker1", pick1[0], 0, "127.0.0.1")
-		assert (self.getWorker ('worker1') ['state'] == "WAITING")
-		assert (self.getJob (job1) ['state'] == "FINISHED")
-
-		print ("worker2 pick job")
-		pick2 = self.pickJob ("worker2", 1, 1, 1, "127.0.0.1")
-		assert (pick2[0] == -1)
-		assert (self.getWorker ('worker2') ['state'] == "WAITING")
-
-		print ("create job3")
-		job3 = self.newJob (0, "Test-1", "ls /", ".", "", "PAUSED", False, 100, 15, "" , "", "", "") ['id']
-
-		print ("worker2 pick job")
-		pick2 = self.pickJob ("worker2", 1, 1, 1, "127.0.0.1")
-		assert (pick2[0] == -1)
-		print (self.getJob (job3))
-		assert (self.getJob (job3) ['state'] == "PAUSED")
-		assert (self.getWorker ('worker2') ['state'] == "WAITING")
-
-		print ("start job3")
-		self.startJob (job3)
-		assert (self.getJob (job3)['state'] == "WAITING")
-
-		print ("worker2 pick job")
-		pick2 = self.pickJob ("worker2", 1, 1, 1, "127.0.0.1")
-		assert (pick2[0] == job3)
-		assert (self.getJob (job3) ['state'] == "WORKING")
-		assert (self.getWorker ('worker2') ['state'] == "WORKING")
-
-		print ("worker2 error job")
-		self.endJob ("worker2", pick2[0], 1, "127.0.0.1")
-		assert (self.getJob (job3) ['state'] == "ERROR")
-		assert (self.getWorker ('worker2') ['state'] == "WAITING")
-
-		print ("worker2 pick job")
-		pick2 = self.pickJob ("worker2", 1, 1, 1, "127.0.0.1")
-		assert (pick2[0] == -1)
-
-		print ("reset job3")
-		self.resetJob (job3)
-		assert (self.getJob (job3)['state'] == "WAITING")
-
-		print ("worker2 pick job")
-		pick2 = self.pickJob ("worker2", 1, 1, 1, "127.0.0.1")
-		assert (pick2[0] == job3)
-
-		print ("worker2 end job")
-		self.endJob ("worker2", pick2[0], 0, "127.0.0.1")
-		assert (self.getJob (job3) ['state'] == "FINISHED")
-		assert (self.getWorker ('worker2') ['state'] == "WAITING")
-
-		print ("create job4")
-		job4 = self.newJob (0, "Test-1", "ls /", ".", "", "WAITING", False, 100, 10, "" , "", "", "") ['id']
-
-		print ("create job5")
-		job5 = self.newJob (0, "Test-2", "ls /", ".", "", "WAITING", False, 100, 12, "" , "", "", "") ['id']
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job5)
-
-		print ("delete job4")
-		self.deleteJob (job4)
-		assert (self.getJob (job4) is None)
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (h1)
-		assert (self.getWorker ('worker1') ['state'] == "WORKING")
-
-		print ("delete job5")
-		self.deleteJob (job5)
-		assert (self.getJob (job5) is None)
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (not h1)
-		assert (self.getWorker ('worker1') ['state'] == "WAITING")
-
-		print ("create job6")
-		job6 = self.newJob (0, "Test-1", "ls /", ".", "", "WAITING", False, 100, 10, "" , "", "", "") ['id']
-
-		print ("pause job6")
-		self.pauseJob (job6)
-		assert (self.getJob (job6) ['state'] == "PAUSED")
-		assert (self.getJob (job6) ['h_paused'] == True)
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == -1)
-
-		print ("start job6")
-		self.startJob (job6)
-		assert (self.getJob (job6) ['state'] == "WAITING")
-		assert (self.getJob (job6) ['h_paused'] == False)
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job6)
-		assert (self.getJob (job6) ['state'] == "WORKING")
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (h1)
-
-		print ("pause job6")
-		self.pauseJob (job6)
-		assert (self.getJob (job6) ['state'] == "PAUSED")
-		assert (self.getJob (job6) ['h_paused'] == True)
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (not h1)
-
-		print ("start job6")
-		self.startJob (job6)
-		assert (self.getJob (job6) ['state'] == "WAITING")
-		assert (self.getJob (job6) ['h_paused'] == False)
-
-		print ("stop worker1")
-		self.stopWorker ("worker1")
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == -1)
-		assert (self.getWorker ('worker1') ['state'] == "WAITING")
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (not h1)
-
-		print ("start worker1")
-		self.startWorker ("worker1")
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job6)
-		assert (self.getJob (job6) ['state'] == "WORKING")
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (h1)
-
-		print ("delete worker1")
-		self.deleteWorker ("worker1")
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (h1)
-
-		print ("stop worker1")
-		self.stopWorker ("worker1")
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (not h1)
-
-		print ("delete job6")
-		self.deleteJob (job6)
-		assert (self.getJob (job6) is None)
-
-		print ("start worker1")
-		self.startWorker ("worker1")
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == -1)
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == -1)
-
-		print ("create job7")
-		job7 = self.newJob (0, "Parent-1", "", ".", "", "WAITING", False, 100, 10, "" , "", "", "") ['id']
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == -1)
-
-		print ("create job8")
-		job8 = self.newJob (job7, "Child-1", "ls /", ".", "", "WAITING", False, 100, 10, "" , "", "", "") ['id']
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job8)
-
-		print ("worker1 heartbeats")
-		h1 = self.heartbeat ("worker1", pick1[0], 1, 1, 1, '127.0.0.1')
-		assert (h1)
-
-		print ("worker1 finish job")
-		self.endJob ("worker1", pick1[0], 0, "127.0.0.1")
-
-		print ("change job7 priority")
-		job8prio = self.getJob (job8) ['h_priority']
-		self.editJobs ({ job7: { "priority": 12 } })
-		assert (job8prio < self.getJob (job8) ['h_priority'])
-
-		print ("create job9")
-		job9 = self.newJob (0, "Parent-2", "", ".", "", "WAITING", False, 100, 10, "" , "", "", "") ['id']
-
-		print ("create job10")
-		job10 = self.newJob (0, "Parent-3", "", ".", "", "WAITING", False, 100, 11, "" , "", "", "") ['id']
-
-		print ("create job11")
-		job11 = self.newJob (job9, "Child-2", "ls /", ".", "", "WAITING", False, 100, 10, "" , "", "", "") ['id']
-
-		print ("create job12")
-		job12 = self.newJob (job10, "Child-3", "ls /", ".", "", "WAITING", False, 100, 8, "" , "", "", "") ['id']
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job12)
-
-		print ("worker1 finish job")
-		self.endJob ("worker1", pick1[0], 0, "127.0.0.1")
-
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job11)
-
-		print ("worker1 finish job")
-		self.endJob ("worker1", pick1[0], 0, "127.0.0.1")
-
-
-		# performs intricate dependencies testing
-		# like a group dependent on a paused job
-		# and job dependent on this group
-
-		print ("create job20")
-		job20 = self.newJob (0, "job20", "sleep 2", ".", "", "PAUSED", False, 0, 100, "" , "", "", "") ['id']
-
-		print ("create job21")
-		job21 = self.newJob (0, "job21", "", ".", "", "WAITING", False, 0, 100, "" , "", "", "") ['id']
-		self.setJobDependencies (job21, [ job20 ])
-
-		print ("create job22")
-		job22 = self.newJob (job21, "job22", "sleep 2", ".", "", "WAITING", False, 0, 100, "" , "", "", "") ['id']
-
-		print ("create job23")
-		job23 = self.newJob (0, "job23", "sleep 2", ".", "", "WAITING", False, 0, 150, "" , "", "", "") ['id']
-		self.setJobDependencies (job23, [ job21 ])
-
-		print ("create job24")
-		job24 = self.newJob (0, "job24", "sleep 2", ".", "", "WAITING", False, 0, 200, "" , "", "", "") ['id']
-		self.setJobDependencies (job24, [ job20 ])
-
-		# can't start any job, all are dependent on job20 which is paused
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == -1)
-
-		assert (self.getJob (job20) ['state'] == 'PAUSED')
-		assert (self.getJob (job21) ['state'] == 'PENDING')
-		assert (self.getJob (job22) ['state'] == 'WAITING')
-		assert (self.getJob (job22) ['h_paused'])
-		assert (self.getJob (job23) ['state'] == 'PENDING')
-		assert (self.getJob (job24) ['state'] == 'PENDING')
-
-		self.startJob (job20)
-
-		# can only pick job20
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job20)
-		print ("worker1 finish job")
-		self.endJob ("worker1", pick1[0], 0, "127.0.0.1")
-
-		assert (self.getJob (job20) ['state'] == 'FINISHED')
-		assert (self.getJob (job21) ['state'] == 'WAITING')
-		assert (self.getJob (job22) ['state'] == 'WAITING')
-		assert (not self.getJob (job22) ['h_paused'])
-		assert (self.getJob (job23) ['state'] == 'PENDING')
-		assert (self.getJob (job24) ['state'] == 'WAITING')
-
-		# pick job24 as it is the top priority job
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job24)
-		print ("worker1 finish job")
-		self.endJob ("worker1", pick1[0], 0, "127.0.0.1")
-
-		assert (self.getJob (job20) ['state'] == 'FINISHED')
-		assert (self.getJob (job21) ['state'] == 'WAITING')
-		assert (self.getJob (job22) ['state'] == 'WAITING')
-		assert (not self.getJob (job22) ['h_paused'])
-		assert (self.getJob (job23) ['state'] == 'PENDING')
-		assert (self.getJob (job24) ['state'] == 'FINISHED')
-
-		# pick job22 as job23 is still pending and job21 can't be picked as a group
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job22)
-		print ("worker1 finish job")
-		self.endJob ("worker1", pick1[0], 0, "127.0.0.1")
-
-		assert (self.getJob (job20) ['state'] == 'FINISHED')
-		assert (self.getJob (job21) ['state'] == 'FINISHED')
-		assert (self.getJob (job22) ['state'] == 'FINISHED')
-		assert (self.getJob (job23) ['state'] == 'WAITING')
-		assert (self.getJob (job24) ['state'] == 'FINISHED')
-
-		# and eventually pick job23
-		print ("worker1 pick job")
-		pick1 = self.pickJob ("worker1", 1, 1, 1, "127.0.0.1")
-		assert (pick1[0] == job23)
-		print ("worker1 finish job")
-		self.endJob ("worker1", pick1[0], 0, "127.0.0.1")
-
-		assert (self.getJob (job20) ['state'] == 'FINISHED')
-		assert (self.getJob (job21) ['state'] == 'FINISHED')
-		assert (self.getJob (job22) ['state'] == 'FINISHED')
-		assert (self.getJob (job23) ['state'] == 'FINISHED')
-		assert (self.getJob (job24) ['state'] == 'FINISHED')
-
-		self.listJobs ()
-		self.listWorkers ()
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
 """
 Coalition server.
@@ -12,6 +11,7 @@ import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random,
 import atexit, json
 import smtplib
 from email.mime.text import MIMEText
+from textwrap import dedent, fill
 
 from db_sqlite import DBSQLite
 from db_mysql import DBMySQL
@@ -57,9 +57,9 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
-	print ("  --migrate\t\tMigrate the database (via interactive confirmation)")
+	print ("  --init\t\tInitialize the database")
+	print ("  --migrate\t\tMigrate the database with interactive confirmation")
 	print ("  --reset\t\tReset the database (warning: all previous data are lost)")
-	print ("  --test\t\tPerform the database unit tests")
 	if sys.platform == "win32":	
 		print ("  -c, --console=\t\tRun as a windows console application")
 		print ("  -s, --service=\t\tRun as a windows service")
@@ -139,14 +139,11 @@ def notifyFirstFinished (job):
 	if job['user'] :
 		sendEmail (job['user'], 'The job ' + job['title'] + ' (' + str(job['id']) + ') has finished ' + str(notifyafter) + ' jobs.')
 
-
-# Database function
-def _migrateDbInteractiveConfirmation():
-	"""Ask user for confirmation before processing to migration."""
-	confirmationsentence = "Yes, do as I say!"
-	answer = raw_input("The database has to be migrated, and you explicitely asked for it. As there is a risk of breaking the databse during this migration, you're advised to backup it before accepting to process to the migration. If you want to migrate now, please type the line: '%s'\n" % confirmationsentence)
-	if answer == confirmationsentence:
-		print("Migrating database.")
+def _interactiveConfirmation(confirmation_sentence="Yes I know what I'm doing."):
+	"""Ask the user for confirmation."""
+	text = "Please write this sentence then press enter to confirm:\n"+confirmation_sentence+'\n'
+	answer = raw_input(text)
+	if answer == confirmation_sentence:
 		return True
 	return False
 
@@ -301,7 +298,6 @@ class Master (xmlrpc.XMLRPC):
 			if authenticate (request):
 				# If not autenticated, user == ""
 				self.user = request.getUser ()
-				# Addjob
 
 				def getArg (name, default):
 					value = request.args.get (name, [default])
@@ -309,7 +305,6 @@ class Master (xmlrpc.XMLRPC):
 
 				# The legacy method for compatibility
 				if request.path == "/xmlrpc/addjob":
-
 					parent = getArg ("parent", "0")
 					title = getArg ("title", "New job")
 					cmd = getArg ("cmd", getArg ("command", ""))
@@ -671,7 +666,7 @@ service = service and sys.platform == "win32"
 
 migratedb = False
 resetdb = False
-testdb = False
+initdb = False
 
 # Cloud mode
 servermode = cfgStr ('servermode', 'normal')
@@ -684,10 +679,13 @@ if servermode != "normal":
 	elif servermode == "qarnot":
 		cloudconfig.read("cloud_qarnot.ini")
 	cloudconfig.set("coalition", "port", str(port))
+else:
+	cloudconfig = None
 
 # Parse the options
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=", "verbose", "migrate", "reset", "test"])
+	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=",
+		"verbose", "init", "migrate", "reset"])
 	if len(args) != 0:
 		usage()
 		sys.exit(2)
@@ -708,8 +706,8 @@ for o, a in opts:
 		migratedb = True
 	elif o in ("--reset"):
 		resetdb = True
-	elif o in ("--test"):
-		testdb = True
+	elif o in ("--init"):
+		initdb = True
 	else:
 		assert False, "unhandled option " + o
 
@@ -738,9 +736,6 @@ else:
 if cfgStr ('db_type', 'sqlite') == "mysql":
 	vprint ("[Init] Use mysql")
 	db = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"), config=config, cloudconfig=cloudconfig)
-	if cfgStr ('db_mysql_install', "1")  == "1" :
-		vprint ("[Init] Install mysql")
-		db.install()
 else:
 	vprint ("[Init] Use sqlite")
 	db = DBSQLite (cfgStr ('db_sqlite_file', "coalition.db"), config=config, cloudconfig=cloudconfig)
@@ -749,21 +744,51 @@ db.NotifyError = notifyError
 db.NotifyFinished = notifyFinished
 db.Verbose = verbose
 
-with db:
-	requiresmigration = db.requiresMigration()
-	if requiresmigration and not migratedb:
-		print("Coalition cannot start since DB schema and code are not compatible anymore. The database should be backuped, then the command 'coalition server.py --migrate' should be run. Another option is to install the previous version of coalition code that worked with the current DB schema. For now, coalition server cannot start.")
+if initdb:
+	vprint ("[Init] Initial database setup")
+	if not db.initDatabase():
 		exit(1)
-	if requiresmigration and migratedb:
-		if _migrateDbInteractiveConfirmation():
-			db.migrate()
+
+if not len(db._getDatabaseTables()):
+	vprint(dedent("""
+	The database is empty. It should be initialized first using 'python
+	server.py --verbose --init'."""))
+	exit(1)
+
+with db:
+	requires_migration = db.requiresMigration()
+	if not migratedb and requires_migration:
+		print(dedent("""
+		Coalition cannot start since the database schema and the source code
+		are not compatible. The database needs to be migrated. First the
+		database should be backuped in case the migration fails. Then, the
+		command 'coalition server.py --verbose --migrate' should be run.
+		Another option is to install the previous version of coalition code
+		that worked with the current database schema."""))
+		exit(1)
+
+	if migratedb and not requires_migration:
+		print(dedent("""
+		The database does not require migration, but the '--migrate' parameter was provided."""))
+		exit(1)
+
+	if requires_migration and migratedb:
+		print(dedent("""
+		Please consider doing a backup of the database first. Are you ready to proceed?"""))
+		if _interactiveConfirmation("Yes, proceed to migration!"):
+			success = db.migrateDatabase()
+			if success:
+				print("Database migration was successfull.")
+				exit(0)
+			else:
+				print("A problem occured during the database migration.")
+				exit(1)
 		else:
-			print("Migration was cancelled. Coalition server stops.")
+			print("Database migration was cancelled by user.")
 			exit(0)
+
 	if resetdb:
 		db.reset ()
-	if testdb:
-		db.test ()
 
 LogFilterCache = {}
 
@@ -812,4 +837,6 @@ else:
 	# Simple server
 	if __name__ == '__main__':
 		main()
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 

@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
-# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
 import httplib, urllib, json, sys
+
 
 class CoalitionError(Exception):
 	pass
 
+
 class Job(object):
-	''' A job object returned by the :class:`Connection`. Don't create such objects yourself.
+	'''A job object returned by the :class:`Connection`. Don't create such objects yourself.
 	Job properties should be modified into a Connection with block. Don't modify the id or the state properties directly.
 	'''
 
@@ -58,43 +59,12 @@ class Job(object):
 				raise CoalitionError("Can't write attributes outside a connection block")
 		super(Job, self).__setattr__(attr, value)
 
-class Connection:
-	''' A connection to the coalition server.
+
+class Connection(object):
+	'''A connection to the coalition server.
 
 	:param str host: the coalition server hostname
 	:param int port: the coalition server port (19211 by default)
-
-	>>> import coalition
-	>>> # Connect the server
-	>>> conn = coalition.Connection ("localhost", 19211)
-	>>> # Create a first job in the root node
-	>>> job_id = conn.newJob (0, "Test", "echo test")
-	>>> # Inspect the job
-	>>> job = conn.getJob (job_id)
-	>>> print type(job.id)
-	<type 'int'>
-	>>> print job.title
-	Test
-	>>> print job.command
-	echo test
-	>>> # Edit a job, the modification is sent to the server at the end of the block
-	>>> with conn:
-	...		job.title = "Test2"
-	...		job.command = "echo test2"
-	>>> print job.title
-	Test2
-	>>> # Reload the job from the server to check it has been modified
-	>>> job = conn.getJob (job.id)
-	>>> print job.title
-	Test2
-	>>> # Create a parent node, must NOT have a command
-	>>> parent_id = conn.newJob (title = "Parent")
-	>>> # Create a job in the parent node
-	>>> child_id = conn.newJob (parent_id, "Child", "echo child")
-	>>> # Get the parent children
-	>>> children = conn.getJobChildren (parent_id)
-	>>> for child in children: print child.title
-	Child
 	'''
 
 	def __init__(self, host, port):
@@ -113,7 +83,7 @@ class Connection:
 			raise CoalitionError (res.read())
 
 	def newJob  (self, parent=0, title="", command = "", dir = "", environment = "", state="WAITING", paused = False, priority = 1000, timeout = 0, affinity = "", user = "", progress_pattern="", dependencies = []):
-		''' Create a job.
+		'''Create a job.
 
 		:param parent: the parent job.id
 		:type parent: int
@@ -156,7 +126,7 @@ class Connection:
 		return int(res)
 
 	def getJob (self, id):
-		''' Returns a :class:`Job` object.
+		'''Returns a :class:`Job` object.
 
 		:param id: the id of the :class:`Job` to return
 
@@ -166,7 +136,7 @@ class Connection:
 		return Job (json.loads(res), self)
 
 	def getJobChildren (self, id):
-		''' Returns a :class:`Job` children objects.
+		'''Returns a :class:`Job` children objects.
 
 		:param id: the job.id of the parent :class:`Job`
 		:rtype: a list of :class:`Job` objects
@@ -180,7 +150,7 @@ class Connection:
 		return children
 
 	def getJobDependencies (self, id):
-		''' Returns the :class:`Job` objects on which a job has a dependency.
+		'''Returns the :class:`Job` objects on which a job has a dependency.
 		Alternatively, the dependencies attribute of a Job contains the list
 		of dependent jobs ids.
 
@@ -195,7 +165,7 @@ class Connection:
 		return children
 
 	def setJobDependencies (self, id, ids):
-		''' Set the :class:`Job` objects on which a job has a dependency.
+		'''Set the :class:`Job` objects on which a job has a dependency.
 		Alternatively, one can set the dependencies attribute of a Job.
 
 		:param id int: the id of the job with dependencies
@@ -205,19 +175,16 @@ class Connection:
 		return res
 
 	def setAffinities( self, data ):
-
-		''' Set the affinities.
+		'''Set the affinities.
 		Affinities need to be set before they can be assigned to :class:`Job` or Worker.
 
 		:param data: a dictionnary of affinities
 		'''
-
 		res = self._send( "POST", "/api/affinities", data )
 		return res
 
 	def getAffinities( self ):
-
-		''' Set the affinities.
+		'''Get the affinities.
 		Affinities need to be set before they can be assigned to :class:`Job` or Worker.
 
 		:param data: a dictionnary of affinities
@@ -228,7 +195,6 @@ class Connection:
 		return res
 
 	def getWorkers ( self ):
-
 		'''Returns the :class:`Worker` objects.
 		Workers are identified by an index.
 
@@ -247,18 +213,19 @@ class Connection:
 		'''
 
 		res = self._send( "POST", '/api/workers', workers )
+		return res
 
 	def __enter__(self):
 		self.Jobs = {}
 		self.Workers = {}
 		self.IntoWith = True
 
-	def __exit__ (self, type, value, traceback):
+	def __exit__(self, type, value, traceback):
 		self.IntoWith = False
 		
 		# Convert an object in dict
 		def convobj (o):
-			d = o.__dict__.copy ()
+			d = o.__dict__.copy()
 			del d['Conn']
 			return d
 
@@ -267,3 +234,7 @@ class Connection:
 				self._send ("POST", '/api/jobs', self.Jobs)
 			if len(self.Workers) > 0:
 				self._send ("POST", '/api/workers', self.Workers)
+
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
+

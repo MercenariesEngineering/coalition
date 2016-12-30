@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
 """
 Coalition worker.
@@ -553,3 +552,6 @@ def main ():
 
 if not service:
 	main()
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
+

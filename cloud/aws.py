@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
 """
 This module provides functions used for aws service.
@@ -105,4 +104,6 @@ def _getInstanceIdByName(name):
 					if tags["Key"] == "Name" and tags["Value"] == name:
 						return instance["InstanceId"]
 	return None
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 

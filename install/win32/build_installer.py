@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
 import _winreg, os, re, os.path
 
@@ -92,4 +91,6 @@ if buildNsis:
 
 	# Run NSIS
 	os.system ("\"" + NSISDir + "/makensis.exe\" _coalition.nsi")
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 

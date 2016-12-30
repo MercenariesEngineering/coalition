@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4
 
 
 import sys,re,os
@@ -69,4 +68,6 @@ def getAvailableMem ():
 	else:
 		total, free = parseMemInfo ()
 		return free * 1024
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 
