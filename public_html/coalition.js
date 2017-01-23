@@ -23,6 +23,7 @@ var showTools = true;
 var gridjobs;
 var dataViewjobs;
 var columnpicker;
+var affinitieslist = [];
 
 function setJobKey (id)
 {
@@ -107,6 +108,7 @@ $(document).ready(function()
 	reloadJobs ();
 	reloadWorkers ();
 	reloadActivities ();
+	renderAffinities ();
 	showPage ("jobs");
 	timer=setTimeout(timerCB,4000);
 });
@@ -234,11 +236,10 @@ function clearWorkers ()
         });
 	}
 }
-
 function formatDate (_date)
 {
 	var date = new Date(_date*1000)
-    return date.getFullYear() + '/' + (date.getMonth()+1) + '/' + date.getDate() + ' ' + date.getHours () + ':' + date.getMinutes () + ':' + date.getSeconds();
+    return date.getFullYear() + '/' + ('0' +(date.getMonth()+1)).slice(-2) + '/' + ('0' + date.getDate()).slice(-2) + ' ' + ('0' + date.getHours ()).slice(-2) + ':' + ('0' + date.getMinutes ()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2);
 }
 
 function formatDuration (secondes)
@@ -395,26 +396,69 @@ function ProgressCompleteBarFormatter(row, cell, value, columnDef, dataContext) 
       return "";
     }
     _value= Math.floor(value*100.0)
-    return "<div class='progress-complete-bar lprogressbar' style='width:" + _value + "%'><span>"+_value+"%</span></div>";
+    return "<div style='position: relative;'><div class='progress-complete-bar lprogressbar' style='width:" + _value + "%'></div><div><span style='position: absolute;width: 100%;text-align: center;margin:auto;'>"+_value+"%</span></div></div>";
 }
 
+    function split( val ) {
+      return val.split( /,\s*/ );
+    }
+    function extractLast( term ) {
+      return split( term ).pop();
+    }
+
 function initJobs() {
+
+   $( "#filterJobsAffinity" )
+      // don't navigate away from the field on tab when selecting an item
+      .on( "keydown", function( event ) {
+        if ( event.keyCode === $.ui.keyCode.TAB &&
+            $( this ).autocomplete( "instance" ).menu.active ) {
+          event.preventDefault();
+        }
+      })
+      .autocomplete({
+        minLength: 0,
+        source: function( request, response ) {
+          // delegate back to autocomplete, but extract the last term
+          response( $.ui.autocomplete.filter(
+            affinitieslist, request.term ) );
+        },
+        focus: function() {
+          // prevent value inserted on focus
+          return false;
+        },
+/*
+        select: function( event, ui ) {
+          var terms = split( this.value );
+          // remove the current input
+          terms.pop();
+          // add the selected item
+          terms.push( ui.item.value );
+          // add placeholder to get the comma-and-space at the end
+          terms.push( "" );
+          this.value = terms.join( ", " );
+          return false;
+        }
+*/
+      });
+
+  
   var columns = [
     {id: "id", name: "ID", field: "id",width: 60,maxWidth: 70,sortable: true},
-    {id: "title", name: "Title", field: "title",minWidth:350,sortable: true,formatter:formattertitle ,totalized: true, totalizationType:Slick.Controls.ColumnPicker.Countrows,totalizationvalue: 'ALL'},
+    {id: "title", name: "Title", field: "title",minWidth:370,sortable: true,formatter:formattertitle ,totalized: true, totalizationType:Slick.Controls.ColumnPicker.Countrows,totalizationvalue: 'ALL'},
     {id: "url", name: "URL", field: "url"},
     {id: "user", name: "user", field: "user",sortable: true},
     {id: "state", name: "State", field: "state",minWidth:60,sortable: true,formatter: formatterstate,totalized: true, totalizationType:Slick.Controls.ColumnPicker.Countrows,totalizationvalue: 'FINISHED',groupable:true},
     {id: "priority", name: "priority", field: "priority",sortable: true,cssClass: 'slick-right-align',width: 50},
-    {id: "ok", name: "ok", field: "total_finished",sortable: true,width: 60,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
+    {id: "ok", name: "ok", field: "total_finished",sortable: true,width: 40,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
     {id: "wrk", name: "wrk", field: "total_working",sortable: true,width: 40,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
     {id: "err", name: "err", field: "total_errors",sortable: true,width: 40,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
-    {id: "total", name: "total", field: "total",sortable: true,width: 60,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
+    {id: "total", name: "total", field: "total",sortable: true,width: 50,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
     {id: "progress", name: "Progress", field: "progress",sortable: true,width: 50,formatter:ProgressCompleteBarFormatter},
-    {id: "affinity", name: "affinity", field: "affinity",sortable: true,minWidth:90,cssClass: 'slick-right-align',groupable:true},
+    {id: "affinity", name: "affinity", field: "affinity",sortable: true,minWidth:110,cssClass: 'slick-right-align',groupable:true},
     {id: "timeout", name: "timeout", field: "timeout",width: 40,cssClass: 'slick-right-align'},
     {id: "worker", name: "worker", field: "worker",sortable: true,groupable:true},
-    {id: "start_time", name: "start_time", field: "start_time",sortable: true,width: 110,cssClass: 'slick-right-align',formatter: formatterdate},
+    {id: "start_time", name: "start_time", field: "start_time",sortable: true,width: 130,cssClass: 'slick-right-align',formatter: formatterdate},
     {id: "duration", name: "Duration", field: "duration",cssClass: 'slick-right-align',sortable: true,formatter: formatterduration,totalized: true, totalizationType: Slick.Data.Aggregators.Avg},
     {id: "avgduration", name: "AVG Duration", field: "avgduration",cssClass: 'slick-right-align',sortable: true,formatter: formatterduration,totalized: true, totalizationType: Slick.Data.Aggregators.Avg},
     {id: "run", name: "run", field: "run"},
@@ -489,9 +533,9 @@ function renderJobs ()
 {
 
         dataViewjobs.setItems(jobs);
-        dataViewjobs.reSort();
+	dataViewjobs.reSort();
         gridjobs.invalidate();
-//    gridjobs.render();
+//  gridjobs.render();
 
       items=gridjobs.getData().getItems();
       $.each(gridjobs.getColumns(), function () {
@@ -1146,10 +1190,15 @@ function updateAffinities ()
 	        for (i = 1; i <= 63; ++i)
 	        {
 	        	var def = affinities[i];
-	        	if (def)
+	        	if (def) {
 			        $("#affinity"+i).attr("value", def);
+				affinitieslist.push(def);
+			}
 			    $("#affinity"+i).css("background-color", "white");
+			
 	        }
+		
+            affinitieslist.sort();
             document.getElementById("refreshbutton").className = "refreshbutton";
         }
     });

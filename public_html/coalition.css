@@ -520,7 +520,8 @@ h2
     height: 15px;
     line-height:15px;
     text-align: center;
-    margin: 3px auto 2px;
+    margin: 3px 0px 2px 0px;
+    position: absolute;
 }
 
 .worker_affinities

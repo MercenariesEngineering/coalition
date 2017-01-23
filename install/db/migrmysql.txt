@@ -1,0 +1,41 @@
+ALTER TABLE Workers ADD id INT NOT NULL AUTO_INCREMENT KEY;
+
+INSERT INTO Workers (name) 
+SELECT DISTINCT worker FROM Jobs WHERE worker not in (SELECT name FROM Workers) AND worker is not null AND worker <> "" ;
+
+CREATE TABLE IF NOT EXISTS States( id INTEGER PRIMARY KEY AUTO_INCREMENT, state_name VARCHAR(255));
+
+ALTER TABLE Jobs ADD worker_id INTEGER, ADD state_id INTEGER;
+
+ALTER TABLE Workers ADD deleted INTEGER DEFAULT 0;
+UPDATE Workers SET deleted = 0 ;
+
+CREATE INDEX worker_id_index ON Jobs(worker_id);
+CREATE INDEX state_id_index ON Jobs(state_id);
+
+
+INSERT INTO States (id,state_name) VALUES(1,'NONE');
+INSERT INTO States (id,state_name) VALUES(2,'WAITING');
+INSERT INTO States (id,state_name) VALUES(3,'WORKING');
+INSERT INTO States (id,state_name) VALUES(4,'ERROR');
+INSERT INTO States (id,state_name) VALUES(5,'FINISHED');
+INSERT INTO States (id,state_name) VALUES(6,'PAUSED');
+INSERT INTO States (id,state_name) VALUES(7,'PENDING');
+INSERT INTO States (id,state_name) VALUES(7,'PENDING');
+
+UPDATE Jobs 
+SET worker_id = (SELECT id
+            FROM Workers 
+            WHERE Workers.name = Jobs.worker)
+where worker is not null AND worker <> "";
+
+UPDATE Jobs 
+SET state_id = (SELECT id
+            FROM States 
+            WHERE States.state_name = Jobs.state)
+where state is not null AND state <> "";
+
+ALTER TABLE Jobs DROP COLUMN state;
+ALTER TABLE Jobs DROP COLUMN worker;
+
+ALTER TABLE Events ADD max_memory INTEGER, ADD cpu_avg_sum INTEGER, ADD nb_beats INTEGER;

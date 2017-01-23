@@ -1,10 +1,11 @@
 import sys,os,re
 
 if sys.platform=="win32":
-	import win32pdh
-	import win32pdhquery
-	import win32pdhutil
-	import _winreg
+	#import win32pdh
+	#import win32pdhquery
+	#import win32pdhutil
+	#import _winreg
+	import psutil
 
 # Parse the registry to find the localized perf counter name 
 def pdhTranslateEnglishCounter (counter):
@@ -55,7 +56,12 @@ class HostCPU:
 	
 	def getUsage(self):
 		''' Return a list with the usage of each CPU '''
-#		if sys.platform=="win32":
+		if sys.platform=="win32":
+			try:
+				return [psutil.cpu_percent(interval=1)]
+			except:
+				pass
+			
 #			result = []
 #			win32pdh.CollectQueryData(self.base)
 #			for counter in self.Counters:
