@@ -1,6 +1,7 @@
 
 import sqlite3, MySQLdb, unittest, time, re, sys
 from db import DB
+from datetime import date
 
 def convdata (d):
 	return isinstance(d, str) and repr (d) or (isinstance(d, bool) and (d and '1' or '0') or (isinstance(d, unicode) and repr(str(d)) or str(d)))
@@ -301,7 +302,8 @@ class DBSQL(DB):
 
 			worker['affinity'] = "\n".join( affinities )
 			print worker['affinity']
-			worker['start_time'] = worker['start_time'].isoformat(' ')
+			if isinstance(worker['start_time'], date):
+				worker['start_time'] = worker['start_time'].isoformat(' ')
 			workers.append (worker)
 		return workers
 

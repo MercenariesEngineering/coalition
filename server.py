@@ -133,6 +133,8 @@ resetDb = False
 testDb = False
 
 # Cloud mode
+global cloudconfig
+cloudconfig = None
 servermode = cfgStr ('servermode', 'normal')
 if servermode != "normal":
 	cloudconfig = ConfigParser.SafeConfigParser()
