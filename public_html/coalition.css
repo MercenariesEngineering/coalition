@@ -490,7 +490,6 @@ h2
 	width:100%;
 	position: relative;
 }
-
 .lprogressbar
 {
 	height: 16;
@@ -515,6 +514,14 @@ h2
 {
 	width:100%;
 	position: relative;
+}
+.progress-complete-bar {
+    display: block;
+    height: 15px;
+    line-height:15px;
+    text-align: center;
+    margin: 3px 0px 2px 0px;
+    position: absolute;
 }
 
 .worker_affinities

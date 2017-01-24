@@ -1,0 +1,70 @@
+
+
+BEGIN TRANSACTION;
+CREATE TEMPORARY TABLE Workers_backup(name TEXT, ip TEXT, affinity TEXT DEFAULT "", state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN);
+INSERT INTO Workers_backup SELECT * FROM Workers;
+DROP TABLE Workers;
+CREATE TABLE Workers(id INTEGER PRIMARY KEY,name TEXT, ip TEXT, affinity TEXT DEFAULT "", state TEXT, finished INT, error INT, last_job INT, current_event INT, cpu TEXT, free_memory INT, total_memory int, active BOOLEAN);
+INSERT INTO Workers (name,ip,affinity,state,finished,error,last_job,current_event,cpu,free_memory,total_memory,active) SELECT name,ip,affinity,state,finished,error,last_job,current_event,cpu,free_memory,total_memory,active FROM Workers_backup;
+DROP TABLE Workers_backup;
+
+INSERT INTO Workers (name) 
+SELECT DISTINCT worker FROM Jobs WHERE worker not in (SELECT name FROM Workers) AND worker is not null AND worker <> "" ;
+
+CREATE TABLE IF NOT EXISTS States( id INTEGER PRIMARY KEY , state_name TEXT);
+
+ALTER TABLE Jobs ADD worker_id INTEGER;
+ALTER TABLE Jobs ADD state_id INTEGER;
+
+CREATE INDEX worker_id_index ON Jobs(worker_id);
+CREATE INDEX state_id_index ON Jobs(state_id);
+
+
+INSERT INTO States (id,state_name) VALUES(1,'NONE');
+INSERT INTO States (id,state_name) VALUES(2,'WAITING');
+INSERT INTO States (id,state_name) VALUES(3,'WORKING');
+INSERT INTO States (id,state_name) VALUES(4,'ERROR');
+INSERT INTO States (id,state_name) VALUES(5,'FINISHED');
+INSERT INTO States (id,state_name) VALUES(6,'PAUSED');
+
+UPDATE Jobs 
+SET worker_id = (SELECT id
+            FROM Workers 
+            WHERE Workers.name = Jobs.worker)
+where worker is not null AND worker <> "";
+
+UPDATE Jobs 
+SET state_id = (SELECT id
+            FROM States 
+            WHERE States.state_name = Jobs.state)
+where state is not null AND state <> "";
+
+
+CREATE TEMPORARY TABLE Jobs_backup(id INTEGER PRIMARY KEY AUTOINCREMENT, parent INT DEFAULT 0, title TEXT DEFAULT "", command TEXT DEFAULT "", dir TEXT DEFAULT ".", 
+environment TEXT DEFAULT "", state_id DEFAULT 0, paused BOOLEAN DEFAULT 0, 
+worker_id INT , start_time INT DEFAULT 0, duration INT DEFAULT 0, run_done INT DEFAULT 0, 
+timeout INT DEFAULT 0, priority UNSIGNED INT DEFAULT 8, 
+affinity TEXT DEFAULT "", affinity_bits BIGINT DEFAULT 0, 
+user TEXT DEFAULT "", finished INT DEFAULT 0, errors INT DEFAULT 0, working INT DEFAULT 0, total INT DEFAULT 0, 
+total_finished INT DEFAULT 0, total_errors INT DEFAULT 0, total_working INT DEFAULT 0, url TEXT DEFAULT "", 
+progress FLOAT, progress_pattern TEXT DEFAULT "", 
+h_affinity BIGINT DEFAULT 0, h_priority UNSIGNED BIGINT DEFAULT 0, h_paused BOOLEAN DEFAULT 0, h_depth INT DEFAULT 0);
+
+INSERT INTO Jobs_backup SELECT id,parent,title,command,dir,environment,state_id,paused,worker_id,start_time,duration,run_done, 
+timeout,priority,affinity,affinity_bits,user,finished,errors,working,total,total_finished,total_errors,total_working,url, 
+progress,progress_pattern,h_affinity,h_priority,h_paused,h_depth FROM Jobs;
+
+DROP TABLE Jobs;
+CREATE TABLE Jobs(id INTEGER PRIMARY KEY AUTOINCREMENT, parent INT DEFAULT 0, title TEXT DEFAULT "", command TEXT DEFAULT "", dir TEXT DEFAULT ".", 
+environment TEXT DEFAULT "", state_id DEFAULT 0, paused BOOLEAN DEFAULT 0, 
+worker_id INT , start_time INT DEFAULT 0, duration INT DEFAULT 0, run_done INT DEFAULT 0, 
+timeout INT DEFAULT 0, priority UNSIGNED INT DEFAULT 8, 
+affinity TEXT DEFAULT "", affinity_bits BIGINT DEFAULT 0, 
+user TEXT DEFAULT "", finished INT DEFAULT 0, errors INT DEFAULT 0, working INT DEFAULT 0, total INT DEFAULT 0, 
+total_finished INT DEFAULT 0, total_errors INT DEFAULT 0, total_working INT DEFAULT 0, url TEXT DEFAULT "", 
+progress FLOAT, progress_pattern TEXT DEFAULT "", 
+h_affinity BIGINT DEFAULT 0, h_priority UNSIGNED BIGINT DEFAULT 0, h_paused BOOLEAN DEFAULT 0, h_depth INT DEFAULT 0);
+INSERT INTO Jobs SELECT * FROM Jobs_backup;
+DROP TABLE Jobs_backup;
+
+COMMIT;

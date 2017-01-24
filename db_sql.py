@@ -18,6 +18,10 @@ class DBSQL(DB):
 
 		self.NotifyFinished = None
 		self.NotifyError = None
+		if self.config.get('server','db_mysql_install') == "1" : 
+			print 'Install Mode'
+	                #vprint ("[Init] Install mysql ")
+                	self.install()
 
 		# populate Workers cache with what was
 		# previously in db
@@ -115,12 +119,14 @@ class DBSQL(DB):
 
 	def getAffinityMask (self, affinities):
 		if affinities == "":
-			return 0
+			return None
 		aff = self.listAffinities ()
 		mask = 0L
-		cur = self.Conn.cursor ()
+		#cur = self.Conn.cursor ()
 		for affinity in affinities.split (","):
 			if affinity != "":
+				if affinity not in aff : 
+					return None
 				m = re.match(r"^#(\d+)$", affinity)
 				if m:
 					bit = (int(m.group (1))-1)
@@ -154,17 +160,23 @@ class DBSQL(DB):
 		self._execute (cur, "SELECT h_depth, h_affinity, h_priority, h_paused, command FROM Jobs WHERE id = %d" % parent)
 		data = cur.fetchone ()
 		if state == "PAUSED":
-			paused = True;
+			paused = True
+		state_name = 'WAITING'
+		self._execute (cur, "SELECT id FROM States WHERE state_name = '%s'" % state_name)
+		statedata = cur.fetchone ()
 		if data is None:
 			data = [-1, 0, 0, False, '']
 		if data[4] != '':
 			print ("Error : can't add job, parent %d is not a group" % parent)
-			return None
+			return -1
 		# one depth below
 		h_depth = data[0]+1
 		# merge parent affinities with child affinities
 		parent_affinities = data[1]
 		child_affinities = self.getAffinityMask (affinity)
+		if child_affinities == None :
+			print ("Error : can't add job, affinity %s not exist" % affinity)
+			return -2
 		h_affinity = parent_affinities | child_affinities
 		# merge priority
 		priority = max (0, min (255, int (priority)))
@@ -173,14 +185,14 @@ class DBSQL(DB):
 
 		self._execute (cur, "INSERT INTO Jobs (parent, title, command, dir, "
 						"environment, timeout, priority, affinity, affinity_bits, "
-						"user, url, progress_pattern, paused, state, worker, "
+						"user, url, progress_pattern, paused, state_id, "
 						"h_depth, h_affinity, h_priority, h_paused) VALUES"
 						"(%d,%s,%s,%s,"
 						"%s,%d,%d,%s,%d,"
-						"%s,%s,%s,%d,'WAITING','',"
+						"%s,%s,%s,%d,%d,"
 						"%d,'%s',%d,%d)" % (parent, repr (title), repr (command), repr (dir), 
 						repr (environment), timeout, priority, repr (affinity), child_affinities,
-						repr (user), repr (url), repr (progress_pattern), paused,
+						repr (user), repr (url), repr (progress_pattern), paused,statedata[0],
 						h_depth, h_affinity, h_priority, h_paused))
 		data = cur.fetchone ()
 		job = self.getJob (cur.lastrowid)
@@ -192,7 +204,7 @@ class DBSQL(DB):
 
 	def getJob (self, id):
 		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT * FROM Jobs WHERE id = %d" % id)
+		self._execute (cur, "SELECT Jobs.*,States.state_name as state FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id WHERE Jobs.id = %d" % id)
 		result = self._rowAsDict (cur, cur.fetchone ())
 		if result is not None:
 			if result['paused']:
@@ -212,7 +224,7 @@ class DBSQL(DB):
 
 	def getJobChildren (self, id, data):
 		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT * FROM Jobs WHERE parent = %d" % id)
+		self._execute (cur, "SELECT Jobs.*,States.state_name as state FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id WHERE parent = %d" % id)
 		jobs = []
 		for row in cur:
 			result = self._rowAsDict (cur, row)
@@ -271,14 +283,9 @@ class DBSQL(DB):
 		worker['affinity'] = "\n".join( affinities )
 		return worker
 
-	def getWorkerStartTime(self, name):
-		cur = self.Conn.cursor ()
-		self._execute(cur, "SELECT start_time FROM Workers WHERE name = '%s'" % name)
-		return time.mktime(time.strptime(cur.fetchone ()[0], '%Y-%m-%d %H:%M:%S'))
-
 	def getWorkers (self):
 		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT * FROM Workers")
+		self._execute (cur, "SELECT * FROM Workers WHERE deleted = 0")
 		workers = []
 		for row in cur:
 			worker = self._rowAsDict (cur, row)
@@ -300,9 +307,8 @@ class DBSQL(DB):
 				affinities.append( self.getAffinityString( d[0] ) )
 
 			worker['affinity'] = "\n".join( affinities )
-			print worker['affinity']
-			worker['start_time'] = worker['start_time'].isoformat(' ')
 			workers.append (worker)
+
 		return workers
 
 	def getEvents (self, job, worker, howlong):
@@ -421,7 +427,7 @@ class DBSQL(DB):
 
 	def resetErrorJob (self, id, updateChildren = True):
 		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT state FROM Jobs WHERE id = %d" % id)
+		self._execute (cur, "SELECT States.state_name as state FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id WHERE Jobs.id = %d" % id)
 		data = cur.fetchone ()
 		if data is not None and data[0] == "ERROR":
 			self._execute (cur, "UPDATE Jobs SET start_time = 0 WHERE id = %d" % id)
@@ -469,7 +475,7 @@ class DBSQL(DB):
 						"VALUES ('%s','','','WAITING',0,0,-1,-1,'[0]',0,0,1)" % name)
 
 	def setWorkerAffinity (self, name, affinity):
-		cur = self.Conn.cursor ()
+		cur = self.Conn.cursor()
     	# Delete all the worker's affinities
 		self._execute( cur, "DELETE FROM WorkerAffinities WHERE worker_name = '%s'" % ( name ) )
 
@@ -482,14 +488,14 @@ class DBSQL(DB):
 				query = "INSERT INTO WorkerAffinities ( worker_name, affinity, ordering ) VALUES( '%s', %d, %d )" % ( name, self.getAffinityMask( aff ), index+1 )
 				self._execute( cur, query )
 
-
 	def stopWorker (self, name):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "UPDATE Workers SET active = 0 WHERE name = '%s'" % name)
 		self._execute (cur, "SELECT job.id FROM Jobs AS job "
+						"LEFT JOIN States ON job.state_id= States.id "
 						"INNER JOIN Workers AS worker ON "
-							"worker.last_job = job.id AND worker.name = job.worker "
-							"WHERE worker.name = '%s' AND job.state = 'WORKING'" % name)
+							"worker.last_job = job.id AND worker.id = job.worker_id "
+							"WHERE worker.name = '%s' AND States.state_name = 'WORKING'" % name)
 		row = cur.fetchone ()
 		if row is not None:
 			self._setJobState (row[0], "WAITING", True)
@@ -500,7 +506,8 @@ class DBSQL(DB):
 
 	def deleteWorker (self, name):
 		cur = self.Conn.cursor ()
-		self._execute (cur, "DELETE FROM Workers WHERE name = '%s'" % name)
+		#self._execute (cur, "DELETE FROM Workers WHERE name = '%s'" % name)
+		self._execute (cur, "UPDATE Workers SET deleted = 1 WHERE name = '%s'" % name)
 		try:
 			del self.Workers[name]
 		except:
@@ -527,14 +534,14 @@ class DBSQL(DB):
 		self.HeartBeats += 1
 		current_time = int(time.time())
 		cur = self.Conn.cursor ()
-
 		self._updateWorkerInfo (hostname, cpu, free_memory, total_memory, ip)
 
-		_query = ("SELECT w.active, w.state, j.state FROM Workers as w "
+		_query = ("SELECT w.active, w.state, States.state_name FROM Workers as w "
 					"INNER JOIN Jobs AS j ON "
-						"j.worker = w.name AND j.id = %d AND w.last_job = %d AND "
-						"w.state = 'WORKING' AND j.state = 'WORKING' and j.h_paused = 0 "
-					"WHERE w.name = '%s'" % (jobId, jobId, hostname))
+						"j.worker_id = w.id AND j.id = %d AND w.last_job = %d AND "
+						"w.state = 'WORKING' and j.h_paused = 0 "
+					"LEFT JOIN States ON j.state_id= States.id "
+					"WHERE w.name = '%s' AND States.state_name = 'WORKING' " % (jobId, jobId, hostname))
 		self._execute (cur, _query)
 		data = cur.fetchone ()
 
@@ -544,19 +551,36 @@ class DBSQL(DB):
 		# slow path here
 		# either worker doesn't exist or job is not assigned to the worker or job was pause
 		# get the worker active and state
-		self._execute (cur, "SELECT active, state FROM Workers WHERE name = '%s'" % hostname)
+		self._execute (cur, "SELECT active, state, current_event FROM Workers WHERE name = '%s' and deleted = 0" % hostname )
 		worker = cur.fetchone ()
 		if worker is None:
-			# create worker if needed
-			self.newWorker (hostname)
-			self._execute (cur, "SELECT active, state FROM Workers WHERE name = '%s'" % hostname)
+			self._execute (cur, "SELECT active, state, current_event FROM Workers WHERE name = '%s' and deleted = 1" % hostname )
 			worker = cur.fetchone ()
+			if worker is None:
+				# create worker if needed
+				self.newWorker (hostname)
+				self._execute (cur, "SELECT active, state, current_event FROM Workers WHERE name = '%s'" % hostname)
+				worker = cur.fetchone ()
+			else :
+				self._execute (cur, "UPDATE Workers SET deleted = 0 WHERE name = '%s'" % name)
+		# update event
+		if worker[2] != -1 :
+			self._execute (cur, "SELECT max_memory,cpu_avg_sum,nb_beats FROM Events WHERE id = %d" % worker[2])
+			event = cur.fetchone ()
+			nb_beats = event[2] + 1
+			max_memory = event[0]
+			memory=int(total_memory)-int(free_memory)
+			if max_memory<memory :
+				max_memory=memory
+			cpu_avg_sum = round(event[1] + (cpu*100))
+			self._execute (cur, "UPDATE Events SET max_memory = %d, cpu_avg_sum = %d, nb_beats = %d WHERE id = %d" %
+								(convdata (state), current_time-start_time, max_memory, cpu_avg_sum, nb_beats, worker[2]))
 
 		# by default we're suspicious and we flag the worker as waiting
 		state = "WAITING"
 		job = None
 		if worker[0] == True:
-			self._execute (cur, "SELECT state, h_paused FROM Jobs WHERE id = %d AND worker = '%s'" % (jobId, hostname))
+			self._execute (cur, "SELECT States.state_name as state, h_paused FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id LEFT JOIN Workers ON Jobs.worker_id= Workers.id WHERE Jobs.id = %d AND Workers.name = '%s'" % (jobId, hostname))
 			job = cur.fetchone ()
 			if job is not None and job[0] == "WORKING" and not job[1]:
 				# if the worker is active and is running the job, it's all good
@@ -581,19 +605,25 @@ class DBSQL(DB):
 		self._updateWorkerInfo (hostname, cpu, free_memory, total_memory, ip)
 
 		# get the worker active and state
-		self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+		self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s' and deleted = 0 " % hostname)
 		worker = cur.fetchone ()
 		if worker is None:
-			self.newWorker (hostname)
-			self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+			self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s' and deleted = 1" % hostname )
 			worker = cur.fetchone ()
+			if worker is None:
+				# create worker if needed
+				self.newWorker (hostname)
+				self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+				worker = cur.fetchone ()
+			else :
+				self._execute (cur, "UPDATE Workers SET deleted = 0 WHERE name = '%s'" % name)
 
 		# check the worker is not already working
 		# this can happen if the worker crashed and restarted before
 		# timeout is detected
 		if worker[1] == "WORKING":
 			# reset all working jobs assigned to this worker
-			self._execute (cur, "SELECT id FROM Jobs WHERE state = 'WORKING' and worker = '%s'" % hostname)
+			self._execute (cur, "SELECT Jobs.id FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id LEFT JOIN Workers ON Jobs.worker_id= Workers.id WHERE States.state_name = 'WORKING' and Workers.name = '%s'" % hostname)
 			for job in cur:
 				self._setJobState (job[0], "WAITING", True)
 
@@ -604,7 +634,7 @@ class DBSQL(DB):
 		# Here, we have an INNER JOIN query
 		# Fetch the FIRST job whose affinity match the worker's first affinity in the list (stored in WorkerAffinities)
 
-		self._execute( cur, "SELECT J.id, J.title, J.command, J.dir, J.user, J.environment FROM Jobs AS J INNER JOIN WorkerAffinities AS W ON ( ( J.h_affinity & W.affinity = J.h_affinity ) & ( J.h_affinity != 0 ) ) WHERE W.worker_name = '%s' AND J.state = 'WAITING' AND NOT J.h_paused AND J.command != '' ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1" % ( hostname ) )
+		self._execute( cur, "SELECT J.id, J.title, J.command, J.dir, J.user, J.environment FROM Jobs AS J LEFT JOIN States as S ON J.state_id= S.id INNER JOIN WorkerAffinities AS W ON ( ( J.h_affinity & W.affinity = J.h_affinity ) & ( J.h_affinity != 0 ) ) WHERE W.worker_name = '%s' AND S.state_name = 'WAITING' AND NOT J.h_paused AND J.command != '' ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1" % ( hostname ) )
 
 		job = cur.fetchone() # This instruction is redundant because there is a LIMIT 1 in the query
 
@@ -614,24 +644,28 @@ class DBSQL(DB):
 		# The former case is EXPECTED, but not the latter one
 		# Therefore, we need to add a query that take the first Job that has no affinity WHEN Workers are not doing anything
 		if job is None:
-			self._execute( cur, "SELECT id, title, command, dir, user, environment FROM Jobs WHERE state = 'WAITING' AND NOT h_paused AND affinity = '' AND command != '' ORDER BY h_priority DESC, id ASC LIMIT 1" )
-		job = cur.fetchone ()
-		if job is None: # Finally, return nothing if there is no job.
-			return -1,"","","",None
+			self._execute( cur, "SELECT Jobs.id, title, command, dir, user, environment FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id WHERE States.state_name = 'WAITING' AND NOT h_paused AND affinity = '' AND command != '' ORDER BY h_priority DESC, Jobs.id ASC LIMIT 1" )
+			job = cur.fetchone()
+			if job is None: # Finally, return nothing if there is no job.
+				self._setWorkerState (hostname, "WAITING")
+				return -1, "", "", "", None
 
 		# update the job and worker
 		id = job[0]
 
 		# create a new event
-		self._execute (cur, "INSERT INTO Events (worker, job_id, job_title, state, start, duration) "
-								"VALUES (%s, %d, %s, 'WORKING', %d, %d)" %
+		self._execute (cur, "INSERT INTO Events (worker, job_id, job_title, state, start, duration,max_memory,cpu_avg_sum,nb_beats) "
+								"VALUES (%s, %d, %s, 'WORKING', %d, %d, %d, %d, %d)" %
 								(convdata (hostname), job[0], convdata (job[1]),
-									current_time, 0))
+									current_time, 0, 0, 0, 0))
 		cur.fetchone ()
 		eventid = cur.lastrowid
 
-		self._execute (cur, "UPDATE Jobs SET worker = '%s', start_time = %d, duration = 0, progress = 0.0 "
-						"WHERE id = %d" % (hostname, current_time, id))
+		self._execute (cur, "SELECT id FROM Workers WHERE name = '%s'" % hostname)
+		workerid = cur.fetchone ()
+
+		self._execute (cur, "UPDATE Jobs SET worker_id = '%d', start_time = %d, duration = 0, progress = 0.0 "
+						"WHERE id = %d" % (workerid[0], current_time, id))
 		self._execute (cur, "UPDATE Workers SET last_job = %d, state = 'WORKING', current_event = %d "
 						"WHERE name = '%s'" % (id, eventid, hostname))
 
@@ -652,7 +686,7 @@ class DBSQL(DB):
 			self._execute (cur, "SELECT active, current_event FROM Workers WHERE name = '%s'" % hostname)
 			worker = cur.fetchone ()
 
-		self._execute (cur, "SELECT state, start_time FROM Jobs WHERE id = %d AND worker = '%s' AND state = 'WORKING'" % (jobId, hostname))
+		self._execute (cur, "SELECT States.state_name, start_time FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id LEFT JOIN Workers ON Jobs.worker_id= Workers.id WHERE Jobs.id = %d AND Workers.name = '%s' AND state = 'WORKING'" % (jobId, hostname))
 		job = cur.fetchone ()
 		if job is not None:
 			state = (errorCode != 0) and "ERROR" or "FINISHED"
@@ -663,11 +697,13 @@ class DBSQL(DB):
 			self._setJobState (jobId, state, True)
 			self._setWorkerState (hostname, state)
 
+
 	def _isJobPending (self, id):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "SELECT COUNT(job.id) FROM Jobs AS job "
+						"LEFT JOIN States ON job.state_id= States.id "
 						"INNER JOIN Dependencies AS dep ON job.id = dep.dependency "
-						"WHERE dep.job_id = %d AND job.state != 'FINISHED'" % id)
+						"WHERE dep.job_id = %d AND States.state_name != 'FINISHED'" % id)
 		result = cur.fetchone ()
 		return (result[0] > 0)
 
@@ -685,7 +721,7 @@ class DBSQL(DB):
 	def _setJobState (self, id, state, updateCounters):
 		current_time = int(time.time())
 		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT state, parent, user, title, id FROM Jobs WHERE id = %d" % id)
+		self._execute (cur, "SELECT States.state_name as state, parent, user, title, Jobs.id FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id WHERE Jobs.id = %d" % id)
 		job = cur.fetchone ()
 		if job is not None:
 			jobdict = self._rowAsDict (cur, job)
@@ -701,7 +737,10 @@ class DBSQL(DB):
 					self.NotifyFinished (jobdict)
 				elif state == "ERROR" and self.NotifyError:
 					self.NotifyError (jobdict)
-				_set = "state = '%s'" % state
+				self._execute (cur, "SELECT id FROM States WHERE state_name = '%s'" % state)
+				statedata = cur.fetchone ()
+				_set = "state_id = '%d'" % statedata[0]
+
 				if state == "FINISHED" or state == "ERROR":
 					_set += ", duration = %d-start_time" % current_time
 					_set += ", run_done = run_done+1"
@@ -734,7 +773,7 @@ class DBSQL(DB):
 			total_finished = 0
 			start_time = 0
 			duration = 0
-			self._execute (cur, "SELECT state, total_working, total_errors, total_finished, total, start_time, duration FROM Jobs WHERE parent = %d" % id)
+			self._execute (cur, "SELECT States.state_name as state, total_working, total_errors, total_finished, total, start_time, duration FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id WHERE parent = %d" % id)
 			for job in cur:
 				state = job[0]
 				if job[4] == 0:
@@ -772,7 +811,7 @@ class DBSQL(DB):
 				_set += ", start_time = %d, duration = %d" % (start_time, duration)
 			self._execute (cur, "UPDATE Jobs SET " + _set + (" WHERE id = %d" % id))
 			if total > 0:
-				self._execute (cur, "SELECT state, parent, user, title, id, progress FROM Jobs WHERE id = %d" % id)
+				self._execute (cur, "SELECT States.state_name as state, parent, user, title, Jobs.id, progress FROM Jobs LEFT JOIN States ON Jobs.state_id= States.id WHERE Jobs.id = %d" % id)
 				oldState = cur.fetchone ()
 				jobdict = self._rowAsDict (cur, oldState)
 				newState = "WAITING"
@@ -787,7 +826,7 @@ class DBSQL(DB):
 					# update the duration now!
 					if newState == "WAITING" or newState == "PENDING":
 						newState = self._isJobPending (id) and "PENDING" or "WAITING"
-					self._execute (cur, "UPDATE Jobs SET state = '%s' WHERE id = %d" % (newState, id))
+					self._execute (cur, "UPDATE Jobs SET state_id = (SELECT id from States WHERE States.state_name = '%s') WHERE Jobs.id = %d" % (newState, id))
 					# and send notification
 					if newState == "FINISHED" and self.NotifyFinished:
 						self.NotifyFinished (jobdict)
@@ -828,7 +867,7 @@ class DBSQL(DB):
 	# update children hierarchical values, such as h_priority, h_affinity, h_paused
 	def _updateChildren (self, id,  parenth = None):
 		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT parent, affinity_bits, priority, paused, state FROM Jobs WHERE id = %d" % id)
+		self._execute (cur, "SELECT parent, affinity_bits, priority, paused, States.state_name as state FROM Jobs LEFT JOIN States ON Jobs.state_id=States.id WHERE Jobs.id = %d" % id)
 		job = cur.fetchone ()
 		if job:
 			if not parenth:
@@ -861,12 +900,15 @@ class DBSQL(DB):
 
 			# find all working jobs that are running out of time *or*
 			# all working jobs which worker is timing out
-			self._execute (cur, "SELECT id, worker FROM Jobs "
-								"WHERE state = 'WORKING' AND command != '' AND "
-									"(timeout != 0 AND %d-start_time > timeout)" %
+			self._execute (cur, "SELECT Jobs.id, Workers.name as worker FROM Jobs "
+								"LEFT JOIN States ON Jobs.state_id= States.id "
+								"LEFT JOIN Workers ON Jobs.worker_id= Workers.id "
+								"WHERE States.state_name = 'WORKING' AND command != '' AND "
+									"(timeout != 0 AND %d-Jobs.start_time > timeout)" %
 										current_time)
 			for job in cur:
 				print ("Job %d timeout!" % job[0])
+				print ("Worker %s timeout!" % job[1])
 				self._setJobState (job[0], "ERROR", True)
 				self._setWorkerState (job[1], "TIMEOUT")
 

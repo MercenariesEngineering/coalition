@@ -1,5 +1,8 @@
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
+from twisted.internet.threads import deferToThread
+from twisted.internet.defer import DeferredQueue
+
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random, shutil
 import atexit, json
 import smtplib
@@ -143,7 +146,8 @@ if servermode != "normal":
 	elif servermode == "qarnot":
 		cloudconfig.read("cloud_qarnot.ini")
 	cloudconfig.set("coalition", "port", str(port))
-
+else :
+	cloudconfig = None
 # Parse the options
 try:
 	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=", "verbose", "reset", "test"])
@@ -197,12 +201,12 @@ print ("[Init] "+time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(time.time
 if cfgStr ('db_type', 'sqlite') == "mysql":
 	vprint ("[Init] Use mysql")
 	db = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"), config=config, cloudconfig=cloudconfig)
-	if cfgStr ('db_mysql_install', "1")  == "1" :
-		vprint ("[Init] Install mysql ")
-		db.install()
+	dbworkers = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"), config=config, cloudconfig=cloudconfig)
 else:
 	vprint ("[Init] Use sqlite")
+	#filename = "coalition.db"
 	db = DBSQLite (cfgStr ('db_sqlite_file', "coalition.db"), config=config, cloudconfig=cloudconfig)
+	dbworkers = DBSQLite (cfgStr ('db_sqlite_file', "coalition.db"), config=config, cloudconfig=cloudconfig)
 
 if service:
 	vprint ("[Init] Running service")
@@ -328,6 +332,28 @@ def grantAddJob (user, cmd):
 	# Cleared
 	return True
 
+# callbak definition for all deferredqueue items
+def renderqueuecallback(params) :
+	request=params[0]
+	classparent=params[1]
+	vprint ("[" + request.method + "] "+request.path)
+	results=classparent.renderinqueuethread(request)
+	vprint ("[ FINISH" + request.method + "] "+request.path)
+
+	# it's time to launch callback for the next item (by default queue fire when item become available)
+	renderqueue.get().addCallback(renderqueuecallback)
+	request.write(results)
+	
+	try : 
+		request.finish()
+	except:
+		pass
+
+# create queue object
+renderqueue  = DeferredQueue()
+# init first item in queue to launch callback
+renderqueue.get().addCallback(renderqueuecallback)
+
 class Root (static.File):
 	def __init__ (self, path, defaultType='text/html', ignoredExts=(), registry=None, allowExt=0):
 		static.File.__init__(self, path, defaultType, ignoredExts, registry, allowExt)
@@ -343,6 +369,12 @@ class Master (xmlrpc.XMLRPC):
 	user = ""
 
 	def render (self, request):
+		vprint ("[MASTER PUTQUEUE " + request.method + "] "+request.path)
+		deferToThread(lambda: renderqueue.put([request,self]))
+		return server.NOT_DONE_YET
+
+	def renderinqueuethread (self, request):
+		vprint ("[ RENDERINQUEUE " + request.method + "] "+request.path)
 		with db:
 			vprint ("[" + request.method + "] "+request.path)
 			if authenticate (request):
@@ -390,9 +422,11 @@ class Master (xmlrpc.XMLRPC):
 									str (state), int (paused), int (timeout), int (priority), str (affinity),
 									str (user), str (url), str (progress_pattern))
 						if job is not None:
-							db.setJobDependencies (job['id'], dependencies)
-							return str(job['id'])
-
+							if job < 0 :
+								db.setJobDependencies (job['id'], dependencies)
+								return str(job['id'])
+							return job
+						
 					return "-1"
 
 				else:
@@ -437,6 +471,8 @@ class Master (xmlrpc.XMLRPC):
 												 (getArg("url", "")),
 												 (getArg("progress_pattern", "")),
 												 (getArg("dependencies", [])))
+								if job < 0 :
+									return job
 								return job['id']
 
 						elif request.method == "GET":
@@ -584,25 +620,41 @@ class Master (xmlrpc.XMLRPC):
 class Workers(xmlrpc.XMLRPC):
 	"""    """
 
+	def renderinqueuethread (self, request):
+		def getArg (name, default):
+			value = request.args.get (name, [default])
+			return value[0]
+		if request.path == "/workers/pickjob":
+			return self.json_pickjob (getArg ('hostname', ''), getArg ('load', '[0]'), getArg ('free_memory', '0'), getArg ('total_memory', '0'), self.getClientIP ())
+
 	def render (self, request):
-		with db:
+		#with db:
+		if True :
 			vprint ("[" + request.method + "] "+request.path)
 			def getArg (name, default):
 				value = request.args.get (name, [default])
 				return value[0]
 
 			if request.path == "/workers/heartbeat":
-				return self.json_heartbeat (getArg ('hostname', ''), getArg ('jobId', '-1'), getArg ('log', ''), getArg ('load', '[0]'), getArg ('free_memory', '0'), getArg ('total_memory', '0'), request.getClientIP ())
+				return self.json_heartbeat (getArg ('hostname', ''), getArg ('jobId', '-1'), getArg ('log', ''), getArg ('load', '[0]'), getArg ('free_memory', '0'), getArg ('total_memory', '0'), self.getClientIP ())
 			elif request.path == "/workers/pickjob":
-				return self.json_pickjob (getArg ('hostname', ''), getArg ('load', '[0]'), getArg ('free_memory', '0'), getArg ('total_memory', '0'), request.getClientIP ())
+				vprint ("[MASTER PUTQUEUE " + request.method + "] "+request.path)
+				deferToThread(lambda: renderqueue.put([request,self]))
+				return server.NOT_DONE_YET
+
 			elif request.path == "/workers/endjob":
-				return self.json_endjob (getArg ('hostname', ''), getArg ('jobId', '1'), getArg ('errorCode', '0'), request.getClientIP ())
+				return self.json_endjob (getArg ('hostname', ''), getArg ('jobId', '1'), getArg ('errorCode', '0'), self.getClientIP ())
 			else:
 				# return server.NOT_DONE_YET
 				return xmlrpc.XMLRPC.render (self, request)
+	def getClientIP(self):
+		clientip=request.getClientIP ()
+		if clientip== '127.0.0.1' :
+			clientip=request.getHeader('X-Forwarded-For')
+		return clientip
 
 	def json_heartbeat (self, hostname, jobId, log, load, free_memory, total_memory, ip):
-		result = db.heartbeat (hostname, int(jobId), load, int(free_memory), int(total_memory), str(ip))
+		result = dbworkers.heartbeat (hostname, int(jobId), load, int(free_memory), int(total_memory), str(ip))
 		if log != "" :
 			try:
 				logFile = open (getLogFilename (jobId), "a")
@@ -610,7 +662,7 @@ class Workers(xmlrpc.XMLRPC):
 				
 				# Filter the log progression message
 				progress = None
-				job = db.getJob (int (jobId))
+				job = dbworkers.getJob (int (jobId))
 				progress_pattern = getattr (job, "progress_pattern", DefaultLocalProgressPattern)
 				if progress_pattern != "":
 					vprint ("progressPattern : \n" + str(progress_pattern))
@@ -621,7 +673,7 @@ class Workers(xmlrpc.XMLRPC):
 					if lp != None:
 						vprint ("lp : "+ str(lp)+"\n")
 						if lp != job['progress']:
-							db.setJobProgress (int (jobId), lp)				
+							dbworkers.setJobProgress (int (jobId), lp)				
 				logFile.write (log)
 				if not result:
 					logFile.write ("KillJob: server required worker to kill job.\n")
@@ -634,7 +686,7 @@ class Workers(xmlrpc.XMLRPC):
 		return str (db.pickJob (hostname, load, int(free_memory), int(total_memory), str(ip)))
 
 	def json_endjob (self, hostname, jobId, errorCode, ip):
-		return str (db.endJob (hostname, int(jobId), int(errorCode), str(ip)))
+		return str (dbworkers.endJob (hostname, int(jobId), int(errorCode), str(ip)))
 
 # Listen to an UDP socket to respond to the workers broadcast
 def listenUDP():

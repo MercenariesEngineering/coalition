@@ -20,6 +20,10 @@ var activitiesSortKey = "start";
 var activitiesSortKeyToUpper = false;
 var selectionStart = 0;
 var showTools = true;
+var gridjobs;
+var dataViewjobs;
+var columnpicker;
+var affinitieslist = [];
 
 function setJobKey (id)
 {
@@ -70,11 +74,41 @@ function get_cookie ( cookie_name )
     return "";
 }
 
+function updateQueryStringParameter(uri, key, value) {
+  var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+  var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+  if (uri.match(re)) {
+    return uri.replace(re, '$1' + key + "=" + value + '$2');
+  }
+  else {
+    return uri + separator + key + "=" + value;
+  }
+}
+
+function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return "";
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
+
+function isvalidparam(param) {
+	if (param==null) return false;
+	if (param=='') return false;
+	return true;
+}
+
+
 $(document).ready(function()
 {
+	initJobs ();
 	reloadJobs ();
 	reloadWorkers ();
 	reloadActivities ();
+	renderAffinities ();
 	showPage ("jobs");
 	timer=setTimeout(timerCB,4000);
 });
@@ -202,11 +236,10 @@ function clearWorkers ()
         });
 	}
 }
-
 function formatDate (_date)
 {
 	var date = new Date(_date*1000)
-    return date.getFullYear() + '/' + (date.getMonth()+1) + '/' + date.getDate() + ' ' + date.getHours () + ':' + date.getMinutes () + ':' + date.getSeconds();
+    return date.getFullYear() + '/' + ('0' +(date.getMonth()+1)).slice(-2) + '/' + ('0' + date.getDate()).slice(-2) + ' ' + ('0' + date.getHours ()).slice(-2) + ':' + ('0' + date.getMinutes ()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2);
 }
 
 function formatDuration (secondes)
@@ -330,174 +363,209 @@ function renderParents ()
 	}
 }
 
-// Render the current jobs
+function formatterduration(row, cell, secondes, columnDef, dataContext) 
+{
+    if (isNaN(secondes)) { return ""; }
+    return formatDuration(secondes);
+}
+function formatterdate(row, cell, timestamp, columnDef, dataContext) 
+{
+    return formatDate(timestamp);
+}
+
+function formatterstate (row, cell, value, columnDef, dataContext){
+
+	if (row == null)         
+		var contents = value + ' FINISHED'; 
+        else 
+		var contents = '<div class="' + value +'">'+ (value ? value : '\n') + "</div>"; 
+        return contents
+};
+
+function formattertitle (row, cell, value, columnDef, dataContext){
+
+	if (row == null)         
+		var contents = value + ' Jobs'; 
+        else 
+		var contents = value; 
+        return contents
+};
+
+function ProgressCompleteBarFormatter(row, cell, value, columnDef, dataContext) {
+    if (value == null || value === "") {
+      return "";
+    }
+    _value= Math.floor(value*100.0)
+    return "<div style='position: relative;'><div class='progress-complete-bar lprogressbar' style='width:" + _value + "%'></div><div><span style='position: absolute;width: 100%;text-align: center;margin:auto;'>"+_value+"%</span></div></div>";
+}
+
+    function split( val ) {
+      return val.split( /,\s*/ );
+    }
+    function extractLast( term ) {
+      return split( term ).pop();
+    }
+
+function initJobs() {
+
+   $( "#filterJobsAffinity" )
+      // don't navigate away from the field on tab when selecting an item
+      .on( "keydown", function( event ) {
+        if ( event.keyCode === $.ui.keyCode.TAB &&
+            $( this ).autocomplete( "instance" ).menu.active ) {
+          event.preventDefault();
+        }
+      })
+      .autocomplete({
+        minLength: 0,
+        source: function( request, response ) {
+          // delegate back to autocomplete, but extract the last term
+          response( $.ui.autocomplete.filter(
+            affinitieslist, request.term ) );
+        },
+        focus: function() {
+          // prevent value inserted on focus
+          return false;
+        },
+/*
+        select: function( event, ui ) {
+          var terms = split( this.value );
+          // remove the current input
+          terms.pop();
+          // add the selected item
+          terms.push( ui.item.value );
+          // add placeholder to get the comma-and-space at the end
+          terms.push( "" );
+          this.value = terms.join( ", " );
+          return false;
+        }
+*/
+      });
+
+  
+  var columns = [
+    {id: "id", name: "ID", field: "id",width: 60,maxWidth: 70,sortable: true},
+    {id: "title", name: "Title", field: "title",minWidth:370,sortable: true,formatter:formattertitle ,totalized: true, totalizationType:Slick.Controls.ColumnPicker.Countrows,totalizationvalue: 'ALL'},
+    {id: "url", name: "URL", field: "url"},
+    {id: "user", name: "user", field: "user",sortable: true},
+    {id: "state", name: "State", field: "state",minWidth:60,sortable: true,formatter: formatterstate,totalized: true, totalizationType:Slick.Controls.ColumnPicker.Countrows,totalizationvalue: 'FINISHED',groupable:true},
+    {id: "priority", name: "priority", field: "priority",sortable: true,cssClass: 'slick-right-align',width: 50},
+    {id: "ok", name: "ok", field: "total_finished",sortable: true,width: 40,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
+    {id: "wrk", name: "wrk", field: "total_working",sortable: true,width: 40,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
+    {id: "err", name: "err", field: "total_errors",sortable: true,width: 40,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
+    {id: "total", name: "total", field: "total",sortable: true,width: 50,cssClass: 'slick-right-align',totalized: true, totalizationType: Slick.Data.Aggregators.Sum},
+    {id: "progress", name: "Progress", field: "progress",sortable: true,width: 50,formatter:ProgressCompleteBarFormatter},
+    {id: "affinity", name: "affinity", field: "affinity",sortable: true,minWidth:110,cssClass: 'slick-right-align',groupable:true},
+    {id: "timeout", name: "timeout", field: "timeout",width: 40,cssClass: 'slick-right-align'},
+    {id: "worker", name: "worker", field: "worker",sortable: true,groupable:true},
+    {id: "start_time", name: "start_time", field: "start_time",sortable: true,width: 130,cssClass: 'slick-right-align',formatter: formatterdate},
+    {id: "duration", name: "Duration", field: "duration",cssClass: 'slick-right-align',sortable: true,formatter: formatterduration,totalized: true, totalizationType: Slick.Data.Aggregators.Avg},
+    {id: "avgduration", name: "AVG Duration", field: "avgduration",cssClass: 'slick-right-align',sortable: true,formatter: formatterduration,totalized: true, totalizationType: Slick.Data.Aggregators.Avg},
+    {id: "run", name: "run", field: "run"},
+    {id: "command", name: "command", field: "command"},
+    {id: "dir", name: "dir", field: "dir"},
+    {id: "dependencies", name: "dependencies", field: "dependencies"},
+  ];
+  var options = {
+    headerRowHeight: 10,
+    enableCellNavigation: true,
+    showFooterRow: true,
+    forceFitColumns: false,
+    explicitInitialization: true,
+  };
+
+
+  var groupItemMetadataProvider = new Slick.Data.GroupItemMetadataProvider();
+  dataViewjobs = new Slick.Data.DataView({groupItemMetadataProvider: groupItemMetadataProvider});
+
+  gridjobs = new Slick.Grid("#jobs",dataViewjobs, columns, options);
+  gridjobs.registerPlugin(groupItemMetadataProvider);
+  gridjobs.setSelectionModel(new Slick.RowSelectionModel());
+  columnpicker = new Slick.Controls.ColumnPicker(columns, gridjobs, options);
+
+  //dataViewjobs.setItems(jobs);
+  gridjobs.init();
+
+
+  dataViewjobs.onRowCountChanged.subscribe(function (e, args) {
+    gridjobs.updateRowCount();
+  gridjobs.render();
+  });
+
+  dataViewjobs.onRowsChanged.subscribe(function (e, args) {
+    gridjobs.invalidateRows(args.rows);
+    gridjobs.render();
+  });
+
+  gridjobs.onSort.subscribe(function(e, args) {
+    var comparer = function(a, b) {
+      return (a[args.sortCol.field] > b[args.sortCol.field]) ? 1 : -1;
+    }
+
+    // Delegate the sorting to DataView.
+    // This will fire the change events and update the grid.
+    dataViewjobs.sort(comparer, args.sortAsc);
+  });
+
+  gridjobs.onClick.subscribe(function(e, args) {
+    document.getElementById("selectJobs").value = "CUSTOM";
+    var item = dataViewjobs.getItem(args.row);
+  });
+
+  gridjobs.onSelectedRowsChanged.subscribe (function (e, args) 
+  {
+    var Ljobid;
+    selectedJobs={};
+    for (i=0; i < gridjobs.getSelectedRows().length; i++)  {
+	Ljobid = dataViewjobs.getItem(gridjobs.getSelectedRows()[i]).id;
+	selectedJobs[Ljobid]=true;
+    }
+    updateJobProps ();
+  });
+
+  gridjobs.onDblClick.subscribe(function(e, args) {
+    var item = dataViewjobs.getItem(args.row);
+    item.command != "" ? renderLog (item.id) : goToJob (item.id);
+  });
+}
+
 function renderJobs ()
 {
-	$("#jobs").empty ();
-	var table = "<table id='jobsTable'>";
-    
-	function _sort (a,b)
-	{
-		if (jobsSortKey == "Progress")
-		{
-		    var progressA = a.progress;
-		    var progressB = b.progress;
-		    return compareNumbers (progressA, progressB, jobsSortKeyToUpper);
-	    }
-	    else
-	    {
-		    var aValue = a[jobsSortKey];
-		    if (typeof aValue == 'string')
-    			return compareStrings (aValue, b[jobsSortKey], jobsSortKeyToUpper);
-		    else
-    			return compareNumbers (aValue, b[jobsSortKey], jobsSortKeyToUpper);
-    	}
+
+        dataViewjobs.setItems(jobs);
+	dataViewjobs.reSort();
+        gridjobs.invalidate();
+//  gridjobs.render();
+
+      items=gridjobs.getData().getItems();
+      $.each(gridjobs.getColumns(), function () {
+        if (this.totalized) {
+          columnpicker.updateTotalizedColumns(items,this);
 	}
 
-	jobs.sort (_sort);
+      });
 
-	// Returns the HTML code for a job title column
-	function addTitleHTMLEx (attribute, alias)
-	{
-		table += "<th class='headerCell' onclick='"+"setJobKey(\""+attribute+"\")'>";
-		var value = jobs[0];
-		if (value)
-		{
-			table += alias;
-			if (attribute == jobsSortKey && jobsSortKeyToUpper)
-				table += " &#8595;";
-			if (attribute == jobsSortKey && !jobsSortKeyToUpper)
-				table += " &#8593;";
-		}
-		else
-			table += attribute;
-		table += "</th>";
-	}
 
-	function addTitleHTML (attribute)
-	{
-	    addTitleHTMLEx (attribute, attribute)
-	}
+      var test = document.getElementById("selectJobs");
+      if (test != undefined) 
+	 test.value = "NONE";
+      gridjobs.setSelectedRows([]);	
 
-	table += "<tr class='title'>";
-	//addTitleHTML ("Order");
-	addTitleHTML ("id");
-	addTitleHTML ("title");
-	addTitleHTML ("url");
-	addTitleHTML ("user");
-	addTitleHTML ("state");
-	addTitleHTML ("priority");
-	addTitleHTMLEx ("total_finished", "ok");
-	addTitleHTMLEx ("total_working", "wrk");
-	addTitleHTMLEx ("total_errors", "err");
-	addTitleHTML ("total");
-	addTitleHTML ("progress");
-	addTitleHTML ("affinity");
-	addTitleHTML ("timeout");
-	addTitleHTML ("worker");
-	addTitleHTML ("start_time");
-	addTitleHTML ("duration");
-	addTitleHTML ("run");
-	addTitleHTML ("command");
-	addTitleHTML ("dir");
-	addTitleHTML ("dependencies");
-	table += "</tr>\n";
-
-	for (i=0; i < jobs.length; i++)
-	{
-		var job = jobs[i];
-
-        var mouseDownEvent = "onMouseDown='onClickList(event,"+i+")' onDblClick='onDblClickList(event,"+i+")'";
-        
-		table += "<tr id='jobtable"+i+"' "+mouseDownEvent+" class='entry"+(i%2)+(selectedJobs[job.id]?"Selected":"")+"'>";
-		function addTD (attr)
-		{
-			table += "<td>" + attr + "</td>";
-		}
-		//addTD (job.Order);
-		addTD (job.id);
-		table += "<td>" + job.title + "</td>\n";
-
-        // url
-		if (job.url != "")
-		    addTD ("<a href='"+job.url+"'>Open</a>")
-        else
-            addTD ("")
-
-        // check group state!
-        var	mystate = job.paused ? "PAUSED" : job.state;
-		
-		addTD (job.user);
-	    table += "<td class='"+mystate+"'>"+mystate+"</td>";
-		addTD (job.priority);
-		if (job.total > 0)
-		{
-		    table += "<td class='"+(job.total_finished > 0 ? "FINISHED" : "WAITING")+"' width=30>"+job.total_finished+"</td>";
-		    table += "<td class='"+(job.total_working > 0 ? "WORKING" : "WAITING")+"' width=30>"+job.total_working+"</td>";
-		    table += "<td class='"+(job.total_errors > 0 ? "ERROR" : "WAITING")+"' width=30>"+job.total_errors+"</td>";
-		    table += "<td class='"+(job.total == job.total_finished ? "FINISHED" : "WAITING")+"' width=30>"+job.total+"</td>";
-		}
-		else
-		{
-		    addTD ("");
-		    addTD ("");
-		    addTD ("");
-		    addTD ("");
-		}
-		
-		// *** Progress bar
-        var progress = ""
-        var _progress = job.progress
-        _progress = Math.floor(_progress*100.0);
-
-        // A bar div
-        progress = "<div class='progress'>";
-        progress += "<div class='lprogressbar' style='width:" + _progress + "%' />";
-        progress += "<div class='progresslabel'>" + _progress + "%</div>";
-        progress += "</div>";
-        		
-		addTD (progress);
-		addTD (job.affinity);
-		addTD (job.timeout);
-		addTD (job.worker);
-		addTD (job.start_time > 0 ? formatDate (job.start_time) : "");
-		addTD (formatDuration (job.duration));
-		addTD (job.run_done);
-		addTD (job.command);
-		addTD (job.dir);
-		addTD (job.dependencies);
-
-		table += "</td></tr>\n";
-	}
-
-	// Footer
-	table += "<tr class='title'>";
-
-	table += addSumEmpty ("TOTAL");
-	table += addSumSimple (jobs);
-	table += addSumEmpty ();
-	table += addSumEmpty ();
-	table += addSumFinished (jobs, "state");
-	table += addSumEmpty ();
-	table += addSum (jobs, "total_finished");
-	table += addSum (jobs, "total_working");
-	table += addSum (jobs, "total_errors");
-	table += addSum (jobs, "total");
-	table += addSumEmpty ();
-	table += addSumEmpty ();
-	table += addSumEmpty ();
-	table += addSumEmpty ();
-	table += addSumEmpty ();
-	table += addSumAvgDuration (jobs, "duration");
-	table += addSumEmpty ();
-	table += addSumEmpty ();
-	table += addSumEmpty ();
-	table += addSumEmpty ();
-	table += "</tr>\n";
-
-	table += "</table></div>";
-	$("#jobs").append(table);
 }
+
+function groupByaffinity(dataView) {
+  dataView.setGrouping({
+    getter: "affinity",
+    formatter: function (g) {
+      return "affinity:  " + g.value + "  <span style='color:green'>(" + g.count + " items)</span>";
+    },
+    aggregators: [
+    ],
+    aggregateCollapsed: false,
+    lazyTotalsCalculation: true
+  });
+}
+
 
 function logSelection ()
 {
@@ -509,14 +577,54 @@ function logSelection ()
 	}
 }
 
+function sendreloadJobs (emitter_id) {
+//    var globalhref=location.protocol + "//" + location.host + location.pathname;
+
+    var newvalue=document.getElementById(emitter_id).value;
+    var url =window.location.href;
+    var newurl='';
+    if(url.indexOf(emitter_id) >= 0) {
+        newurl = updateQueryStringParameter(url,emitter_id,newvalue);
+    }
+    else {
+        newurl = url + (url.split('?')[1] ? '&':'?') + emitter_id+'='+encodeURIComponent(newvalue);
+    }
+    if (newurl!='')  window.history.replaceState({} , "Title", newurl);
+    reloadJobs ()
+}
 // Ask the server for the jobs and render them
 function reloadJobs ()
 {
     parents = [];
+    var tag_param = getParameterByName("filterJobs");
+    var affinity_param = getParameterByName("filterJobsAffinity");
+    var title_param = getParameterByName("filterJobsTitle");
     var tag = document.getElementById("filterJobs").value;
     var affinity = document.getElementById("filterJobsAffinity").value;
     var title = document.getElementById("filterJobsTitle").value;
+
+    tag_param = tag_param == "NONE" ? "" : tag_param;
     tag = tag == "NONE" ? "" : tag;
+
+    if (tag=='' ) {
+	if (isvalidparam(tag_param)) {
+		tag=tag_param;
+		$("#filterJobs").val(tag);
+	}
+    }
+    if (affinity=='' ) {
+	if (isvalidparam(affinity_param)) {
+		affinity=affinity_param;
+		$("#filterJobsAffinity").val(affinity);
+	}
+    }
+    if (title=='' ) {
+	if (isvalidparam(title_param)) {
+		title=title_param;
+		$("#filterJobsTitle").val(title);
+	}
+    }
+
     var data = {filter:tag}
     $.ajax({ type: "GET", url: "/api/jobs/"+viewJob+"/children", data: JSON.stringify(data), dataType: "json", success: 
         function(data) 
@@ -547,6 +655,9 @@ function reloadJobs ()
 				var job = jobs[i]
 				idtojob[job.id] = job
 				job.dependencies = []
+				if (job.total_finished > 0)
+					job.avgduration = Math.round(job.duration/job.total_finished); 
+				else job.avgduration=job.duration;
 			}
 
 			$.ajax({ type: "GET", url: "/api/jobs/"+viewJob+"/childrendependencies", dataType: "json", success: 
@@ -564,7 +675,6 @@ function reloadJobs ()
 						var	job = jobs[i];
 						job.dependencies = job.dependencies.join (",");
 					}
-
 			        renderJobs ();
 
 //					for (i = 0; i < jobs.length; ++i)
@@ -645,9 +755,7 @@ function terminateWorkers ()
 			}
 		});
 	}
-}
-
-function jobActivity ()
+}function jobActivity ()
 {
 	for (j=jobs.length-1; j >= 0; j--)
 	{
@@ -1082,10 +1190,15 @@ function updateAffinities ()
 	        for (i = 1; i <= 63; ++i)
 	        {
 	        	var def = affinities[i];
-	        	if (def)
+	        	if (def) {
 			        $("#affinity"+i).attr("value", def);
+				affinitieslist.push(def);
+			}
 			    $("#affinity"+i).css("background-color", "white");
+			
 	        }
+		
+            affinitieslist.sort();
             document.getElementById("refreshbutton").className = "refreshbutton";
         }
     });
@@ -1135,6 +1248,7 @@ function updatejobs ()
     sendSelectionPropChanges (jobs, 'id', updatedJobProps, JobProps, "Jobs", selectedJobs,
         function ()
         {
+
             reloadJobs ();
             updateJobProps ();
         }
@@ -1279,6 +1393,7 @@ function selectAll (state, filter)
     var selectedList;
     var idName;
     var tableId;
+
     if (page == "jobs")
     {
         thelist = jobs;
@@ -1300,25 +1415,22 @@ function selectAll (state, filter)
         
     if (!state)
     {
-	    for (j=0; j < thelist.length; j++)
-   			document.getElementById(tableId+j).className = "entry"+(j%2);
+	gridjobs.setSelectedRows([]);
     }
     else
     {        
-	    for (j=0; j < thelist.length; j++)
-	    {
-		    var item = thelist[j];
+	    var selectarray = []
+	    for (j=0; j < dataViewjobs.getLength(); j++) {
+	 	    var item=dataViewjobs.getItem(j)
 		    if (filter == null || item.state == filter)
 		    {
-		        selectedList[item[idName]] = true;
-   			    document.getElementById(tableId+j).className = "entry"+(j%2)+"Selected";
-   			}
-   			else
-   			{
-		        selectedList[item[idName]] = false;
-   			    document.getElementById(tableId+j).className = "entry"+(j%2);
-   			}
+		       if (item.id != undefined)
+		          selectarray.push(item.id)
+		    }
 	    }
+	    var selectedRows = dataViewjobs.mapIdsToRows(selectarray);
+	    gridjobs.setSelectedRows(selectedRows);
+
     }
     
     if (page == "jobs")         { updateJobProps (); }
