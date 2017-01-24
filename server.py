@@ -1,45 +1,25 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Coalition server.
+"""
+
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random, shutil
 import atexit, json
 import smtplib
 from email.mime.text import MIMEText
+from textwrap import dedent, fill
 
 from db_sqlite import DBSQLite
 from db_mysql import DBMySQL
 
 
-GErr=0
-GOk=0
+### Functions ###
 
-# Go to the script directory
-global installDir, dataDir
-if sys.platform=="win32":
-	import _winreg
-	# under windows, uses the registry setup by the installer
-	try:
-		hKey = _winreg.OpenKey (_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Mercenaries Engineering\\Coalition", 0, _winreg.KEY_READ)
-		installDir, _type = _winreg.QueryValueEx (hKey, "Installdir")
-		dataDir, _type = _winreg.QueryValueEx (hKey, "Datadir")
-	except OSError:
-		installDir = "."
-		dataDir = "."
-else:
-	installDir = "."
-	dataDir = "."
-os.chdir (installDir)
-
-# Create the logs/ directory
-try:
-	os.mkdir (dataDir + "/logs", 0755);
-except OSError:
-	pass
-
-global timeout, port, verbose, config
-config = ConfigParser.SafeConfigParser()
-config.read ("coalition.ini")
-
-# Manage configuration
+# Configuration functions
 def cfgInt (name, defvalue):
 	global config
 	if config.has_option('server', name):
@@ -48,6 +28,7 @@ def cfgInt (name, defvalue):
 		except:
 			pass
 	return defvalue
+
 
 def cfgBool (name, defvalue):
 	global config
@@ -58,6 +39,7 @@ def cfgBool (name, defvalue):
 			pass
 	return defvalue
 
+
 def cfgStr (name, defvalue):
 	global config
 	if config.has_option('server', name):
@@ -67,50 +49,6 @@ def cfgStr (name, defvalue):
 			pass
 	return defvalue
 
-port = cfgInt ('port', 19211)
-
-timeout = cfgInt ('timeout', 60)
-verbose = cfgBool ('verbose', False)
-service = cfgBool ('service', True)
-notifyafter = cfgInt ('notifyafter', 10)
-decreasepriorityafter = cfgInt ('decreasepriorityafter', 10)
-smtpsender = cfgStr ('smtpsender', "")
-smtphost = cfgStr ('smtphost', "")
-smtpport = cfgInt ('smtpport', 587)
-smtptls = cfgBool ('smtptls', True)
-smtplogin = cfgStr ('smtplogin', "")
-smtppasswd = cfgStr ('smtppasswd', "")
-
-LDAPServer = cfgStr ('ldaphost', "")
-LDAPTemplate = cfgStr ('ldaptemplate', "")
-
-_TrustedUsers = cfgStr ('trustedusers', "")
-
-TrustedUsers = {}
-for line in _TrustedUsers.splitlines (False):
-	TrustedUsers[line] = True
-
-_CmdWhiteList = cfgStr ('commandwhitelist', "")
-
-GlobalCmdWhiteList = None
-UserCmdWhiteList = {}
-UserCmdWhiteListUser = None
-for line in _CmdWhiteList.splitlines (False):
-	_re = re.match ("^@(.*)", line)
-	if _re:
-		UserCmdWhiteListUser = _re.group(1)
-		if not UserCmdWhiteListUser in UserCmdWhiteList:
-			UserCmdWhiteList[UserCmdWhiteListUser] = []
-	else:
-		if UserCmdWhiteListUser:
-			UserCmdWhiteList[UserCmdWhiteListUser].append (line)			
-		else:
-			if not GlobalCmdWhiteList:
-				GlobalCmdWhiteList = []
-			GlobalCmdWhiteList.append (line)
-
-DefaultLocalProgressPattern = "PROGRESS:%percent"
-DefaultGlobalProgressPattern = None
 
 def usage():
 	print ("Usage: server [OPTIONS]")
@@ -119,140 +57,25 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
+	print ("  --init\t\tInitialize the database")
+	print ("  --migrate\t\tMigrate the database with interactive confirmation")
 	print ("  --reset\t\tReset the database (warning: all previous data are lost)")
-	print ("  --test\t\tPerform the database unit tests")
 	if sys.platform == "win32":	
 		print ("  -c, --console=\t\tRun as a windows console application")
 		print ("  -s, --service=\t\tRun as a windows service")
 	print ("\nExample : server -p 1234")
 
-# Service only on Windows
-service = service and sys.platform == "win32"
 
-resetDb = False
-testDb = False
-
-# Cloud mode
-servermode = cfgStr ('servermode', 'normal')
-if servermode != "normal":
-	cloudconfig = ConfigParser.SafeConfigParser()
-	if servermode == "aws":
-		cloudconfig.read("cloud_aws.ini")
-	elif servermode == "gcloud":
-		cloudconfig.read("cloud_gloud.ini")
-	elif servermode == "qarnot":
-		cloudconfig.read("cloud_qarnot.ini")
-	cloudconfig.set("coalition", "port", str(port))
-
-# Parse the options
-try:
-	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=", "verbose", "reset", "test"])
-	if len(args) != 0:
-		usage()
-		sys.exit(2)
-except getopt.GetoptError, err:
-	# print help information and exit:
-	print str(err) # will print something like "option -a not recognized"
-	usage()
-	sys.exit(2)
-for o, a in opts:
-	if o in ("-h", "--help"):
-		usage ()
-		sys.exit(2)
-	elif o in ("-v", "--verbose"):
-		verbose = True
-	elif o in ("-p", "--port"):
-		port = int(a)
-	elif o in ("--reset"):
-		resetDb = True
-	elif o in ("--test"):
-		testDb = True
-	else:
-		assert False, "unhandled option " + o
-
-	if LDAPServer != "":
-		import ldap
-
-if not verbose or service:
-	try:
-		outfile = open(dataDir + '/server.log', 'a')
-		sys.stdout = outfile
-		sys.stderr = outfile
-		def exit ():
-			outfile.close ()
-		atexit.register (exit)
-	except:
-		pass
-
-# Log function
+# Log functions
 def vprint (str):
 	if verbose:
 		print (str)
 		sys.stdout.flush()
 
-vprint ("[Init] --- Start ------------------------------------------------------------")
-print ("[Init] "+time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(time.time ())))
-
-# Init the good database
-if cfgStr ('db_type', 'sqlite') == "mysql":
-	vprint ("[Init] Use mysql")
-	db = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"), config=config, cloudconfig=cloudconfig)
-	if cfgStr ('db_mysql_install', "1")  == "1" :
-		vprint ("[Init] Install mysql ")
-		db.install()
-else:
-	vprint ("[Init] Use sqlite")
-	db = DBSQLite (cfgStr ('db_sqlite_file', "coalition.db"), config=config, cloudconfig=cloudconfig)
-
-if service:
-	vprint ("[Init] Running service")
-else:
-	vprint ("[Init] Running standard console")
-
 def getLogFilename (jobId):
 	global dataDir
 	return dataDir + "/logs/" + str(jobId) + ".log"
 
-# strip all 
-def strToInt (s):
-	try:
-		return int(s)
-	except:
-		return 0
-
-class LogFilter:
-	"""A log filter object. The log pattern must include a '%percent' or a '%one' key word."""
-	
-	def __init__ (self, pattern):
-		# 0~100 or 0~1 ?
-		self.IsPercent = re.match (".*%percent.*", pattern) != None
-		
-		# Build the final pattern for the RE
-		if self.IsPercent:
-			pattern = re.sub ("%percent", "([0-9.]+)", pattern)
-		else:
-			pattern = re.sub ("%one", "([0-9.]+)", pattern)
-			
-		# Final progress filter
-		self.RE = re.compile(pattern)
-		
-		# Put it in the cache
-		global LogFilterCache
-		LogFilterCache[pattern] = self
-
-	def filterLogs (self, log):
-		"""Return the filtered log and the last progress, if any"""
-		progress = None
-		for m in self.RE.finditer (log):
-			capture = m.group(1)
-			try:
-				progress = float(capture) / (self.IsPercent and 100.0 or 1.0)
-			except ValueError:
-				pass
-		#return self.RE.sub ("", log), progress
-		return log, progress
-		
-LogFilterCache = {}
 
 def getLogFilter (pattern):
 	"""Get the pattern filter from the cache or add one"""
@@ -264,13 +87,70 @@ def getLogFilter (pattern):
 		LogFilterCache[pattern] = filter
 	return filter
 
+
 def writeJobLog (jobId, log):
 	logFile = open (getLogFilename (jobId), "a")
 	logFile.write (log)
 	logFile.close ()	
 
-# Authenticate the user
+
+# Notify functions
+def sendEmail (to, message) :
+	if to != "" :
+		vprint ("Send email to " + to + " : " + message)
+		if smtphost != "" :
+			# Create a text/plain message
+			msg = MIMEText(message)
+
+			# me == the sender's email address
+			# you == the recipient's email address
+			msg['Subject'] = message
+			msg['From'] = smtpsender
+			msg['To'] = to
+
+			# Send the message via our own SMTP server, but don't include the
+			# envelope header.
+			try:
+				s = smtplib.SMTP(smtphost, smtpport)
+				if smtptls:
+					s.ehlo()
+					s.starttls()
+					s.ehlo() 
+				if smtplogin != '' or smtppasswd != '':
+					s.login(smtplogin, smtppasswd)
+				s.sendmail (smtpsender, [to], msg.as_string())
+				s.quit()
+			except Exception as inst:
+				vprint (inst)
+				pass
+
+
+def notifyError (job):
+	if job['user'] :
+		sendEmail (job['user'], 'ERRORS in job ' + job['title'] + ' (' + str(job['id']) + ').')
+
+
+def notifyFinished (job):
+	if job['user'] :
+		sendEmail (job['user'], 'The job ' + job['title'] + ' (' + str(job['id']) + ') is FINISHED.')
+
+
+def notifyFirstFinished (job):
+	if job['user'] :
+		sendEmail (job['user'], 'The job ' + job['title'] + ' (' + str(job['id']) + ') has finished ' + str(notifyafter) + ' jobs.')
+
+def _interactiveConfirmation(confirmation_sentence="Yes I know what I'm doing."):
+	"""Ask the user for confirmation."""
+	text = "Please write this sentence then press enter to confirm:\n"+confirmation_sentence+'\n'
+	answer = raw_input(text)
+	if answer == confirmation_sentence:
+		return True
+	return False
+
+
+# Core functions
 def authenticate (request):
+	"""Authenticate the user."""
 	if LDAPServer != "":
 		username = request.getUser ()
 		password = request.getPassword ()
@@ -296,8 +176,9 @@ def authenticate (request):
 		return False
 	return True
 
-# Check if the user can add this command
+
 def grantAddJob (user, cmd):
+	"""Check if the user can add this command."""
 
 	def checkWhiteList (wl):
 		for pattern in wl:
@@ -328,7 +209,75 @@ def grantAddJob (user, cmd):
 	# Cleared
 	return True
 
+
+def listenUDP():
+	"""Listen to an UDP socket to respond to the workers broadcast."""
+	from socket import SOL_SOCKET, SO_BROADCAST
+	from socket import socket, AF_INET, SOCK_DGRAM, error
+	s = socket (AF_INET, SOCK_DGRAM)
+	s.bind (('0.0.0.0', port))
+	while 1:
+		try:
+			data, addr = s.recvfrom (1024)
+			s.sendto ("roxor", addr)
+		except:
+			pass
+
+
+def main():
+	"""Start the UDP server used for the broadcast."""
+	thread.start_new_thread (listenUDP, ())
+
+	from twisted.internet import reactor
+	from twisted.web import server
+	root = Root("public_html")
+	webService = Master()
+	workers = Workers()
+	root.putChild('xmlrpc', webService)
+	root.putChild('api', webService)
+	root.putChild('workers', workers)
+	vprint ("[Init] Listen on port " + str (port))
+	reactor.listenTCP(port, server.Site(root))
+	reactor.run()
+
+
+### Classes ###
+
+class LogFilter:
+	"""A log filter object. The log pattern must include a '%percent' or a '%one' key word."""
+
+	def __init__ (self, pattern):
+		# 0~100 or 0~1 ?
+		self.IsPercent = re.match (".*%percent.*", pattern) != None
+
+		# Build the final pattern for the RE
+		if self.IsPercent:
+			pattern = re.sub ("%percent", "([0-9.]+)", pattern)
+		else:
+			pattern = re.sub ("%one", "([0-9.]+)", pattern)
+
+		# Final progress filter
+		self.RE = re.compile(pattern)
+
+		# Put it in the cache
+		global LogFilterCache
+		LogFilterCache[pattern] = self
+
+	def filterLogs (self, log):
+		"""Return the filtered log and the last progress, if any"""
+		progress = None
+		for m in self.RE.finditer (log):
+			capture = m.group(1)
+			try:
+				progress = float(capture) / (self.IsPercent and 100.0 or 1.0)
+			except ValueError:
+				pass
+		#return self.RE.sub ("", log), progress
+		return log, progress
+
+
 class Root (static.File):
+	"""Twisted static server."""
 	def __init__ (self, path, defaultType='text/html', ignoredExts=(), registry=None, allowExt=0):
 		static.File.__init__(self, path, defaultType, ignoredExts, registry, allowExt)
 
@@ -337,8 +286,9 @@ class Root (static.File):
 			return static.File.render (self, request)
 		return 'Authorization required!'
 
+
 class Master (xmlrpc.XMLRPC):
-	"""    """
+	"""XmlRPC server."""
 
 	user = ""
 
@@ -348,7 +298,6 @@ class Master (xmlrpc.XMLRPC):
 			if authenticate (request):
 				# If not autenticated, user == ""
 				self.user = request.getUser ()
-				# Addjob
 
 				def getArg (name, default):
 					value = request.args.get (name, [default])
@@ -356,7 +305,6 @@ class Master (xmlrpc.XMLRPC):
 
 				# The legacy method for compatibility
 				if request.path == "/xmlrpc/addjob":
-
 					parent = getArg ("parent", "0")
 					title = getArg ("title", "New job")
 					cmd = getArg ("cmd", getArg ("command", ""))
@@ -522,7 +470,6 @@ class Master (xmlrpc.XMLRPC):
 
 							if request.path == "/api/terminateworkers":
 								if servermode != "normal":
-									# Cloud mode
 									for name in data:
 										db.cloudmanager.stopInstance(name)
 										db._setWorkerState(name, "TERMINATED")
@@ -580,9 +527,9 @@ class Master (xmlrpc.XMLRPC):
 		except OSError:
 			pass
 
-# Unauthenticated connection for workers
+
 class Workers(xmlrpc.XMLRPC):
-	"""    """
+	"""Unauthenticated XmlRPC server for Worker."""
 
 	def render (self, request):
 		with db:
@@ -636,88 +583,219 @@ class Workers(xmlrpc.XMLRPC):
 	def json_endjob (self, hostname, jobId, errorCode, ip):
 		return str (db.endJob (hostname, int(jobId), int(errorCode), str(ip)))
 
-# Listen to an UDP socket to respond to the workers broadcast
-def listenUDP():
-	from socket import SOL_SOCKET, SO_BROADCAST
-	from socket import socket, AF_INET, SOCK_DGRAM, error
-	s = socket (AF_INET, SOCK_DGRAM)
-	s.bind (('0.0.0.0', port))
-	while 1:
-		try:
-			data, addr = s.recvfrom (1024)
-			s.sendto ("roxor", addr)
-		except:
-			pass
 
-def main():
-	# Start the UDP server used for the broadcast
-	thread.start_new_thread (listenUDP, ())
+### Variables ###
 
-	from twisted.internet import reactor
-	from twisted.web import server
-	root = Root("public_html")
-	webService = Master()
-	workers = Workers()
-	root.putChild('xmlrpc', webService)
-	root.putChild('api', webService)
-	root.putChild('workers', workers)
-	vprint ("[Init] Listen on port " + str (port))
-	reactor.listenTCP(port, server.Site(root))
-	reactor.run()
+GErr=0
+GOk=0
 
-def sendEmail (to, message) :
-	if to != "" :
-		vprint ("Send email to " + to + " : " + message)
-		if smtphost != "" :
-			# Create a text/plain message
-			msg = MIMEText(message)
+# Go to the script directory
+global installDir, dataDir
+if sys.platform=="win32":
+	import _winreg
+	# under windows, uses the registry setup by the installer
+	try:
+		hKey = _winreg.OpenKey (_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Mercenaries Engineering\\Coalition", 0, _winreg.KEY_READ)
+		installDir, _type = _winreg.QueryValueEx (hKey, "Installdir")
+		dataDir, _type = _winreg.QueryValueEx (hKey, "Datadir")
+	except OSError:
+		installDir = "."
+		dataDir = "."
+else:
+	installDir = "."
+	dataDir = "."
+os.chdir (installDir)
 
-			# me == the sender's email address
-			# you == the recipient's email address
-			msg['Subject'] = message
-			msg['From'] = smtpsender
-			msg['To'] = to
+# Create the logs/ directory
+try:
+	os.mkdir (dataDir + "/logs", 0755);
+except OSError:
+	pass
 
-			# Send the message via our own SMTP server, but don't include the
-			# envelope header.
-			try:
-				s = smtplib.SMTP(smtphost, smtpport)
-				if smtptls:
-					s.ehlo()
-					s.starttls()
-					s.ehlo() 
-				if smtplogin != '' or smtppasswd != '':
-					s.login(smtplogin, smtppasswd)
-				s.sendmail (smtpsender, [to], msg.as_string())
-				s.quit()
-			except Exception as inst:
-				vprint (inst)
-				pass
+global timeout, port, verbose, config
+config = ConfigParser.SafeConfigParser()
+config.read ("coalition.ini")
 
-def notifyError (job):
-	if job['user'] :
-		sendEmail (job['user'], 'ERRORS in job ' + job['title'] + ' (' + str(job['id']) + ').')
+port = cfgInt ('port', 19211)
 
-def notifyFinished (job):
-	if job['user'] :
-		sendEmail (job['user'], 'The job ' + job['title'] + ' (' + str(job['id']) + ') is FINISHED.')
+timeout = cfgInt ('timeout', 60)
+verbose = cfgBool ('verbose', False)
+service = cfgBool ('service', True)
+notifyafter = cfgInt ('notifyafter', 10)
+decreasepriorityafter = cfgInt ('decreasepriorityafter', 10)
+smtpsender = cfgStr ('smtpsender', "")
+smtphost = cfgStr ('smtphost', "")
+smtpport = cfgInt ('smtpport', 587)
+smtptls = cfgBool ('smtptls', True)
+smtplogin = cfgStr ('smtplogin', "")
+smtppasswd = cfgStr ('smtppasswd', "")
 
-def notifyFirstFinished (job):
-	if job['user'] :
-		sendEmail (job['user'], 'The job ' + job['title'] + ' (' + str(job['id']) + ') has finished ' + str(notifyafter) + ' jobs.')
+LDAPServer = cfgStr ('ldaphost', "")
+LDAPTemplate = cfgStr ('ldaptemplate', "")
+
+_TrustedUsers = cfgStr ('trustedusers', "")
+
+TrustedUsers = {}
+for line in _TrustedUsers.splitlines (False):
+	TrustedUsers[line] = True
+
+_CmdWhiteList = cfgStr ('commandwhitelist', "")
+
+GlobalCmdWhiteList = None
+UserCmdWhiteList = {}
+UserCmdWhiteListUser = None
+for line in _CmdWhiteList.splitlines (False):
+	_re = re.match ("^@(.*)", line)
+	if _re:
+		UserCmdWhiteListUser = _re.group(1)
+		if not UserCmdWhiteListUser in UserCmdWhiteList:
+			UserCmdWhiteList[UserCmdWhiteListUser] = []
+	else:
+		if UserCmdWhiteListUser:
+			UserCmdWhiteList[UserCmdWhiteListUser].append (line)			
+		else:
+			if not GlobalCmdWhiteList:
+				GlobalCmdWhiteList = []
+			GlobalCmdWhiteList.append (line)
+
+DefaultLocalProgressPattern = "PROGRESS:%percent"
+DefaultGlobalProgressPattern = None
+
+# Service only on Windows
+service = service and sys.platform == "win32"
+
+migratedb = False
+resetdb = False
+initdb = False
+
+# Cloud mode
+servermode = cfgStr ('servermode', 'normal')
+if servermode != "normal":
+	cloudconfig = ConfigParser.SafeConfigParser()
+	if servermode == "aws":
+		cloudconfig.read("cloud_aws.ini")
+	elif servermode == "gcloud":
+		cloudconfig.read("cloud_gloud.ini")
+	elif servermode == "qarnot":
+		cloudconfig.read("cloud_qarnot.ini")
+	cloudconfig.set("coalition", "port", str(port))
+else:
+	cloudconfig = None
+
+# Parse the options
+try:
+	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=",
+		"verbose", "init", "migrate", "reset"])
+	if len(args) != 0:
+		usage()
+		sys.exit(2)
+except getopt.GetoptError, err:
+	# print help information and exit:
+	print str(err) # will print something like "option -a not recognized"
+	usage()
+	sys.exit(2)
+for o, a in opts:
+	if o in ("-h", "--help"):
+		usage ()
+		sys.exit(2)
+	elif o in ("-v", "--verbose"):
+		verbose = True
+	elif o in ("-p", "--port"):
+		port = int(a)
+	elif o in ("--migrate"):
+		migratedb = True
+	elif o in ("--reset"):
+		resetdb = True
+	elif o in ("--init"):
+		initdb = True
+	else:
+		assert False, "unhandled option " + o
+
+	if LDAPServer != "":
+		import ldap
+
+if not verbose or service:
+	try:
+		outfile = open(dataDir + '/server.log', 'a')
+		sys.stdout = outfile
+		sys.stderr = outfile
+		def _closeLogFile():
+			outfile.close()
+		atexit.register(_closeLogFile)
+	except:
+		pass
+
+vprint ("[Init] --- Start ------------------------------------------------------------")
+print ("[Init] "+time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(time.time ())))
+if service:
+	vprint ("[Init] Running service")
+else:
+	vprint ("[Init] Running standard console")
+
+# Init the good database
+if cfgStr ('db_type', 'sqlite') == "mysql":
+	vprint ("[Init] Use mysql")
+	db = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"), config=config, cloudconfig=cloudconfig)
+else:
+	vprint ("[Init] Use sqlite")
+	db = DBSQLite (cfgStr ('db_sqlite_file', "coalition.db"), config=config, cloudconfig=cloudconfig)
 
 db.NotifyError = notifyError
 db.NotifyFinished = notifyFinished
 db.Verbose = verbose
 
+if initdb:
+	vprint ("[Init] Initial database setup")
+	if not db.initDatabase():
+		exit(1)
+
+if not len(db._getDatabaseTables()):
+	vprint(dedent("""
+	The database is empty. It should be initialized first using 'python
+	server.py --verbose --init'."""))
+	exit(1)
+
 with db:
-	if resetDb:
+	requires_migration = db.requiresMigration()
+	if not migratedb and requires_migration:
+		print(dedent("""
+		Coalition cannot start since the database schema and the source code
+		are not compatible. The database needs to be migrated. First the
+		database should be backuped in case the migration fails. Then, the
+		command 'coalition server.py --verbose --migrate' should be run.
+		Another option is to install the previous version of coalition code
+		that worked with the current database schema."""))
+		exit(1)
+
+	if migratedb and not requires_migration:
+		print(dedent("""
+		The database does not require migration, but the '--migrate' parameter was provided."""))
+		exit(1)
+
+	if requires_migration and migratedb:
+		print(dedent("""
+		Please consider doing a backup of the database first. Are you ready to proceed?"""))
+		if _interactiveConfirmation("Yes, proceed to migration!"):
+			success = db.migrateDatabase()
+			if success:
+				print("Database migration was successfull.")
+				exit(0)
+			else:
+				print("A problem occured during the database migration.")
+				exit(1)
+		else:
+			print("Database migration was cancelled by user.")
+			exit(0)
+
+	if resetdb:
 		db.reset ()
-	if testDb:
-		db.test ()
+
+LogFilterCache = {}
+
+
+### Main manager ###
 
 if sys.platform=="win32" and service:
-
 	# Windows Service
 	import win32serviceutil
 	import win32service
@@ -756,8 +834,9 @@ if sys.platform=="win32" and service:
 	if __name__=='__main__':
 		win32serviceutil.HandleCommandLine(WindowsService)
 else:
-
 	# Simple server
 	if __name__ == '__main__':
 		main()
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 

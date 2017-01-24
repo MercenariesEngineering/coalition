@@ -1,0 +1,4 @@
+httplib2
+configparser
+Twisted
+MySQL-python

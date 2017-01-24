@@ -164,13 +164,13 @@ h2
 	background-color: #555577;
 }
 
-.FINISHED, .PAUSED, .ERROR, .TIMEOUT, .WAITING, .WORKING, .PENDING, .ACTIVEtrue, .ACTIVEfalse, .ACTIVE1, .ACTIVE0
+.FINISHED, .PAUSED, .ERROR, .TIMEOUT, .WAITING, .WORKING, .PENDING, .STARTING, .TERMINATED, .ACTIVEtrue, .ACTIVEfalse, .ACTIVE1, .ACTIVE0
 {
 	text-align: center;
 	color: White;
 }
 
-.FINISHED
+.FINISHED, .TERMINATED
 {
 	background-color: #009000;
 }
@@ -180,7 +180,7 @@ h2
 	background-color: #000090;
 }
 
-.PENDING
+.PENDING, .STARTING
 {
 	background-color: #303060;
 }
@@ -353,7 +353,8 @@ h2
 	top: 3;
 }
 
-#b02:hover, #b03:hover, #b04:hover, #b05:hover, #b06:hover, #b07:hover, #b08:hover, #b09:hover, #b10:hover, #b11:hover, #b12:hover
+#b02:hover, #b03:hover, #b04:hover, #b05:hover, #b06:hover, #b07:hover, #b08:hover, #b09:hover, #b10:hover, #b11:hover, #b12:hover, #b13:hover
+
 {
 	border-top: solid 1px #777777;
 	border-left: solid 1px #777777;

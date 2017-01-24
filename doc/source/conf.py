@@ -194,3 +194,6 @@ latex_documents = [
 
 # If false, no module index is generated.
 #latex_use_modindex = True
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
+

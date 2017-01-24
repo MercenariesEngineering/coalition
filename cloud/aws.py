@@ -1,34 +1,70 @@
-"""This module provides functions used for aws service."""
+# -*- coding: utf-8 -*-
+
+"""
+This module provides functions used for aws service.
+"""
 
 
 from cloud import common
 import subprocess
 import json
 from string import Template
+from base64 import encodestring
 
 
 def startInstance(name, config):
 	"""
 	Run the aws command to start a worker instance.
-	Return the created instanceid.
+	Return the created instanceid in case of dedicated ec2 instance or the spotinstancerequestid
+	in case of a spot instance.
 	"""
 
-	cmd = ["aws", "ec2", "run-instances",
-			"--key-name", config.get("authentication", "keyname"),
-			"--image-id", config.get("worker", "imageid"),
-			"--instance-type", config.get("worker", "instancetype"),
-			"--subnet-id", config.get("worker", "subnetid"),
-			"--security-group-ids",
-				config.get("worker", "securitygroupid"),
-			"--iam-instance-profile",
-				config.get("worker", "iaminstanceprofile"),
-			"--user-data", _getUserData(name, config),]
-	output = common._run_or_none(cmd)
-	if output:
-		instanceid = json.loads(output)['Instances'][0]['InstanceId']
-		_nameInstance(instanceid, name)		   
-		return instanceid
+	if config.get("worker", "spot"):
+		cmd = ["aws", "ec2", "request-spot-instances",
+				"--spot-price", config.get("spot", "spotprice"),
+				"--instance-count", config.get("spot", "instancecount"),
+				"--type", config.get("spot", "type"),
+				"--launch-specification", _getLaunchSpecification(name, config),]
+		output = common._run_or_none(cmd)
+		if output:
+			requestid = json.loads(output)["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
+			return requestid
+
+	else:
+		cmd = ["aws", "ec2", "run-instances",
+				"--key-name", config.get("authentication", "keyname"),
+				"--image-id", config.get("worker", "imageid"),
+				"--instance-type", config.get("worker", "instancetype"),
+				"--subnet-id", config.get("worker", "subnetid"),
+				"--security-group-ids",
+					config.get("worker", "securitygroupid"),
+				"--iam-instance-profile",
+					"Arn=%s" % config.get("worker", "iaminstanceprofile"),
+				"--user-data", _getUserData(name, config),]
+		output = common._run_or_none(cmd)
+		if output:
+			instanceid = json.loads(output)["Instances"][0]["InstanceId"]
+			return instanceid
 	return None
+
+
+def stopInstance(name):
+	"""Run the aws command to terminate the instance."""
+	cmd = ["aws", "ec2", "terminate-instances", "--instance-ids",
+			_getInstanceIdByName(name)]
+	return common._run_or_none(cmd)
+
+
+def _getLaunchSpecification(name, config):
+	with open("cloud/aws_worker_spot_launchspecification.json.template", 'r') as f:
+		template = Template(f.read())
+		values = {
+			"image_id": config.get("worker", "imageid"),
+			"keyname": config.get("authentication", "keyname"),
+			"security_group_id": config.get("worker", "securitygroupid"),
+			"instance_type": config.get("worker", "instancetype"),
+			"user_data": encodestring(_getUserData(name, config)), }
+		return template.substitute(values).replace('\n', '')
 
 
 def _getUserData(name, config):
@@ -41,6 +77,7 @@ def _getUserData(name, config):
 		template = Template(f.read())
 		values = {
 			"hostname": name,
+			"region": config.get("authentication", "region"),
 			"access_key": config.get("authentication", "accesskey"),
 			"secret_access_key":
 				config.get("authentication", "secretaccesskey"),
@@ -55,20 +92,6 @@ def _getUserData(name, config):
 	return template.substitute(values)
 
 
-def _nameInstance(instanceid, name):
-	"""Set the instance name via tag."""
-	cmd = ["aws", "ec2", "create-tags", "--resources", instanceid,
-		"--tags", "Key=Name,Value=%s" % name]
-	return common._run_or_none(cmd)
-
-
-def stopInstance(name):
-	"""Run the aws command to terminate the instance."""
-	cmd = ["aws", "ec2", "terminate-instances", "--instance-ids",
-		_getInstanceIdByName(name)]
-	return common._run_or_none(cmd)
-
-
 def _getInstanceIdByName(name):
 	"""Return instanceid from name."""
 	cmd = ["aws", "ec2", "describe-instances"]
@@ -81,4 +104,6 @@ def _getInstanceIdByName(name):
 					if tags["Key"] == "Name" and tags["Value"] == name:
 						return instance["InstanceId"]
 	return None
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 
