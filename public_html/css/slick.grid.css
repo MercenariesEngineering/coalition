@@ -73,11 +73,11 @@ text-align: right;
 }
 
 .slick-sort-indicator-desc {
-  background: url(images/sort-desc.gif);
+  background: url(../img/sort-desc.gif);
 }
 
 .slick-sort-indicator-asc {
-  background: url(images/sort-asc.gif);
+  background: url(../img/sort-asc.gif);
 }
 
 .slick-resizable-handle {

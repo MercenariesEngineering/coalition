@@ -530,3 +530,7 @@ h2
 	white-space: pre;
 
 }
+
+#pagination {
+    display:inline;
+}

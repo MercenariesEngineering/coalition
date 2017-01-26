@@ -411,6 +411,18 @@ class Master (xmlrpc.XMLRPC):
 							if request.path == "/api/jobs":
 								return db.getJobChildren (0, {})
 
+							m = re.match(r"^/api/jobs/count/where/$", request.path)
+							if m:
+								return db.getCountJobsWhere(request.args["where_clause"])
+
+							m = re.match(r"^/api/jobs/where/$", request.path)
+							if m:
+								return db.getJobsWhere(
+									where_clause=request.args["where_clause"][0],
+									index_min=request.args["min"][0],
+									index_max=request.args["max"][0],
+									)
+
 							if request.path == "/api/workers":
 								return db.getWorkers ()
 

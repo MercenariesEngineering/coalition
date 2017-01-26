@@ -268,6 +268,18 @@ class DBSQL(DB):
 		rows = cur.fetchall()
 		return [self._rowAsDict (cur, row) for row in rows]
 
+	def getCountJobsWhere(self, where_clause=''):
+		"""Get the number of matching jobs."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT COUNT(*) FROM Jobs WHERE {}".format(where_clause[0]))
+		return cur.fetchone()[0]
+
+	def getJobsWhere(self, where_clause='', index_min=0, index_max=1):
+		"""Get Jobs via a readonly SQL request."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT * FROM Jobs WHERE {} LIMIT {},{}".format(where_clause, index_min, index_max))
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
 	def getChildrenDependencyIds (self, id):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "SELECT job.id AS id, dep.dependency AS dependency FROM Dependencies AS dep "
