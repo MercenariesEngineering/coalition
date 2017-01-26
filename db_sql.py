@@ -139,6 +139,8 @@ class DBSQL(DB):
 		for row in cur:
 			if row[0] >= 1 and row[0] <= 63:
 				aff[row[0]] = row[1]
+		# FIXME
+		print("Affinity", aff)
 		return aff
 
 	def setAffinities (self, affinities):
@@ -267,6 +269,48 @@ class DBSQL(DB):
 						"WHERE dep.job_id = %d" % id)
 		rows = cur.fetchall()
 		return [self._rowAsDict (cur, row) for row in rows]
+
+	def getCountJobsWhere(self, where_clause=''):
+		"""Get the number of matching jobs."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT COUNT(*) FROM Jobs WHERE {}".format(where_clause[0]))
+		return cur.fetchone()[0]
+
+	def getJobsWhere(self, where_clause='', index_min=0, index_max=1):
+		"""Get Jobs via a readonly SQL request."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT * FROM Jobs WHERE {} LIMIT {},{}".format(where_clause, index_min, index_max))
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsUsers(self):
+		"""Get users."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT user FROM Jobs ORDER BY user")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsStates(self):
+		"""Get States."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT state FROM Jobs")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsWorkers(self):
+		"""Get States."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT worker FROM Jobs")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsPriorities(self):
+		"""Get States."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT priority FROM Jobs")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsAffinities(self):
+		"""Get States."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT affinity FROM Jobs")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
 
 	def getChildrenDependencyIds (self, id):
 		cur = self.Conn.cursor ()
