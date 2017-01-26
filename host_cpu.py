@@ -58,7 +58,7 @@ class HostCPU:
 		''' Return a list with the usage of each CPU '''
 		if sys.platform=="win32":
 			try:
-				return [psutil.cpu_percent(interval=1)]
+				return [psutil.cpu_percent(interval=2)]
 			except:
 				pass
 			

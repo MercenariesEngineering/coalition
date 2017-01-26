@@ -151,6 +151,19 @@ function updateTools ()
 function goToJob (jobId)
 {
     viewJob = jobId;
+    paramname='parentid';
+
+    var newvalue=jobId;
+    var url =window.location.href;
+    var newurl='';
+    if(url.indexOf(paramname) >= 0) {
+        newurl = updateQueryStringParameter(url,paramname,newvalue);
+    }
+    else {
+        newurl = url + (url.split('?')[1] ? '&':'?') + paramname+'='+encodeURIComponent(newvalue);
+    }
+    if (newurl!='')  window.history.replaceState({} , "Title", newurl);
+
     reloadJobs ();
 }
 
@@ -605,6 +618,11 @@ function reloadJobs ()
 
     tag_param = tag_param == "NONE" ? "" : tag_param;
     tag = tag == "NONE" ? "" : tag;
+
+    var parentid_param = getParameterByName("parentid");
+    if (isvalidparam(parentid_param)) {
+	viewJob=parentid_param;
+    }
 
     if (tag=='' ) {
 	if (isvalidparam(tag_param)) {

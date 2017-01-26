@@ -400,7 +400,8 @@ class DBSQL(DB):
 	def setJobAffinity (self, id, affinity):
 		cur = self.Conn.cursor ()
 		affinities = self.getAffinityMask (affinity)
-		self._execute (cur, "UPDATE Jobs SET affinity = '%s', affinity_bits = %d WHERE id = %d" % (affinity, affinities, id))
+		if affinities  != None :
+			self._execute (cur, "UPDATE Jobs SET affinity = '%s', affinity_bits = %d WHERE id = %d" % (affinity, affinities, id))
 
 	def setJobPriority (self, id, priority):
 		cur = self.Conn.cursor ()
@@ -567,14 +568,19 @@ class DBSQL(DB):
 		if worker[2] != -1 :
 			self._execute (cur, "SELECT max_memory,cpu_avg_sum,nb_beats FROM Events WHERE id = %d" % worker[2])
 			event = cur.fetchone ()
+			print 'EVENT'
+			print event[2]
 			nb_beats = event[2] + 1
 			max_memory = event[0]
 			memory=int(total_memory)-int(free_memory)
 			if max_memory<memory :
 				max_memory=memory
-			cpu_avg_sum = round(event[1] + (cpu*100))
+			#print cpu
+			cpuval=cpu.replace('[','')
+			cpuval=cpuval.replace(']','')
+			cpu_avg_sum = round(int(event[1]) + int(float(cpuval)*100))
 			self._execute (cur, "UPDATE Events SET max_memory = %d, cpu_avg_sum = %d, nb_beats = %d WHERE id = %d" %
-								(convdata (state), current_time-start_time, max_memory, cpu_avg_sum, nb_beats, worker[2]))
+								(max_memory, cpu_avg_sum, nb_beats, worker[2]))
 
 		# by default we're suspicious and we flag the worker as waiting
 		state = "WAITING"

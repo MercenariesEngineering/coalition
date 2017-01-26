@@ -369,6 +369,8 @@ class Master (xmlrpc.XMLRPC):
 	user = ""
 
 	def render (self, request):
+		if request.path == "/api/version" :
+			return '4'
 		vprint ("[MASTER PUTQUEUE " + request.method + "] "+request.path)
 		deferToThread(lambda: renderqueue.put([request,self]))
 		return server.NOT_DONE_YET
@@ -625,7 +627,9 @@ class Workers(xmlrpc.XMLRPC):
 			value = request.args.get (name, [default])
 			return value[0]
 		if request.path == "/workers/pickjob":
-			return self.json_pickjob (getArg ('hostname', ''), getArg ('load', '[0]'), getArg ('free_memory', '0'), getArg ('total_memory', '0'), self.getClientIP ())
+			return self.json_pickjob (getArg ('hostname', ''), getArg ('load', '[0]'), getArg ('free_memory', '0'), getArg ('total_memory', '0'), self.getClientIP (request))
+		elif request.path == "/workers/endjob":
+			return self.json_endjob (getArg ('hostname', ''), getArg ('jobId', '1'), getArg ('errorCode', '0'), self.getClientIP (request))
 
 	def render (self, request):
 		#with db:
@@ -636,24 +640,28 @@ class Workers(xmlrpc.XMLRPC):
 				return value[0]
 
 			if request.path == "/workers/heartbeat":
-				return self.json_heartbeat (getArg ('hostname', ''), getArg ('jobId', '-1'), getArg ('log', ''), getArg ('load', '[0]'), getArg ('free_memory', '0'), getArg ('total_memory', '0'), self.getClientIP ())
+				return self.json_heartbeat (getArg ('hostname', ''), getArg ('jobId', '-1'), getArg ('log', ''), getArg ('load', '[0]'), getArg ('free_memory', '0'), getArg ('total_memory', '0'), self.getClientIP (request))
 			elif request.path == "/workers/pickjob":
 				vprint ("[MASTER PUTQUEUE " + request.method + "] "+request.path)
 				deferToThread(lambda: renderqueue.put([request,self]))
 				return server.NOT_DONE_YET
 
 			elif request.path == "/workers/endjob":
-				return self.json_endjob (getArg ('hostname', ''), getArg ('jobId', '1'), getArg ('errorCode', '0'), self.getClientIP ())
+				return self.json_endjob (getArg ('hostname', ''), getArg ('jobId', '1'), getArg ('errorCode', '0'), self.getClientIP (request))
+#				vprint ("[MASTER PUTQUEUE " + request.method + "] "+request.path)
+#				deferToThread(lambda: renderqueue.put([request,self]))
+#				return server.NOT_DONE_YET
 			else:
 				# return server.NOT_DONE_YET
 				return xmlrpc.XMLRPC.render (self, request)
-	def getClientIP(self):
+	def getClientIP(self,request):
 		clientip=request.getClientIP ()
 		if clientip== '127.0.0.1' :
 			clientip=request.getHeader('X-Forwarded-For')
 		return clientip
 
 	def json_heartbeat (self, hostname, jobId, log, load, free_memory, total_memory, ip):
+		#dbworkers = db
 		result = dbworkers.heartbeat (hostname, int(jobId), load, int(free_memory), int(total_memory), str(ip))
 		if log != "" :
 			try:
@@ -686,7 +694,7 @@ class Workers(xmlrpc.XMLRPC):
 		return str (db.pickJob (hostname, load, int(free_memory), int(total_memory), str(ip)))
 
 	def json_endjob (self, hostname, jobId, errorCode, ip):
-		return str (dbworkers.endJob (hostname, int(jobId), int(errorCode), str(ip)))
+		return str (db.endJob (hostname, int(jobId), int(errorCode), str(ip)))
 
 # Listen to an UDP socket to respond to the workers broadcast
 def listenUDP():
@@ -761,6 +769,7 @@ def notifyFirstFinished (job):
 db.NotifyError = notifyError
 db.NotifyFinished = notifyFinished
 db.Verbose = verbose
+#db.Verbose = False
 
 with db:
 	if resetDb:
