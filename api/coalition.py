@@ -220,6 +220,8 @@ class Job(object):
 		super(Job, self).__setattr__(attr, value)
 
 
+# FIXME add pagination
+
 class CoalitionError(Exception):
 	pass
 

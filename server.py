@@ -432,6 +432,21 @@ class Master (xmlrpc.XMLRPC):
 							if request.path == "/api/affinities":
 								return db.getAffinities ()
 
+							if request.path == "/api/jobs/users/":
+								return db.getJobsUsers()
+
+							if request.path == "/api/jobs/states/":
+								return db.getJobsStates()
+
+							if request.path == "/api/jobs/workers/":
+								return db.getJobsWorkers()
+
+							if request.path == "/api/jobs/priorities/":
+								return db.getJobsPriorities()
+
+							if request.path == "/api/jobs/affinities/":
+								return db.getJobsAffinities()
+
 						elif request.method == "POST":
 							if request.path == "/api/jobs":
 								db.editJobs (data)
