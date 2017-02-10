@@ -4,16 +4,16 @@
   <head>
     <meta charset="utf-8">
     <title>Coalition Server</title>
-    <link href="css/coalition.css" rel="stylesheet" type="text/css"></link>
+    <link href="css/jquery.timepicker.css" rel="stylesheet" type="text/css"></link>
+    <link href="css/vader/jquery-ui.min.css" rel="stylesheet" type="text/css"></link>
+    <link href="css/vader/theme.css" rel="stylesheet" type="text/css"></link>
     <link href="css/slick-default-theme.css" rel="stylesheet" type="text/css"></link>
     <link href="css/slick.grid.css" rel="stylesheet" type="text/css"></link>
-    <link href="css/jquery-ui.1.11.4.Eggplant.css" rel="stylesheet" type="text/css"></link>
-    <link href="css/jquery.timepicker.css" rel="stylesheet" type="text/css"></link>
     <link href="js/controls/slick.columnpicker.css" rel="stylesheet" type="text/css"></link>
     <link href="js/controls/slick.pager.css" rel="stylesheet" type="text/css"></link>
-    <script src="js/firebugx.js"></script>
-    <script src="js/jquery-1.7.min.js"></script>
-    <script src="js/jquery-ui-1.8.16.custom.min.js"></script>
+    <link href="css/coalition.css" rel="stylesheet" type="text/css"></link>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/jquery-ui.min.js"></script>
     <script src="js/jquery.event.drag-2.3.0.js"></script>
     <script src="js/jquery.timepicker.min.js"></script>
     <script src="js/slick.core.js"></script>
@@ -28,112 +28,102 @@
     <script src="js/coalition.js"></script>
   </head>
   <body class="flex-column">
-    <div id="header">
-      <div id="top" class="flex-row">
-        <div id="maintitle"><a href="https://github.com/MercenariesEngineering/coalition">Coalition</a></div>
-
-        <div id="tools">
-
-          <div id="jobstools" class="flex-column">
-            <div id="actions" class="flex-row">
-              <div class='button' id='b03' onclick='resetSelection()'><img src='img/icon_refresh.png' /> Reset</div>
-              <div class='button' id='b04' onclick='resetErrorSelection()'><img src='img/icon_refresh.png' /> Reset Errors</div>
-              <div class='button' id='b05' onclick='startSelection()'><img src='img/icon_play.png' /> Start</div>
-              <div class='button' id='b06' onclick='pauseSelection()'><img src='img/icon_pause.png' /> Pause</div>
-              <div class='button' id='b07' onclick='cutSelection()'><img src='img/icon_cut.png' /> Cut</div>
-              <div class='button' id='b11' onclick='pasteSelection()'><img src='img/icon_paste.png' /> Paste</div>
-              <div class='button' id='b03' onclick='removeSelection()'><img src='img/icon_remove.png' /> Delete</div>
-              <div class='button' id='b08' onclick='logSelection()'><img src='img/icon_logs.png' /> Log</div>
-              <div class='button' id='b09' onclick='jobActivity()'><img src='img/icon_activity.png' /> Activity</div>
-              <div class='button' id='b10' onclick='exportCSV()'><img src='img/icon_tabler.png' /> CSV</div>
-              <form id="sql-jobs"></form>
-              <button type="button" form="sql-jobs" onclick="getSqlWhereJobs(this.form);">Filter jobs</button>
-              <button type="button" onclick="resetSqlFilter();">Reset filter</button>
+    <div id="header" class="flex-row">
+      <div id="maintitle" class="flex-column">
+        <a href="https://github.com/MercenariesEngineering/coalition">Coalition</a>
+      </div>
+      <div id="tools" class="flex-column">
+        <div id="jobstools" class="flex-column">
+          <div id="actions" class="flex-row">
+            <div class='button' id='b03' onclick='resetSelection()'><img src='img/icon_refresh.png' /> Reset</div>
+            <div class='button' id='b04' onclick='resetErrorSelection()'><img src='img/icon_refresh.png' /> Reset Errors</div>
+            <div class='button' id='b05' onclick='startSelection()'><img src='img/icon_play.png' /> Start</div>
+            <div class='button' id='b06' onclick='pauseSelection()'><img src='img/icon_pause.png' /> Pause</div>
+            <div class='button' id='b07' onclick='cutSelection()'><img src='img/icon_cut.png' /> Cut</div>
+            <div class='button' id='b11' onclick='pasteSelection()'><img src='img/icon_paste.png' /> Paste</div>
+            <div class='button' id='b03' onclick='removeSelection()'><img src='img/icon_remove.png' /> Delete</div>
+            <div class='button' id='b08' onclick='logSelection()'><img src='img/icon_logs.png' /> Log</div>
+            <div class='button' id='b09' onclick='jobActivity()'><img src='img/icon_activity.png' /> Activity</div>
+            <div class='button' id='b10' onclick='exportCSV()'><img src='img/icon_tabler.png' /> CSV</div>
+            <form id="sql-jobs"></form>
+            <button type="button" form="sql-jobs" onclick="getSqlWhereJobs(this.form);">Filter jobs</button>
+            <button type="button" onclick="resetSqlFilter();">Reset filter</button>
+          </div>
+          <div id= "selections" class="flex-row">
+            <div class='button' id='Div1'>Filter
+              <select id='filterJobs' onchange='javascript:sendreloadJobs (this.id)'>
+                <option value='NONE'>NONE</option>
+                <option value='WORKING'>WORKING</option>
+                <option value='ERROR'>ERROR</option>
+                <option value='WAITING'>WAITING</option>
+                <option value='FINISHED'>FINISHED</option>
+                <option value='PAUSED'>PAUSED</option>
+              </select>
             </div>
-            <div class="flex-row">
-              <div id= "selections">
-                <div class='button' id='Div1'>Filter
-                  <select id='filterJobs' onchange='javascript:sendreloadJobs (this.id)'>
-                    <option value='NONE'>NONE</option>
-                    <option value='WORKING'>WORKING</option>
-                    <option value='ERROR'>ERROR</option>
-                    <option value='WAITING'>WAITING</option>
-                    <option value='FINISHED'>FINISHED</option>
-                    <option value='PAUSED'>PAUSED</option>
-                  </select>
-                </div>
-                <div class='button' id='Div2'>Affinity
-                  <input type='edit' id='filterJobsAffinity' onchange='javascript:sendreloadJobs (this.id)'/>
-                </div>
-                <div class='button' id='Div3'>Title
-                  <input type='edit' id='filterJobsTitle' onchange='javascript:sendreloadJobs (this.id)'/>
-                </div>
-                <div class='button' id='b01'>Select
-                  <select id='selectJobs' onchange='javascript:selectJobs ()' value='CUSTOM'>
-                    <option value='NONE'>NONE</option>
-                    <option value='ALL'>ALL</option>
-                    <option value='WORKING'>WORKING</option>
-                    <option value='ERROR'>ERROR</option>
-                    <option value='WAITING'>WAITING</option>
-                    <option value='FINISHED'>FINISHED</option>
-                    <option value='PAUSED'>PAUSED</option>
-                    <option value='CUSTOM'>CUSTOM</option>
-                  </select>
-                </div>
-                <div class='button' id='b13'>SQL WHERE:
-                  <input type='edit' id='getsqlwhereJobs' onchange='javascript:getsqlwhereJobs(this.id)'/>
-                </div>
-              </div>
+            <div class='button' id='Div2'>Affinity
+              <input type='edit' id='filterJobsAffinity' onchange='javascript:sendreloadJobs (this.id)'/>
             </div>
-            <div id="parents" class="flex-row"></div>
-            <div id="toolstable" class="flex-row">
-              <div class="flex-column flex-grow">
-                <div>Title:<input type='edit' class="ttedit" id='title' name='title' value='Job' onchange='onchangejobprop ("title")'></div>
-                <div>Command:<input type='edit' class="ttedit" id='cmd' name='cmd' value='' onchange='onchangejobprop ("cmd")'></div>
-                <div>Dir:<input type='edit' class="ttedit" id='dir' name='dir' value='.' onchange='onchangejobprop ("dir")'></div>
-                <div>Dependencies:<input type='edit' class="ttedit" id='dependencies' name='dependencies' value='' onchange='onchangejobprop ("dependencies")'></div>
-                <div>Url:<input type='edit' class="ttedit" id='url' name='url' value='' onchange='onchangejobprop ("url")'></div>
-                <div>Environment:<input type='edit' class="ttedit" id='env' name='env' value='' onchange='onchangejobprop ("env")'></div>
-                <div>Priority:<input type='edit' class="ttedit" id='priority' name='priority' value='127' onchange='onchangejobprop ("priority")'></div>
-                <div>Timeout:<input type='edit' class="ttedit" id='timeout' name='timeout' value='0' onchange='onchangejobprop ("timeout")'></div>
-                <div>Affinity:<input type='edit' class="ttedit" id='affinity' name='affinity' value='' onchange='onchangejobprop ("affinity")'></div>
-                <div>User:<input type='edit' class="ttedit" id='user' name='user' value='' onchange='onchangejobprop ("user")'></div>
-              </div>
-              <div class="flex-column">
+            <div class='button' id='Div3'>Title
+              <input type='edit' id='filterJobsTitle' onchange='javascript:sendreloadJobs (this.id)'/>
+            </div>
+            <div class='button' id='b01'>Select
+              <select id='selectJobs' onchange='javascript:selectJobs ()' value='CUSTOM'>
+                <option value='NONE'>NONE</option>
+                <option value='ALL'>ALL</option>
+                <option value='WORKING'>WORKING</option>
+                <option value='ERROR'>ERROR</option>
+                <option value='WAITING'>WAITING</option>
+                <option value='FINISHED'>FINISHED</option>
+                <option value='PAUSED'>PAUSED</option>
+                <option value='CUSTOM'>CUSTOM</option>
+              </select>
+            </div>
+            <div class='button' id='b13'>SQL WHERE:
+              <input type='edit' id='getsqlwhereJobs' onchange='javascript:getsqlwhereJobs(this.id)'/>
+            </div>
+          </div>
+          <div id="parents" class="flex-row"></div>
+          <div id="job-editor" class="">
+            <button class="button" id="job-editor-toggle" onclick="onToggleJobEditor();">Open job editor</button>
+            <div id="job-editor-fields" class="flex-column">
+              <div class="flex-row"><label>Title:</label><input type='edit' id='title' class="flex-grow" name'title' value='Job' onchange='onchangejobprop ("title")'></div>
+              <div class="flex-row"><label>Command:</label><input type='edit' id='cmd' class="flex-grow" name'cmd' value='' onchange='onchangejobprop ("cmd")'></div>
+              <div class="flex-row"><label>Directory:</label><input type='edit' id='dir' class="flex-grow" name'dir' value='.' onchange='onchangejobprop ("dir")'></div>
+              <div class="flex-row"><label>Dependencies:</label><input type='edit' id='dependencies' class="flex-grow" name'dependencies' value='' onchange='onchangejobprop ("dependencies")'></div>
+              <div class="flex-row"><label>Url:</label><input type='edit' id='url' class="flex-grow" name'url' value='' onchange='onchangejobprop ("url")'></div>
+              <div class="flex-row"><label>Environment:</label><input type='edit' id='env' class="flex-grow" name'env' value='' onchange='onchangejobprop ("env")'></div>
+              <div class="flex-row"><label>Priority:</label><input type='edit' id='priority' class="flex-grow" name'priority' value='127' onchange='onchangejobprop ("priority")'></div>
+              <div class="flex-row"><label>Timeout:</label><input type='edit' id='timeout' class="flex-grow" name'timeout' value='0' onchange='onchangejobprop ("timeout")'></div>
+              <div class="flex-row"><label>Affinity:</label><input type='edit' id='affinity' class="flex-grow" name'affinity' value='' onchange='onchangejobprop ("affinity")'></div>
+              <div class="flex-row"><label>User:</label><input type='edit' id='user' class="flex-grow" name'user' value='' onchange='onchangejobprop ("user")'></div>
+              <div class="flex-row">
                 <input type='button' class='toolbutton' name='updatejobsButton' value='Update' onclick='updatejobs()' />
                 <input type='button' class='toolbutton' name='addjobButton' value='Add job' onclick='addjob()' />
               </div>
             </div>
           </div>
-
-          <div id="workertools">
-            <div class='button' id='b06' onclick='selectAll (true)'><img src='img/icon_select.png' /> Select All</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b07' onclick='selectAll (false)'><img src='img/icon_none.png' /> Select None</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b09' onclick='startWorkers ()'><img src='img/icon_play.png' /> Start</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b10' onclick='stopWorkers ()'><img src='img/icon_pause.png' /> Stop</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b08' onclick='clearWorkers ()'><img src='img/icon_remove.png' /> Delete</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b11' onclick='workerActivity ()'><img src='img/icon_activity.png' /> Activity</div>
-          </div>
         </div>
-
-        <div class="refreshtools">
-          <input id="refreshbutton" class="refreshbutton" type="button" onclick='refresh()' value='Refresh'/>
-          <label><input id="autorefresh" class="auto" type="checkbox">Auto refresh</label>
-          <button type="button" id="toggle-toolbar" onclick="showHideTools();">Toggle toolbar</button>
+        <div id="workertools" class="flex-column">
+          <div class='button' id='b06' onclick='selectAll (true)'><img src='img/icon_select.png' /> Select All</div>
+          <div class='button' id='b07' onclick='selectAll (false)'><img src='img/icon_none.png' /> Select None</div>
+          <div class='button' id='b09' onclick='startWorkers ()'><img src='img/icon_play.png' /> Start</div>
+          <div class='button' id='b10' onclick='stopWorkers ()'><img src='img/icon_pause.png' /> Stop</div>
+          <div class='button' id='b08' onclick='clearWorkers ()'><img src='img/icon_remove.png' /> Delete</div>
+          <div class='button' id='b11' onclick='workerActivity ()'><img src='img/icon_activity.png' /> Activity</div>
         </div>
       </div>
-      <div id="tabs" class="flex-row">
-        <div id="jobtab" class="activetab" onclick='showPage("jobs")'>Jobs</div>
-        <div id="workertab" class="unactivetab" onclick='showPage("workers")'>Workers</div>
-        <div id="activitytab" class="unactivetab" onclick='showPage("activities")'>Activities</div>
-        <div id="logtab" class="unactivetab" onclick='showPage("logs")'>Log</div>
-        <div id="affinitytab" class="unactivetab" onclick='showPage("affinities")'>Affinities</div>
+      <div class="refreshtools" class="flex-column">
+        <input id="refreshbutton" class="refreshbutton" type="button" onclick='refresh()' value='Refresh'/>
+        <label><input id="autorefresh" class="auto" type="checkbox">Auto refresh</label>
+        <button type="button" id="toggle-toolbar" onclick="showHideTools();">Toggle toolbar</button>
       </div>
+    </div>
+    <div id="tabs" class="flex-row">
+      <div id="jobtab" class="activetab" onclick='showPage("jobs")'>Jobs</div>
+      <div id="workertab" class="unactivetab" onclick='showPage("workers")'>Workers</div>
+      <div id="activitytab" class="unactivetab" onclick='showPage("activities")'>Activities</div>
+      <div id="logtab" class="unactivetab" onclick='showPage("logs")'>Log</div>
+      <div id="affinitytab" class="unactivetab" onclick='showPage("affinities")'>Affinities</div>
     </div>
     <div id="main">
       <div id="jobsTab" class="flex-column">
@@ -206,8 +196,8 @@
         </table>
       </div>
     </div>
-    <div footer>
-      <div id="subtitle">A small but beautiful job manager by <a href="http://www.mercenaries-engineering.com">Mercenaries Engineering</a> - GPL licence - <a href="mobile.html">mobile version</a></div>
+    <div id="footer" class="flex-row">
+      <p>A small but beautiful job manager by <a href="http://www.mercenaries-engineering.com">Mercenaries Engineering</a> - GPL licence - <a href="mobile.html">mobile version</a></p>
     </div>
   </body>
 </html>

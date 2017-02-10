@@ -113,15 +113,11 @@ h2 {
 }
 
 #top {
-  display: flex;
-  flex-direction: row;
   justify-content: space-between;
   align-items: center;
 }
 
 #header, #footer {
-  display: flex;
-  flex-direction: column;
 }
 
 #maintitle {
@@ -147,8 +143,6 @@ h2 {
 }
 
 #tabs {
-  display: flex;
-  flex-direction: row;
 }
 
 #jobtools, #workertools, #logtools, #activitiestools, #affinitiestools {
@@ -396,8 +390,14 @@ h2 {
   /*bottom: 0;*/
 }
 
+#jobs .slick-viewport {
+}
+
 .slick-pager {
   border: unset;
+}
+
+#jobs {
 }
 
 #jobs .slick-headerrow-columns {
@@ -430,4 +430,12 @@ h2 {
 
 .flex-grow {
   flex-grow: 1;
+}
+
+#job-editor-fields {
+  display: none;
+}
+
+#job-editor-fields input {
+  overflow: hidden;
 }

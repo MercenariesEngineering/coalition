@@ -128,7 +128,6 @@ function showHideTools() {
 }
 
 function updateTools() {
-  console.log("Toolbar", showTools);
   if (!showTools) {
     $("#tools").hide();
     $("#toggle-toolbar").show();
@@ -427,12 +426,12 @@ function initJobs() {
 
   var options = {
     autoHeight: true,
-    editable: true,
+    editable: false,
     asyncEditorLoading: true,
     topPanelHeight: 25,
     headerRowHeight: 10,
-    enableCellNavigation: true,
-    showTopPanel: false,
+    enableCellNavigation: false,
+    showTopPanel: true,
     showHeaderRow: true,
     showFooterRow: true,
     forceFitColumns: false,
@@ -520,22 +519,22 @@ function initJobs() {
     }
   });
 
-  gridjobs.onCellChange.subscribe(function (e, args) {
-    dataViewjobs.updateItem(args.item.id, args.item);
-  });
+  //gridjobs.onCellChange.subscribe(function (e, args) {
+    //dataViewjobs.updateItem(args.item.id, args.item);
+  //});
 
-  gridjobs.onKeyDown.subscribe(function (e) {
-    // select all rows on ctrl-a
-    if (e.which != 65 || !e.ctrlKey) {
-      return false;
-    }
-    var rows = [];
-    for (var i = 0; i < dataViewjobs.getLength(); i++) {
-      rows.push(i);
-    }
-    gridjobs.setSelectedRows(rows);
-    e.preventDefault();
-  });
+  //gridjobs.onKeyDown.subscribe(function (e) {
+    //// select all rows on ctrl-a
+    //if (e.which != 65 || !e.ctrlKey) {
+      //return false;
+    //}
+    //var rows = [];
+    //for (var i = 0; i < dataViewjobs.getLength(); i++) {
+      //rows.push(i);
+    //}
+    //gridjobs.setSelectedRows(rows);
+    //e.preventDefault();
+  //});
 
   gridjobs.onColumnsReordered.subscribe(function(e, args) {
     configSave();
@@ -551,19 +550,34 @@ function initJobs() {
     configSave();
   });
 
-  gridjobs.onClick.subscribe(function(e, args) {
-    document.getElementById("selectJobs").value = "CUSTOM";
-    var item = dataViewjobs.getItem(args.row);
-  });
+  //gridjobs.onClick.subscribe(function(e, args) {
+    //document.getElementById("selectJobs").value = "CUSTOM";
+    //var item = dataViewjobs.getItem(args.row);
+  //});
 
-  gridjobs.onSelectedRowsChanged.subscribe(function(e, args) {
-    var Ljobid;
-    selectedJobs={};
-    for (i=0; i < gridjobs.getSelectedRows().length; i++)  {
-      Ljobid = dataViewjobs.getItem(gridjobs.getSelectedRows()[i]).id;
-      selectedJobs[Ljobid]=true;
+  //gridjobs.onSelectedRowsChanged.subscribe(function(e, args) {
+    //var Ljobid;
+    //selectedJobs={};
+    //for (i=0; i < gridjobs.getSelectedRows().length; i++)  {
+      //Ljobid = dataViewjobs.getItem(gridjobs.getSelectedRows()[i]).id;
+      //selectedJobs[Ljobid]=true;
+    //}
+    ////updateJobProps();
+  //});
+
+  gridjobs.onClick.subscribe(function(e, args) {
+    // Toggle clicked row from jobs selection list on grid and on seletedJobs object.
+    jobId = dataViewjobs.getItem(args["row"])["id"];
+    selectedJobs[jobId] = selectedJobs[jobId] ? false : true;
+    if (selectedJobs[jobId]) {
+      var gridSelection = gridjobs.getSelectedRows();
+      if (gridSelection.indexOf(args["row"]))
+        gridSelection.push(args["row"]);
+    } else {
+      var gridSelection = gridjobs.getSelectedRows().pop(args["row"]);
     }
-    updateJobProps();
+    console.log("greidselection:", gridSelection);
+    gridjobs.setSelectedRows(gridSelection);
   });
 
   gridjobs.onDblClick.subscribe(function(e, args) {
@@ -571,6 +585,7 @@ function initJobs() {
     item.command != "" ? renderLog(item.id) : goToJob(item.id);
   });
 
+  
   dataViewjobs.onPagingInfoChanged.subscribe(function (e, pagingInfo) {
     var isLastPage = pagingInfo.pageNum == pagingInfo.totalPages - 1;
     var enableAddRow = isLastPage || pagingInfo.pageSize == 0;
@@ -614,6 +629,7 @@ function initJobs() {
 /* localstorage functions */
 function configSave() {
   // Save configuration in browser local storage
+  
   localStorage.setItem("gridJobsColumns", JSON.stringify(gridjobs.getColumns()));
   localStorage.setItem("grid-filter-id", $("#grid-filter-id").val());
   localStorage.setItem("grid-filter-title", $("#grid-filter-title").val());
@@ -742,7 +758,6 @@ function getAjaxSqlWhereJobs(data) {
 
 function getSqlWhereJobs(data) {
   // Get Jobs matching the request using batch
-  console.log("form data: ", data);
   if (!data) data = [];
   configSave();
   // select all by default
@@ -772,7 +787,6 @@ function getSqlWhereJobs(data) {
       case "user":
       case "state":
         values = data[i].selectedOptions;
-        console.log("values", values);
         if (values.length == 0) break;
         sql += " and (";
         for (var j=0; j<values.length; j++) {
@@ -810,9 +824,7 @@ function getSqlWhereJobs(data) {
   var max_batch = numberOfRowsDisplayed()
   if (max_batch < 10) max_batch = 10;
 
-  console.log("SQL: ", sql);
   getAjaxSqlWhereCountJobs(sql).done(function(total) {
-    console.log("Number of jobs: ", total);
     if (total) {
       //if (total <= max_batch) {
       if (true) {
@@ -1382,6 +1394,13 @@ function onchangejobprop(prop) {
   updateSelectionProp(updatedJobProps, JobProps, prop);
 }
 
+function onToggleJobEditor() {
+  $("#job-editor-fields").dialog({
+    modal: true,
+    title: "Job editor",
+  });
+}
+
 function updatejobs() {
   sendSelectionPropChanges(jobs, 'id', updatedJobProps, JobProps, "Jobs", selectedJobs,
     function() {
@@ -1673,7 +1692,3 @@ $(document).ready(function() {
   timer=setTimeout(timerCB,4000);
 });
 
-/* page reload event */
-//window.onbeforeunload = function() {
-  //configSave();
-//}
