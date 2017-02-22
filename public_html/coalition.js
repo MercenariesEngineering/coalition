@@ -75,6 +75,7 @@ $(document).ready(function()
 	reloadJobs ();
 	reloadWorkers ();
 	reloadActivities ();
+	renderAffinities ();
 	showPage ("jobs");
 	timer=setTimeout(timerCB,4000);
 });
