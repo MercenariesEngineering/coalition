@@ -772,7 +772,6 @@ function sendSelectionPropChanges (list, idName, values, props, objects, selecte
       idsN++;
     }
   }
-
   if (!idsN)
     return;
 
