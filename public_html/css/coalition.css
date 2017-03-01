@@ -840,3 +840,12 @@ tbody input:hover {
 #activitiestools label {
     margin: 0 1rem;
 }
+
+#logout-button {
+  position: relative;
+  left: -100%;
+}
+
+#logout-button input {
+  color: white;
+}

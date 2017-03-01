@@ -49,6 +49,7 @@ $(document).ready(function() {
   reloadActivities ();
   showPage ("jobs");
   timer=setTimeout(timerCB,4000);
+  renderLogoutButton();
   // prevent page reload during ajax request
   $("#job-sql-search").on("submit", function(e) {
     e.preventDefault();
@@ -1486,6 +1487,50 @@ function pasteSelection ()
       reloadJobs ();
     }
   });
+}
+
+/* logout functions */
+function renderLogoutButton() {
+  var userName = getCookie("authenticated_user");
+	if ( userName != "" )
+		$("#logout-button").html('<input type="button" class="button" onClick="onLogout()" value="Logout '+userName+'"/>');
+}
+
+function onLogout() {
+  /* Set the auth user to "logout" and get a 401 error response to reset the cached crendentials */
+	$.ajax({
+		type: "POST",
+		url: "/",
+		username: "logout",
+		error: function() {
+	    window.location = "/";
+      /* expiration time set to 0 to delete the cookie */
+			setCookie("authenticated_user", "", 0);
+		}
+	})
+}
+
+/* Cookie functions */
+function setCookie(cname, cvalue, exp) {
+    var d = new Date();
+    d.setTime(exp);
+    var expires = "expires="+d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+}
+
+function getCookie(cname) {
+    var name = cname + "=";
+    var ca = document.cookie.split(';');
+    for(var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
 }
 
 /* Jobs SQL requests */

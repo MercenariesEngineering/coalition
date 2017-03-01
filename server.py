@@ -7,6 +7,7 @@ Coalition server.
 
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
+from twisted.web.server import Session
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random, shutil
 import atexit, json
 import smtplib
@@ -149,70 +150,64 @@ def _interactiveConfirmation(confirmation_sentence="Yes I know what I'm doing.")
 	return False
 
 
-# Core functions
-def authenticate (request):
-	"""Authenticate the user."""
-	if LDAPServer != "":
-		username = request.getUser ()
-		password = request.getPassword ()
-		if username in TrustedUsers:
-			vprint (username + " in the clearance list")
-			vprint ("Authentication OK")
-			return True
-		if username != "" or password != "":
+### LDAP functions ###
+def authenticate(request):
+	"""Check user authentication via LDAP."""
+	if LDAPServer:
+		username = request.getUser()
+		password = request.getPassword()
+		if username or password:
 			l = ldap.open(LDAPServer)
-			vprint ("Authenticate "+username+" with LDAP")
-			username = LDAPTemplate.replace ("__login__", username)
+			vprint("[LDAP] Authenticate {}".format(username))
+			ldapUsername = LDAPTemplate.replace("__login__", username)
 			try:
-				if l.bind_s(username, password, ldap.AUTH_SIMPLE):
-					vprint ("Authentication OK")
+				if l.bind_s(ldapUsername, password, ldap.AUTH_SIMPLE):
+					vprint("[LDAP] Authentication OK for user {}".format(username))
+					request.addCookie("authenticated_user", username)
 					return True
 			except ldap.LDAPError:
-				vprint ("Authentication Failed")
+				vprint("[LDAP] Authentication failed for user {}".format(username))
 				pass
 		else:
-			vprint ("Authentication Required")
-		request.setHeader ("WWW-Authenticate", "Basic realm=\"Coalition Login\"")
+			vprint("[LDAP] Authentication required")
+		request.setHeader("WWW-Authenticate", 'Basic realm="Coalition login"')
 		request.setResponseCode(http.UNAUTHORIZED)
 		return False
 	return True
 
-
-def grantAddJob (user, cmd):
+def grantAddJob(user, cmd):
 	"""Check if the user can add this command."""
-
-	def checkWhiteList (wl):
+	def checkWhiteList(wl):
 		for pattern in wl:
 			if (re.match (pattern, cmd)):
 				return True
 		else:
-			vprint ("user '" + user + "' is not allowed to run the command '" + cmd + "'")
+			vprint("[LDAP] Not authorized. User {} is not allowed to run the command {}".format(user, cmd))
 		return False
 
-	# user defined white list ?		
+	# Is user defined white list ?		
 	if user in UserCmdWhiteList:
 		wl = UserCmdWhiteList[user]
-		if checkWhiteList (wl):
+		if checkWhiteList(wl):
 			return True
 
 		# If in the global command white list
 		if GlobalCmdWhiteList:
-			if checkWhiteList (GlobalCmdWhiteList):
+			if checkWhiteList(GlobalCmdWhiteList):
 				return True
 		return False
 
 	else:
 		# If in the global command white list
 		if GlobalCmdWhiteList:
-			if not checkWhiteList (GlobalCmdWhiteList):
+			if not checkWhiteList(GlobalCmdWhiteList):
 				return False
 
 	# Cleared
 	return True
 
-
 def listenUDP():
-	"""Listen to an UDP socket to respond to the workers broadcast."""
+	"""Listen to UDP socket to respond to the workers broadcast."""
 	from socket import SOL_SOCKET, SO_BROADCAST
 	from socket import socket, AF_INET, SOCK_DGRAM, error
 	s = socket (AF_INET, SOCK_DGRAM)
@@ -277,73 +272,75 @@ class LogFilter:
 		return log, progress
 
 
-class Root (static.File):
-	"""Twisted static server."""
-	def __init__ (self, path, defaultType='text/html', ignoredExts=(), registry=None, allowExt=0):
+def ldapUserAllowed(user, action):
+	"""Check if user is allowed to do this action."""
+	vprint("Is user {} allowed to do {}?".format(user, action))
+
+### Twisted class ###
+class Root(static.File):
+	"""Create twisted landing page and check if LDAP authentication is required."""
+	def __init__(self, path, defaultType="text/html", ignoredExts=(), registry=None, allowExt=0):
 		static.File.__init__(self, path, defaultType, ignoredExts, registry, allowExt)
 
-	def render (self, request):
-		if authenticate (request):
-			return static.File.render (self, request)
-		return 'Authorization required!'
+	def render(self, request):
+		if authenticate(request):
+			return static.File.render(self, request)
+		return "LDAP authorization required."
 
-
-class Master (xmlrpc.XMLRPC):
-	"""XmlRPC server."""
+### XMLRPC classes ###
+class Master(xmlrpc.XMLRPC):
+	"""Defines XMLRPC and API for users interactions. Defines logger.""" 
 
 	user = ""
 
-	def render (self, request):
+	def render(self, request):
 		with db:
-			vprint ("[" + request.method + "] "+request.path)
+			vprint("[{}] {}".format(request.method, request.path))
 			if authenticate (request):
 				# If not autenticated, user == ""
-				self.user = request.getUser ()
-				# Addjob
+				self.user = request.getUser()
 
-				def getArg (name, default):
-					value = request.args.get (name, [default])
+				def getArg(name, default):
+					value = request.args.get(name, [default])
 					return value[0]
 
 				# The legacy method for compatibility
 				if request.path == "/xmlrpc/addjob":
-
-					parent = getArg ("parent", "0")
-					title = getArg ("title", "New job")
-					cmd = getArg ("cmd", getArg ("command", ""))
-					dir = getArg ("dir", ".")
-					environment = getArg ("env", None)
+					parent = getArg("parent", "0")
+					title = getArg("title", "New job")
+					cmd = getArg("cmd", getArg("command", ""))
+					dir = getArg("dir", ".")
+					environment = getArg("env", None)
 					if environment == "":
 						environment = None
-					priority = getArg ("priority", "1000")
-					timeout = getArg ("timeout", "0")
-					affinity = getArg ("affinity", "")
-					dependencies = getArg ("dependencies", "")
-					progress_pattern = getArg ("localprogress", "")
-					url = getArg ("url", "")
-					user = getArg ("user", "")
-					state = getArg ("state", "WAITING")
-					paused = getArg ("paused", "0")
+					priority = getArg("priority", "1000")
+					timeout = getArg("timeout", "0")
+					affinity = getArg("affinity", "")
+					dependencies = getArg("dependencies", "")
+					progress_pattern = getArg("localprogress", "")
+					url = getArg("url", "")
+					user = getArg("user", "")
+					state = getArg("state", "WAITING")
+					paused = getArg("paused", "0")
 					if self.user != "":
 						user = self.user
 
-					if grantAddJob (self.user, cmd):
-						vprint ("Add job : " + cmd)
+					if grantAddJob(self.user, cmd):
+						vprint ("Add job : {}".format(cmd))
 						# try as an int
-						parent = int (parent)
+						parent = int(parent)
 						if type(dependencies) is str:
 							# Parse the dependencies string
-							dependencies = re.findall ('(\d+)', dependencies)
-						for i, dep in enumerate (dependencies) :
-							dependencies[i] = int (dep)
+							dependencies = re.findall('(\d+)', dependencies)
+						for i, dep in enumerate(dependencies) :
+							dependencies[i] = int(dep)
 
 						job = db.newJob (parent, str (title), str (cmd), str (dir), str (environment),
 								str (state), int (paused), int (timeout), int (priority), str (affinity),
 								str (user), str (url), str (progress_pattern))
 						if job is not None:
-							db.setJobDependencies (job['id'], dependencies)
+							db.setJobDependencies(job['id'], dependencies)
 							return str(job['id'])
-
 					return "-1"
 
 				else:
@@ -351,27 +348,29 @@ class Master (xmlrpc.XMLRPC):
 					if request.method != "GET":
 						data = value and json.loads(request.content.getvalue()) or {}
 						if verbose:
-							vprint ("[Content] "+repr(data))
+							vprint ("[Content] {}".format(repr(data)))
 					else:
 						if verbose:
-							vprint ("[Content] "+repr(request.args))
+							vprint ("[Content] {}".format(repr(request.args)))
 
-					def getArg (name, default):
+					def getArg(name, default):
 						if request.method == "GET":
 							# GET params
-							value = request.args.get (name, [default])[0]
+							value = request.args.get(name, [default])[0]
 							value = type(default)(default if value == None else value)
-							assert (value != None)
+							assert(value != None)
 							return value
 						else:
 							# JSON params
-							value = data.get (name)
+							value = data.get(name)
 							value = type(default)(default if value == None else value)
-							assert (value != None)
+							assert(value != None)
 							return value
 
-					# REST api
-					def api_rest ():
+					# REST API
+					def api_rest():
+
+						# REST PUT API
 						if request.method == "PUT":
 							if request.path == "/api/jobs":
 								job = db.newJob ((getArg ("parent",0)),
@@ -390,27 +389,23 @@ class Master (xmlrpc.XMLRPC):
 										(getArg("dependencies", [])))
 								return job['id']
 
+						# REST GET API
 						elif request.method == "GET":
 							m = re.match(r"^/api/jobs/(\d+)$", request.path)
 							if m:
-								return db.getJob (int(m.group (1)))
-
+								return db.getJob(int(m.group (1)))
 							m = re.match(r"^/api/jobs/(\d+)/children$", request.path)
 							if m:
-								return db.getJobChildren (int(m.group (1)), {})
-
+								return db.getJobChildren(int(m.group (1)), {})
 							m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
 							if m:
-								return db.getJobDependencies (int(m.group (1)))
-
+								return db.getJobDependencies(int(m.group (1)))
 							m = re.match(r"^/api/jobs/(\d+)/childrendependencies$", request.path)
 							if m:
-								return db.getChildrenDependencyIds (int(m.group (1)))
-
+								return db.getChildrenDependencyIds(int(m.group (1)))
 							m = re.match(r"^/api/jobs/(\d+)/log$", request.path)
 							if m:
-								return self.getLog (int(m.group (1)))
-
+								return self.getLog(int(m.group (1)))
 							if request.path == "/api/jobs":
 								return db.getJobChildren (0, {})
 
@@ -427,13 +422,11 @@ class Master (xmlrpc.XMLRPC):
 										)
 
 							if request.path == "/api/workers":
-								return db.getWorkers ()
-
+								return db.getWorkers()
 							if request.path == "/api/events":
-								return db.getEvents (getArg ("job", -1), getArg ("worker", ""), getArg ("howlong", -1))
-
+								return db.getEvents(getArg("job", -1), getArg("worker", ""), getArg("howlong", -1))
 							if request.path == "/api/affinities":
-								return db.getAffinities ()
+								return db.getAffinities()
 
 							if request.path == "/api/jobs/users/":
 								return db.getJobsUsers()
@@ -450,54 +443,45 @@ class Master (xmlrpc.XMLRPC):
 							if request.path == "/api/jobs/affinities/":
 								return db.getJobsAffinities()
 
+						# REST POST API
 						elif request.method == "POST":
 							if request.path == "/api/jobs":
-								db.editJobs (data)
+								db.editJobs(data)
 								return 1
-
 							if request.path == "/api/workers":
-								db.editWorkers (data)
+								db.editWorkers(data)
 								return 1
-
 							m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
 							if m:
-								db.setJobDependencies (int(m.group (1)), data)
+								db.setJobDependencies(int(m.group (1)), data)
 								return 1
-
 							if request.path == "/api/resetjobs":
 								for jobId in data:
-									db.resetJob (int(jobId))
+									db.resetJob(int(jobId))
 								return 1
-
 							if request.path == "/api/reseterrorjobs":
 								for jobId in data:
-									db.resetErrorJob (int(jobId))
+									db.resetErrorJob(int(jobId))
 								return 1
-
 							if request.path == "/api/startjobs":
 								for jobId in data:
-									db.startJob (int(jobId))
+									db.startJob(int(jobId))
 								return 1
-
 							if request.path == "/api/pausejobs":
 								for jobId in data:
-									db.pauseJob (int(jobId))
+									db.pauseJob(int(jobId))
 								return 1
-
 							if request.path == "/api/stopworkers":
 								for name in data:
-									db.stopWorker (name)
+									db.stopWorker(name)
 								return 1
-
 							if request.path == "/api/startworkers":
 								for name in data:
-									db.startWorker (name)
+									db.startWorker(name)
 								return 1
-
 							if request.path == "/api/affinities":
-								db.setAffinities (data)
+								db.setAffinities(data)
 								return 1
-
 							if request.path == "/api/terminateworkers":
 								if servermode != "normal":
 									for name in data:
@@ -507,31 +491,29 @@ class Master (xmlrpc.XMLRPC):
 								else:
 									return None
 
+						# REST DELETE API
 						elif request.method == "DELETE":
-
 							if request.path == "/api/jobs":
 								for jobId in data:
 									deletedJobs = []
-									db.deleteJob (int(jobId), deletedJobs)
+									db.deleteJob(int(jobId), deletedJobs)
 									for deleteJobId in deletedJobs:
-										self.deleteLog (deleteJobId)
+										self.deleteLog(deleteJobId)
 								return 1
-
 							if request.path == "/api/workers":
 								for name in data:
-									db.deleteWorker (name)
+									db.deleteWorker(name)
 								return 1
-
 
 					result = api_rest ()
 					if result != None:
 						# Only JSON right now
-						return json.dumps (result)
+						return json.dumps(result)
 					else:
 						# return server.NOT_DONE_YET
 						request.setResponseCode(404)
-						return "Web service not found"
-			return 'Authorization required!'
+						return "Web service not found."
+			return "LDAP authorization required."
 
 	def getLog (self, jobId):
 		# Look for the job
@@ -613,9 +595,6 @@ class Workers(xmlrpc.XMLRPC):
 	def json_endjob (self, hostname, jobId, errorCode, ip):
 		return str (db.endJob (hostname, int(jobId), int(errorCode), str(ip)))
 
-
-### Variables ###
-
 GErr=0
 GOk=0
 
@@ -668,14 +647,7 @@ smtppasswd = cfgStr ('smtppasswd', "")
 LDAPServer = cfgStr ('ldaphost', "")
 LDAPTemplate = cfgStr ('ldaptemplate', "")
 
-_TrustedUsers = cfgStr ('trustedusers', "")
-
-TrustedUsers = {}
-for line in _TrustedUsers.splitlines (False):
-	TrustedUsers[line] = True
-
 _CmdWhiteList = cfgStr ('commandwhitelist', "")
-
 GlobalCmdWhiteList = None
 UserCmdWhiteList = {}
 UserCmdWhiteListUser = None
