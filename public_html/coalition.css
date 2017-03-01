@@ -523,3 +523,13 @@ h2
 	white-space: pre;
 
 }
+
+#logout-button {
+  position: relative;
+  left: -100%;
+}
+
+#logout-button input {
+  color: white;
+}
+
