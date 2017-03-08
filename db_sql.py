@@ -12,6 +12,15 @@ import os
 def convdata (d):
 	return isinstance(d, str) and repr (d) or (isinstance(d, bool) and (d and '1' or '0') or (isinstance(d, unicode) and repr(str(d)) or str(d)))
 
+
+class LdapError(Exception):
+	"""Error class for LDAP exceptions."""
+	def __init__(self, value):
+		self.value = value
+	def __str__(self):
+		return "[LDAP] Error: {value}".format(value=self.value)
+
+
 class DBSQL(DB):
 
 	def __init__ (self):
@@ -92,6 +101,52 @@ class DBSQL(DB):
 			for i in range (1, 64):
 				if not i in affinities:
 					self._execute (cur, "INSERT INTO Affinities (id, name) VALUES (%d,'')" % i)
+
+	def _getLdapPermission(self, action):
+		"""Check ldap permissions.
+
+		If ldap is not configured, ldap_user is unset, return "".
+		If ldap user is allowed to do the action, return the additional sql filter
+		or "" if the user has global permissions.
+		If ldap user is not allowed, return False."""
+
+		if not self.ldap_user: # LDAP is not set up in configuration or ldapunsafeapi is set to True
+			return ""
+		if action == "addjob":
+			if self.permissions["ldaptemplateaddjobglobal"]:
+				return ""
+			elif self.permissions["ldaptemplateaddjob"]:
+				return "AND user='{user}'".format(user=self.ldap_user)
+			else:
+				raise LdapError("Action '{action}' is not permitted for user '{user}'".format(action=action, user=self.ldap_user))
+				return False
+		elif action == "viewjob":
+			if self.permissions["ldaptemplateviewjobglobal"]:
+				return ""
+			elif self.permissions["ldaptemplateviewjob"]:
+				return "AND user='{user}'".format(user=self.ldap_user)
+			else:
+				raise LdapError("Action '{action}' is not permitted for user '{user}'".format(action=action, user=self.ldap_user))
+				return False
+		elif action == "editjob":
+			if self.permissions["ldaptemplateeditjobglobal"]:
+				return ""
+			elif self.permissions["ldaptemplateeditjob"]:
+				return "AND user='{user}'".format(user=self.ldap_user)
+			else:
+				raise LdapError("Action '{action}' is not permitted for user '{user}'".format(action=action, user=self.ldap_user))
+				return False
+		elif action == "deletejob":
+			if self.permissions["ldaptemplatedeletejobglobal"]:
+				return ""
+			elif self.permissions["ldaptemplatedeletejob"]:
+				return "AND user='{user}'".format(user=self.ldap_user)
+			else:
+				raise LdapError("Action '{action}' is not permitted for user '{user}'".format(action=action, user=self.ldap_user))
+				return False
+		else:
+			raise LdapError("Action '{action}' is not defined for user '{user}'".format(action=action, user=self.ldap_user))
+			return False
 
 	def listJobs (self):
 		cur = self.Conn.cursor ()
@@ -181,40 +236,56 @@ class DBSQL(DB):
 		self.AffinityBitsToName[affinity_bits] = result
 		return result
 
-	def newJob (self, parent, title, command, dir, environment, state, paused, timeout, 
+	def newJob(self, parent, title, command, dir, environment, state, paused, timeout, 
 				priority, affinity, user, url, progress_pattern, dependencies = None):
-		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT h_depth, h_affinity, h_priority, h_paused, command FROM Jobs WHERE id = %d" % parent)
-		data = cur.fetchone ()
+		ldap_perm = self._getLdapPermission("addjob")
+		if ldap_perm is False:
+			return None
+		if ldap_perm != "": # User can add job owned by himself, force user value
+			user = self.ldap_user
+		cur = self.Conn.cursor()
+		self._execute(cur, """
+			SELECT h_depth, h_affinity, h_priority, h_paused, command
+			FROM Jobs
+			WHERE id = {parent} {ldap_perm}
+			""".format(parent=parent, ldap_perm=ldap_perm))
+		data = cur.fetchone()
 		if state == "PAUSED":
 			paused = True;
 		if data is None:
 			data = [-1, 0, 0, False, '']
 		if data[4] != '':
-			print ("Error : can't add job, parent %d is not a group" % parent)
+			print("Error: can't add job, parent {parent} is not a group".format(parent=parent))
 			return None
 		# one depth below
 		h_depth = data[0]+1
 		# merge parent affinities with child affinities
 		parent_affinities = data[1]
-		child_affinities = self.getAffinityMask (affinity)
+		child_affinities = self.getAffinityMask(affinity)
 		h_affinity = parent_affinities | child_affinities
 		# merge priority
-		priority = max (0, min (255, int (priority)))
+		priority = max(0, min(255, int(priority)))
 		h_priority = data[2] + (priority << (56-h_depth*8))
 		h_paused = data[3] or paused
 
-		self._execute (cur, "INSERT INTO Jobs (parent, title, command, dir, "
-						"environment, timeout, priority, affinity, affinity_bits, "
-						"user, url, progress_pattern, paused, state, worker, "
-						"h_depth, h_affinity, h_priority, h_paused) VALUES"
-						"(%d,%s,%s,%s,"
-						"%s,%d,%d,%s,%d,"
-						"%s,%s,%s,%d,'WAITING','',"
-						"%d,'%s',%d,%d)" % (parent, repr (title), repr (command), repr (dir), 
-						repr (environment), timeout, priority, repr (affinity), child_affinities,
-						repr (user), repr (url), repr (progress_pattern), paused,
-						h_depth, h_affinity, h_priority, h_paused))
+		self._execute (cur, """
+			INSERT INTO Jobs (
+			parent, title, command, dir, environment, timeout,
+			priority, affinity, affinity_bits, user, url,
+			progress_pattern, paused, state, worker, h_depth,
+			h_affinity, h_priority, h_paused
+			) VALUES (
+			{parent}, {title}, {command}, {directory}, {environment}, {timeout},
+			{priority}, {affinity}, {child_affinities}, {user}, {url},
+			{progess_pattern}, {paused}, {state}, {worker}, {h_depth},
+			{h_affinity}, {h_priority}, {h_paused})
+			""".format(parent=parent, title=repr(title), command=repr(command),
+			directory=repr(dir), environment=repr(environment), timeout=timeout,
+			priority=priority, affinity=repr(affinity), child_affinities=child_affinities,
+			user=repr(user), url=repr(url), progress_pattern=repr(progress_pattern),
+			paused=paused, state="WAITING", worker="",  h_depth=h_depth,
+			h_affinity=h_affinity, h_priority=h_priority, h_paused=h_paused))
+
 		data = cur.fetchone ()
 		job = self.getJob (cur.lastrowid)
 		if job is not None and dependencies is not None:
@@ -223,29 +294,45 @@ class DBSQL(DB):
 		job['dependencies'] = dependencies
 		return job
 
-	def getJob (self, id):
-		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT * FROM Jobs WHERE id = %d" % id)
-		result = self._rowAsDict (cur, cur.fetchone ())
+	def getJob(self, id):
+		ldap_perm = self._getLdapPermission("viewjob")
+		if ldap_perm is False:
+			return None
+		print("LDAP_PERM", ldap_perm)
+		cur = self.Conn.cursor()
+		self._execute(cur, """
+			SELECT * FROM Jobs
+			WHERE id = {id} {ldap_perm}
+			""".format(id=id, ldap_perm=ldap_perm))
+		result = self._rowAsDict(cur, cur.fetchone())
 		if result is not None:
 			if result['paused']:
-				result['state'] = str ("PAUSED")
+				result['state'] = str("PAUSED")
 			if result['state'] == "WORKING" and result['total'] == 0:
-				current_time = int (time.time ())
+				current_time = int(time.time ())
 				result['duration'] = current_time - result['start_time']
-			result['affinity'] = self.getAffinityString (result['affinity_bits'])
+			result['affinity'] = self.getAffinityString(result['affinity_bits'])
 			# get dependencies
 			result['dependencies'] = []
-			self._execute (cur, "SELECT job.id FROM Jobs AS job "
-							"INNER JOIN Dependencies AS dep ON job.id = dep.dependency "
-							"WHERE dep.job_id = %d" % id)
+			self._execute(cur, """
+				SELECT job.id FROM Jobs AS job
+				INNER JOIN Dependencies AS dep
+				ON job.id = dep.dependency
+				WHERE dep.job_id = {id}
+				""".format(id=id))
 			for row in cur:
-				result['dependencies'].append (row[0])
+				result['dependencies'].append(row[0])
 		return result
 
-	def getJobChildren (self, id, data):
-		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT * FROM Jobs WHERE parent = %d" % id)
+	def getJobChildren(self, id, data):
+		ldap_perm = self._getLdapPermission("viewjob")
+		if ldap_perm is False:
+			return None
+		cur = self.Conn.cursor()
+		self._execute(cur, """
+			SELECT * FROM Jobs
+			WHERE parent = {id} {ldap_perm}
+			""".format(id=id, ldap_perm=ldap_perm))
 		jobs = []
 		for row in cur:
 			result = self._rowAsDict (cur, row)
@@ -258,11 +345,17 @@ class DBSQL(DB):
 			jobs.append (result)
 		return jobs
 
-	def getJobDependencies (self, id):
-		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT job.* FROM Jobs AS job "
-						"INNER JOIN Dependencies AS dep ON job.id = dep.dependency "
-						"WHERE dep.job_id = %d" % id)
+	def getJobDependencies(self, id):
+		ldap_perm = self._getLdapPermission("viewjob")
+		if ldap_perm is False:
+			return None
+		cur = self.Conn.cursor()
+		self._execute (cur, """
+			SELECT job.* FROM Jobs AS job
+			INNER JOIN Dependencies AS dep
+			ON job.id = dep.dependency
+			WHERE dep.job_id = {id} {ldap_perm}
+			""".format(id=id, ldap_perm=ldap_perm))
 		rows = cur.fetchall()
 		return [self._rowAsDict (cur, row) for row in rows]
 
@@ -313,8 +406,19 @@ class DBSQL(DB):
 		self._execute (cur, "SELECT job.id AS id, dep.dependency AS dependency FROM Dependencies AS dep "
 						"INNER JOIN Jobs AS job ON job.id = dep.job_id "
 						" WHERE job.parent = %d" % id)
+
+	def getChildrenDependencyIds(self, id):
+		cur = self.Conn.cursor()
+		self._execute(cur, """
+			SELECT job.id AS id, dep.dependency AS dependency
+			FROM Dependencies AS dep
+			INNER JOIN Jobs AS job
+			ON job.id = dep.job_id
+			WHERE job.parent = {id}
+			""".format(id=id))
+
 		rows = cur.fetchall()
-		return [self._rowAsDict (cur, row) for row in rows]
+		return [self._rowAsDict(cur, row) for row in rows]
 
 	def getWorker (self, hostname):
 		cur = self.Conn.cursor ()
@@ -394,8 +498,16 @@ class DBSQL(DB):
 		return [self._rowAsDict (cur, row) for row in cur.fetchall ()]
 
 	def editJobs (self, jobs):
+		ldap_perm = self._getLdapPermission("editjob")
+		if ldap_perm is False:
+			return None
 		cur = self.Conn.cursor ()
 		for id, attr in jobs.iteritems ():
+			if attr.has_key("user") and attr["user"].lower() != self.ldap_user.lower() and ldap_perm != "":
+				# User has no global permission, so he can change his own jobs only
+				raise LdapError("User '{user}' is not allowed to change job id='{id}' user attribute to '{user_attr}'".format(
+					user=self.ldap_user, id=id, user_attr=attr["user"]))
+				break
 			toUpdate = [k+"="+convdata(v) for k,v in attr.iteritems()
 				if k != 'dependencies' and k != 'affinity' and k != 'priority' and
 					k != 'state' and k != 'parent']
@@ -565,6 +677,16 @@ class DBSQL(DB):
 		self._setJobState (int (id), None, True)
 
 	def resetJob (self, id, updateChildren = True):
+		ldap_perm = self._getLdapPermission("editjob")
+		if ldap_perm is False:
+			return None
+		if ldap_perm != "": # Not a global permission
+			cur = self.Conn.cursor ()
+			self._execute(cur, "SELECT user FROM Jobs WHERE id={id}".format(id=id))
+			data = cur.fetchone()
+			if data and data[0].lower() != self.ldap_user.lower():
+				raise LdapError("User '{user}' is not allowed to reset job id='{id}'".format(user=user,id=id))
+				return None
 		cur = self.Conn.cursor ()
 		self._execute (cur, "UPDATE Jobs SET start_time = 0 WHERE id = %d" % id)
 		self._setJobState (id, "WAITING", False)
@@ -575,6 +697,16 @@ class DBSQL(DB):
 			self._resetJobCounters (id)
 
 	def resetErrorJob (self, id, updateChildren = True):
+		ldap_perm = self._getLdapPermission("editjob")
+		if ldap_perm is False:
+			return None
+		if ldap_perm != "": # Not a global permission
+			cur = self.Conn.cursor ()
+			self._execute(cur, "SELECT user FROM Jobs WHERE id={id}".format(id=id))
+			data = cur.fetchone()
+			if data and data[0].lower() != self.ldap_user.lower():
+				raise LdapError("User '{user}' is not allowed to reset error job id='{id}'".format(user=user,id=id))
+				return None
 		cur = self.Conn.cursor ()
 		self._execute (cur, "SELECT state FROM Jobs WHERE id = %d" % id)
 		data = cur.fetchone ()
@@ -588,6 +720,17 @@ class DBSQL(DB):
 			self._resetJobCounters (id)
 
 	def startJob (self, id):
+		ldap_perm = self._getLdapPermission("editjob")
+		if ldap_perm is False:
+			return None
+		if ldap_perm != "": # Not a global permission
+			cur = self.Conn.cursor ()
+			self._execute(cur, "SELECT user FROM Jobs WHERE id={id}".format(id=id))
+			data = cur.fetchone()
+			if data and data[0].lower() != self.ldap_user.lower():
+				raise LdapError("User '{user}' is not allowed to start job id='{id}'".format(user=user,id=id))
+				return None
+
 		cur = self.Conn.cursor ()
 		self._execute (cur, "UPDATE Jobs SET paused = 0 WHERE id = %d" % id)
 		self._setJobState (id, "WAITING", False)
@@ -595,6 +738,16 @@ class DBSQL(DB):
 		self._updateJobCounters (id)
 
 	def pauseJob (self, id):
+		ldap_perm = self._getLdapPermission("editjob")
+		if ldap_perm is False:
+			return None
+		if ldap_perm != "": # Not a global permission
+			cur = self.Conn.cursor ()
+			self._execute(cur, "SELECT user FROM Jobs WHERE id={id}".format(id=id))
+			data = cur.fetchone()
+			if data and data[0].lower() != self.ldap_user.lower():
+				raise LdapError("User '{user}' is not allowed to pause job id='{id}'".format(user=user,id=id))
+				return None
 		cur = self.Conn.cursor ()
 		self._execute (cur, "UPDATE Jobs SET paused = 1 WHERE id = %d" % id)
 		self._setJobState (id, "PAUSED", False)
@@ -602,6 +755,17 @@ class DBSQL(DB):
 		self._updateJobCounters (id)
 
 	def deleteJob (self, id, deletedJobs = [], updateCounters = True):
+		ldap_perm = self._getLdapPermission("deletejob")
+		if ldap_perm is False:
+			return None
+		if ldap_perm != "": # Not a global permission
+			cur = self.Conn.cursor ()
+			self._execute(cur, "SELECT user FROM Jobs WHERE id={id}".format(id=id))
+			data = cur.fetchone()
+			if data and data[0].lower() != self.ldap_user.lower():
+				raise LdapError("User '{user}' is not allowed to delete job id='{id}'".format(user=user,id=id))
+				return None
+
 		cur = self.Conn.cursor ()
 		self._execute (cur, "SELECT id FROM Jobs WHERE parent = %d" % id)
 		for row in cur:
