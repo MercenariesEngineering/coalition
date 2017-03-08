@@ -773,7 +773,7 @@ class DBSQL(DB):
 		# Therefore, we need to add a query that take the first Job that has no affinity WHEN Workers are not doing anything
 		if job is None:
 			self._execute( cur, "SELECT id, title, command, dir, user, environment FROM Jobs WHERE state = 'WAITING' AND NOT h_paused AND affinity = '' AND command != '' ORDER BY h_priority DESC, id ASC LIMIT 1" )
-			job = cur.fetchone ()
+		job = cur.fetchone ()
 		if job is None: # Finally, return nothing if there is no job.
 			return -1,"","","",None
 

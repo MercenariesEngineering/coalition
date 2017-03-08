@@ -2,15 +2,19 @@ import MySQLdb, unittest
 from db_sql import DBSQL
 
 class DBMySQL(DBSQL):
-	def __init__ (self, host, user, password, database, **kwargs):
+	def __init__ (self, host, user, password, database, initdb, **kwargs):
 		self.config = kwargs["config"]
 		self.cloudconfig = kwargs["cloudconfig"]
 		self.Conn = MySQLdb.connect(host, user, password, database)
 		self.Conn.ping(True)
+
+		if initdb:
+			self._install ()
+
 		# super is called *after* because DBSQL inits stuffs in the DB
 		super(DBMySQL, self).__init__ ()
 
-	def install (self):
+	def _install (self):
 		with self.Conn:
 			cur = self.Conn.cursor()
 
