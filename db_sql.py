@@ -110,7 +110,7 @@ class DBSQL(DB):
 		or "" if the user has global permissions.
 		If ldap user is not allowed, return False."""
 
-		if not self.ldap_user: # LDAP is not set up in configuration or ldapunsafeapi is set to True
+		if not hasattr(self, "ldap_user") or not self.ldap_user: # LDAP is not set up in configuration or ldapunsafeapi is set to True
 			return ""
 		if action == "addjob":
 			if self.permissions["ldaptemplateaddjobglobal"]:
@@ -244,11 +244,10 @@ class DBSQL(DB):
 		if ldap_perm != "": # User can add job owned by himself, force user value
 			user = self.ldap_user
 		cur = self.Conn.cursor()
-		self._execute(cur, """
-			SELECT h_depth, h_affinity, h_priority, h_paused, command
-			FROM Jobs
-			WHERE id = {parent} {ldap_perm}
-			""".format(parent=parent, ldap_perm=ldap_perm))
+		self._execute(cur, 
+			"SELECT h_depth, h_affinity, h_priority, h_paused, command "
+			"FROM Jobs "
+			"WHERE id = {parent} {ldap_perm}".format(parent=parent, ldap_perm=ldap_perm))
 		data = cur.fetchone()
 		if state == "PAUSED":
 			paused = True;
@@ -268,23 +267,22 @@ class DBSQL(DB):
 		h_priority = data[2] + (priority << (56-h_depth*8))
 		h_paused = data[3] or paused
 
-		self._execute (cur, """
-			INSERT INTO Jobs (
-			parent, title, command, dir, environment, timeout,
-			priority, affinity, affinity_bits, user, url,
-			progress_pattern, paused, state, worker, h_depth,
-			h_affinity, h_priority, h_paused
-			) VALUES (
-			{parent}, {title}, {command}, {directory}, {environment}, {timeout},
-			{priority}, {affinity}, {child_affinities}, {user}, {url},
-			{progess_pattern}, {paused}, {state}, {worker}, {h_depth},
-			{h_affinity}, {h_priority}, {h_paused})
-			""".format(parent=parent, title=repr(title), command=repr(command),
+		self._execute (cur,
+			"INSERT INTO Jobs ("
+			"parent, title, command, dir, environment, timeout,"
+			"priority, affinity, affinity_bits, user, url,"
+			"progress_pattern, paused, state, worker, h_depth,"
+			"h_affinity, h_priority, h_paused"
+			") VALUES ("
+			"{parent}, {title}, {command}, {directory}, {environment}, {timeout},"
+			"{priority}, {affinity}, {child_affinities}, {user}, {url},"
+			"{progress_pattern}, {paused}, {state}, {worker}, {h_depth},"
+			"{h_affinity}, {h_priority}, {h_paused})".format(parent=parent, title=repr(title), command=repr(command),
 			directory=repr(dir), environment=repr(environment), timeout=timeout,
 			priority=priority, affinity=repr(affinity), child_affinities=child_affinities,
 			user=repr(user), url=repr(url), progress_pattern=repr(progress_pattern),
-			paused=paused, state="WAITING", worker="",  h_depth=h_depth,
-			h_affinity=h_affinity, h_priority=h_priority, h_paused=h_paused))
+			paused="'"+str(paused)+"'", state="'WAITING'", worker="''", h_depth=int(h_depth),
+			h_affinity=h_affinity, h_priority=int(h_priority), h_paused="'"+str(h_paused)+"'"))
 
 		data = cur.fetchone ()
 		job = self.getJob (cur.lastrowid)
@@ -300,10 +298,9 @@ class DBSQL(DB):
 			return None
 		print("LDAP_PERM", ldap_perm)
 		cur = self.Conn.cursor()
-		self._execute(cur, """
-			SELECT * FROM Jobs
-			WHERE id = {id} {ldap_perm}
-			""".format(id=id, ldap_perm=ldap_perm))
+		self._execute(cur,
+			"SELECT * FROM Jobs "
+			"WHERE id = {id} {ldap_perm}".format(id=id, ldap_perm=ldap_perm))
 		result = self._rowAsDict(cur, cur.fetchone())
 		if result is not None:
 			if result['paused']:
@@ -314,12 +311,11 @@ class DBSQL(DB):
 			result['affinity'] = self.getAffinityString(result['affinity_bits'])
 			# get dependencies
 			result['dependencies'] = []
-			self._execute(cur, """
-				SELECT job.id FROM Jobs AS job
-				INNER JOIN Dependencies AS dep
-				ON job.id = dep.dependency
-				WHERE dep.job_id = {id}
-				""".format(id=id))
+			self._execute(cur,
+				"SELECT job.id FROM Jobs AS job "
+				"INNER JOIN Dependencies AS dep "
+				"ON job.id = dep.dependency "
+				"WHERE dep.job_id = {id}".format(id=id))
 			for row in cur:
 				result['dependencies'].append(row[0])
 		return result
@@ -329,10 +325,9 @@ class DBSQL(DB):
 		if ldap_perm is False:
 			return None
 		cur = self.Conn.cursor()
-		self._execute(cur, """
-			SELECT * FROM Jobs
-			WHERE parent = {id} {ldap_perm}
-			""".format(id=id, ldap_perm=ldap_perm))
+		self._execute(cur,
+			"SELECT * FROM Jobs "
+			"WHERE parent = {id} {ldap_perm}".format(id=id, ldap_perm=ldap_perm))
 		jobs = []
 		for row in cur:
 			result = self._rowAsDict (cur, row)
@@ -350,12 +345,11 @@ class DBSQL(DB):
 		if ldap_perm is False:
 			return None
 		cur = self.Conn.cursor()
-		self._execute (cur, """
-			SELECT job.* FROM Jobs AS job
-			INNER JOIN Dependencies AS dep
-			ON job.id = dep.dependency
-			WHERE dep.job_id = {id} {ldap_perm}
-			""".format(id=id, ldap_perm=ldap_perm))
+		self._execute (cur,
+			"SELECT job.* FROM Jobs AS job "
+			"INNER JOIN Dependencies AS dep "
+			"ON job.id = dep.dependency "
+			"WHERE dep.job_id = {id} {ldap_perm}".format(id=id, ldap_perm=ldap_perm))
 		rows = cur.fetchall()
 		return [self._rowAsDict (cur, row) for row in rows]
 
@@ -416,7 +410,6 @@ class DBSQL(DB):
 			ON job.id = dep.job_id
 			WHERE job.parent = {id}
 			""".format(id=id))
-
 		rows = cur.fetchall()
 		return [self._rowAsDict(cur, row) for row in rows]
 
@@ -1172,7 +1165,10 @@ class DBSQL(DB):
 			h_depth = parenth[0]+1
 			h_affinity = parenth[1] | job[1]
 			h_priority = parenth[2] + (job[2] << (56-h_depth*8))
-			h_paused = parenth[3] or job[3] or job[4] == "PENDING"
+			if parenth[3] or job[3] or job[4] == "PENDING":
+				h_paused = 1
+			else:
+				h_paused = 0
 			self._execute (cur, "UPDATE Jobs SET h_depth = %d, h_affinity = %d, h_priority = %d, h_paused = %d "
 				"WHERE id = %d" % (h_depth, h_affinity, h_priority, h_paused, id))
 			self._execute (cur, "SELECT id FROM Jobs WHERE parent = %d" % id)

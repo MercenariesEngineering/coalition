@@ -153,20 +153,8 @@ def _interactiveConfirmation(confirmation_sentence="Yes I know what I'm doing.")
 ### LDAP functions ###
 
 ### LDAP classes and functions ###
-
-def authenticate(request):
+def authenticate(request, ldap_permissions):
 	"""Check user authentication via LDAP if LDAP is configured in settings. If authenticated, get users permissions."""
-
-	ldap_permissions = {
-			"ldaptemplatecreatejob": False, 
-			"ldaptemplateviewjob": False, 
-			"ldaptemplateeditjob": False, 
-			"ldaptemplatedeletejob": False, 
-			"ldaptemplatecreatejobglobal": False, 
-			"ldaptemplateviewjobglobal": False, 
-			"ldaptemplateeditjobglobal": False, 
-			"ldaptemplatedeletejobglobal": False, 
-			}
 
 	def _getLdapPermissions(connection, username):
 		ldap_base = cfgStr("ldapbase", "")
@@ -186,15 +174,7 @@ def authenticate(request):
 		username = request.getUser()
 		password = request.getPassword()
 
-		# Check if the request comes from the webfrontend.
-		m = re.match(r"^/api/webfrontend/", request.path)
-		if m:
-			webfrontendrequest = True
-			request.path = request.path.replace("webfrontend/", "", 1)
-		else:
-			webfrontendrequest = False
-
-		if config.has_option("server", "ldapunsafeapi") and config.getboolean("server", "ldapunsafeapi") and webfrontendrequest is False:
+		if config.has_option("server", "ldapunsafeapi") and config.getboolean("server", "ldapunsafeapi") and not isWebFrontend(request):
 			# This request does not comes from the webfrontend and unsafe mode is set.
 			# Granting full access.
 			vprint("[LDAP] Access granted for unsafe API")
@@ -222,7 +202,7 @@ def authenticate(request):
 		request.setHeader("WWW-Authenticate", 'Basic realm="Coalition login"')
 		request.setResponseCode(http.UNAUTHORIZED)
 		return False, {}
-	return True, {}
+	return True, ldap_permissions
 
 def grantAddJob(user, cmd):
 	"""Check if the logged in user can add this command."""
@@ -325,6 +305,14 @@ def ldapUserAllowed(user, action):
 	# Cleared
 	return True
 
+def isWebFrontend(request):
+	"""Check if the request comes from the webfrontend."""
+	m = re.match(r"^/api/webfrontend/", request.path)
+	if m:
+		return True
+	else:
+		return False
+
 ### Twisted class ###
 class Root(static.File):
 	"""Create twisted landing page and check if LDAP authentication is required."""
@@ -333,7 +321,12 @@ class Root(static.File):
 		static.File.__init__(self, path, defaultType, ignoredExts, registry, allowExt)
 
 	def render(self, request):
-		(authenticated, permissions) = authenticate(request)
+		if isWebFrontend(request):
+			(authenticated, permissions) = authenticate(request, ldap_permissions)
+			request.path = request.path.replace("webfrontend/", "", 1)
+		else:
+			authenticated = True
+			permissions = ldap_permissions
 		if authenticated:
 			return static.File.render(self, request)
 		request.setResponseCode(http.UNAUTHORIZED)
@@ -349,7 +342,12 @@ class Master(xmlrpc.XMLRPC):
 	def render(self, request):
 		with db:
 			vprint("[{}] {}".format(request.method, request.path))
-			(authenticated, permissions) = authenticate(request)
+			if isWebFrontend(request):
+				(authenticated, permissions) = authenticate(request, ldap_permissions)
+				request.path = request.path.replace("webfrontend/", "", 1)
+			else:
+				authenticated = True
+				permissions = ldap_permissions
 			if authenticated:
 				self.user = db.ldap_user = request.getUser()
 				db.permissions = permissions
@@ -464,7 +462,6 @@ class Master(xmlrpc.XMLRPC):
 								if m:
 									return self.getLog(int(m.group (1)))
 								if request.path == "/api/jobs":
-									db.ldap_permission = ldapUserActionAllowed(self.user, "view")
 									return db.getJobChildren(0, {})
 
 								m = re.match(r"^/api/jobs/count/where/$", request.path)
@@ -706,7 +703,6 @@ smtplogin = cfgStr ('smtplogin', "")
 smtppasswd = cfgStr ('smtppasswd', "")
 
 # LDAP and permissions
-webfrontendrequest = True
 LDAPServer = cfgStr ('ldaphost', "")
 LDAPTemplateLogin = cfgStr ('ldaptemplatelogin', "")
 _CmdWhiteList = cfgStr ('commandwhitelist', "")
@@ -726,6 +722,17 @@ for line in _CmdWhiteList.splitlines (False):
 			if not GlobalCmdWhiteList:
 				GlobalCmdWhiteList = []
 			GlobalCmdWhiteList.append (line)
+
+ldap_permissions = {
+	"ldaptemplatecreatejob": True,
+	"ldaptemplateviewjob": True,
+	"ldaptemplateeditjob": True,
+	"ldaptemplatedeletejob": True,
+	"ldaptemplatecreatejobglobal": True,
+	"ldaptemplateviewjobglobal": True,
+	"ldaptemplateeditjobglobal": True,
+	"ldaptemplatedeletejobglobal": True,
+	}
 
 DefaultLocalProgressPattern = "PROGRESS:%percent"
 DefaultGlobalProgressPattern = None
