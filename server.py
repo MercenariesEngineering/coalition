@@ -1,5 +1,6 @@
 from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
+from twisted.web.server import Session
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random, shutil
 import atexit, json
 import smtplib
@@ -7,6 +8,7 @@ from email.mime.text import MIMEText
 
 from db_sqlite import DBSQLite
 from db_mysql import DBMySQL
+from db_sql import LdapError
 
 
 GErr=0
@@ -81,22 +83,16 @@ smtptls = cfgBool ('smtptls', True)
 smtplogin = cfgStr ('smtplogin', "")
 smtppasswd = cfgStr ('smtppasswd', "")
 
+# LDAP and permissions
+webfrontendrequest = True
 LDAPServer = cfgStr ('ldaphost', "")
-LDAPTemplate = cfgStr ('ldaptemplate', "")
-
-_TrustedUsers = cfgStr ('trustedusers', "")
-
-TrustedUsers = {}
-for line in _TrustedUsers.splitlines (False):
-	TrustedUsers[line] = True
-
+LDAPTemplateLogin = cfgStr ('ldaptemplatelogin', "")
 _CmdWhiteList = cfgStr ('commandwhitelist', "")
-
 GlobalCmdWhiteList = None
 UserCmdWhiteList = {}
 UserCmdWhiteListUser = None
-for line in _CmdWhiteList.splitlines (False):
-	_re = re.match ("^@(.*)", line)
+for line in _CmdWhiteList.splitlines():
+	_re = re.match("^@(.*)", line)
 	if _re:
 		UserCmdWhiteListUser = _re.group(1)
 		if not UserCmdWhiteListUser in UserCmdWhiteList:
@@ -268,292 +264,328 @@ def writeJobLog (jobId, log):
 	logFile.write (log)
 	logFile.close ()	
 
-# Authenticate the user
-def authenticate (request):
-	if LDAPServer != "":
-		username = request.getUser ()
-		password = request.getPassword ()
-		if username in TrustedUsers:
-			vprint (username + " in the clearance list")
-			vprint ("Authentication OK")
-			return True
-		if username != "" or password != "":
-			l = ldap.open(LDAPServer)
-			vprint ("Authenticate "+username+" with LDAP")
-			username = LDAPTemplate.replace ("__login__", username)
+### LDAP classes and functions ###
+def authenticate(request):
+	"""Check user authentication via LDAP if LDAP is configured in settings. If authenticated, get users permissions."""
+
+	ldap_permissions = {
+			"ldaptemplatecreatejob": False, 
+			"ldaptemplateviewjob": False, 
+			"ldaptemplateeditjob": False, 
+			"ldaptemplatedeletejob": False, 
+			"ldaptemplatecreatejobglobal": False, 
+			"ldaptemplateviewjobglobal": False, 
+			"ldaptemplateeditjobglobal": False, 
+			"ldaptemplatedeletejobglobal": False, 
+			}
+
+	def _getLdapPermissions(connection, username):
+		ldap_base = cfgStr("ldapbase", "")
+
+		def _ldapSearch(connection, query):
+			if connection.search_ext_s(ldap_base, ldap.SCOPE_SUBTREE, query, ['dn']):
+				return True
+			return False
+
+		for permission in ldap_permissions.keys():
+			search_template = cfgStr(permission, "").replace("__login__", username)
+			ldap_permissions[permission] = _ldapSearch(connection, search_template)
+
+		return ldap_permissions
+
+	if LDAPServer:
+		username = request.getUser()
+		password = request.getPassword()
+
+		# Check if the request comes from the webfrontend.
+		m = re.match(r"^/api/webfrontend/", request.path)
+		if m:
+			webfrontendrequest = True
+			request.path = request.path.replace("webfrontend/", "", 1)
+		else:
+			webfrontendrequest = False
+
+		if config.has_option("server", "ldapunsafeapi") and config.getboolean("server", "ldapunsafeapi") and webfrontendrequest is False:
+			# This request does not comes from the webfrontend and unsafe mode is set.
+			# Granting full access.
+			vprint("[LDAP] Access granted for unsafe API")
+			for k in ldap_permissions.keys():
+				ldap_permissions[k] = True
+			return True, ldap_permissions
+
+		if username or password:
+			l = ldap.initialize(LDAPServer)
+			vprint("[LDAP] Authenticate {}".format(username))
+			ldapUsername = LDAPTemplateLogin.replace("__login__", username)
 			try:
-				if l.bind_s(username, password, ldap.AUTH_SIMPLE):
-					vprint ("Authentication OK")
-					return True
-			except ldap.LDAPError:
-				vprint ("Authentication Failed")
+				if l.bind_s(ldapUsername, password, ldap.AUTH_SIMPLE):
+					vprint("[LDAP] Authentication accepted for user {}".format(username))
+					request.addCookie("authenticated_user", username, path="/")
+					ldap_permissions = _getLdapPermissions(l, username)
+					return True, ldap_permissions
+
+			except ldap.LDAPError as e:
+				vprint("[LDAP] Authentication failed for user {}".format(username))
+				vprint("[LDAP] {}".format(e))
 				pass
 		else:
-			vprint ("Authentication Required")
-		request.setHeader ("WWW-Authenticate", "Basic realm=\"Coalition Login\"")
+			vprint("[LDAP] Authentication required")
+		request.setHeader("WWW-Authenticate", 'Basic realm="Coalition login"')
 		request.setResponseCode(http.UNAUTHORIZED)
-		return False
-	return True
+		return False, {}
+	return True, {}
 
-# Check if the user can add this command
-def grantAddJob (user, cmd):
-
-	def checkWhiteList (wl):
+def grantAddJob(user, cmd):
+	"""Check if the logged in user can add this command."""
+	def checkWhiteList(wl):
 		for pattern in wl:
 			if (re.match (pattern, cmd)):
 				return True
 		else:
-			vprint ("user '" + user + "' is not allowed to run the command '" + cmd + "'")
+			vprint("[LDAP] Not authorized. User {} is not allowed to add the command {}".format(user, cmd))
 		return False
 
-	# user defined white list ?		
+	# Is user defined white list ?		
 	if user in UserCmdWhiteList:
 		wl = UserCmdWhiteList[user]
-		if checkWhiteList (wl):
+		if checkWhiteList(wl):
 			return True
-
 		# If in the global command white list
 		if GlobalCmdWhiteList:
-			if checkWhiteList (GlobalCmdWhiteList):
+			if checkWhiteList(GlobalCmdWhiteList):
 				return True
 		return False
-
 	else:
 		# If in the global command white list
 		if GlobalCmdWhiteList:
-			if not checkWhiteList (GlobalCmdWhiteList):
+			if not checkWhiteList(GlobalCmdWhiteList):
 				return False
-	
 	# Cleared
 	return True
 
-class Root (static.File):
-	def __init__ (self, path, defaultType='text/html', ignoredExts=(), registry=None, allowExt=0):
+
+### Twisted class ###
+class Root(static.File):
+	"""Create twisted landing page and check if LDAP authentication is required."""
+
+	def __init__(self, path, defaultType="text/html", ignoredExts=(), registry=None, allowExt=0):
 		static.File.__init__(self, path, defaultType, ignoredExts, registry, allowExt)
 
-	def render (self, request):
-		if authenticate (request):
-			return static.File.render (self, request)
-		return 'Authorization required!'
+	def render(self, request):
+		(authenticated, permissions) = authenticate(request)
+		if authenticated:
+			return static.File.render(self, request)
+		request.setResponseCode(http.UNAUTHORIZED)
+		return "LDAP authorization required."
 
-class Master (xmlrpc.XMLRPC):
-	"""    """
+### XMLRPC API classes ###
+class Master(xmlrpc.XMLRPC):
+	"""Defines XMLRPC and API for users interactions. Defines logger.""" 
 
-	user = ""
+	def __init__(self):
+		self.user = "" # Default value, overwritten later in case of LDAP authentication
 
-	def render (self, request):
+	def render(self, request):
 		with db:
-			vprint ("[" + request.method + "] "+request.path)
-			if authenticate (request):
-				# If not autenticated, user == ""
-				self.user = request.getUser ()
-				# Addjob
+			vprint("[{}] {}".format(request.method, request.path))
+			(authenticated, permissions) = authenticate(request)
+			if authenticated:
+				self.user = db.ldap_user = request.getUser()
+				db.permissions = permissions
 
-				def getArg (name, default):
-					value = request.args.get (name, [default])
+				def getArg(name, default):
+					value = request.args.get(name, [default])
 					return value[0]
 
 				# The legacy method for compatibility
 				if request.path == "/xmlrpc/addjob":
-
-					parent = getArg ("parent", "0")
-					title = getArg ("title", "New job")
-					cmd = getArg ("cmd", getArg ("command", ""))
-					dir = getArg ("dir", ".")
-					environment = getArg ("env", None)
+					parent = getArg("parent", "0")
+					title = getArg("title", "New job")
+					cmd = getArg("cmd", getArg("command", ""))
+					dir = getArg("dir", ".")
+					environment = getArg("env", None)
 					if environment == "":
 						environment = None
-					priority = getArg ("priority", "1000")
-					timeout = getArg ("timeout", "0")
-					affinity = getArg ("affinity", "")
-					dependencies = getArg ("dependencies", "")
-					progress_pattern = getArg ("localprogress", "")
-					url = getArg ("url", "")
-					user = getArg ("user", "")
-					state = getArg ("state", "WAITING")
-					paused = getArg ("paused", "0")
+					priority = getArg("priority", "1000")
+					timeout = getArg("timeout", "0")
+					affinity = getArg("affinity", "")
+					dependencies = getArg("dependencies", "")
+					progress_pattern = getArg("localprogress", "")
+					url = getArg("url", "")
+					user = getArg("user", "")
+					state = getArg("state", "WAITING")
+					paused = getArg("paused", "0")
 					if self.user != "":
 						user = self.user
 
-					if grantAddJob (self.user, cmd):
-						vprint ("Add job : " + cmd)
+					if grantAddJob(self.user, cmd):
+						vprint ("Add job: {}".format(cmd))
 						# try as an int
-						parent = int (parent)
+						parent = int(parent)
 						if type(dependencies) is str:
 							# Parse the dependencies string
-							dependencies = re.findall ('(\d+)', dependencies)
-						for i, dep in enumerate (dependencies) :
-							dependencies[i] = int (dep)
+							dependencies = re.findall('(\d+)', dependencies)
+						for i, dep in enumerate(dependencies) :
+							dependencies[i] = int(dep)
 
-						job = db.newJob (parent, str (title), str (cmd), str (dir), str (environment),
-									str (state), int (paused), int (timeout), int (priority), str (affinity),
-									str (user), str (url), str (progress_pattern))
+						job = db.newJob(parent, str(title), str(cmd), str(dir), str(environment),
+									str(state), int(paused), int(timeout), int(priority), str(affinity),
+									str(user), str(url), str(progress_pattern))
 						if job is not None:
-							db.setJobDependencies (job['id'], dependencies)
+							db.setJobDependencies(job['id'], dependencies)
 							return str(job['id'])
-
 					return "-1"
-
 				else:
-					value = request.content.getvalue()
-					if request.method != "GET":
-						data = value and json.loads(request.content.getvalue()) or {}
-						if verbose:
-							vprint ("[Content] "+repr(data))
-					else:
-						if verbose:
-							vprint ("[Content] "+repr(request.args))
-
-					def getArg (name, default):
-						if request.method == "GET":
-							# GET params
-							value = request.args.get (name, [default])[0]
-							value = type(default)(default if value == None else value)
-							assert (value != None)
-							return value
+					try:
+						value = request.content.getvalue()
+						if request.method != "GET":
+							data = value and json.loads(request.content.getvalue()) or {}
+							if verbose:
+								vprint ("[Content] {}".format(repr(data)))
 						else:
-							# JSON params
-							value = data.get (name)
-							value = type(default)(default if value == None else value)
-							assert (value != None)
-							return value
+							if verbose:
+								vprint ("[Content] {}".format(repr(request.args)))
 
-					# REST api
-					def api_rest ():
-						if request.method == "PUT":
-							if request.path == "/api/jobs":
-								job = db.newJob ((getArg ("parent",0)),
-												 (getArg("title","")),
-												 (getArg("command","")),
-												 (getArg("dir","")),
-												 (getArg("environment","")), 
-												 (getArg("state","WAITING")),
-												 (getArg("paused",0)),
-												 (getArg("timeout",1000)),
-												 (getArg("priority",1000)),
-												 (getArg("affinity", "")), 
-												 (getArg("user", "")),
-												 (getArg("url", "")),
-												 (getArg("progress_pattern", "")),
-												 (getArg("dependencies", [])))
-								return job['id']
+						def getArg(name, default):
+							if request.method == "GET":
+								# GET params
+								value = request.args.get(name, [default])[0]
+								value = type(default)(default if value == None else value)
+								assert(value != None)
+								return value
+							else:
+								# JSON params
+								value = data.get(name)
+								value = type(default)(default if value == None else value)
+								assert(value != None)
+								return value
 
-						elif request.method == "GET":
-							m = re.match(r"^/api/jobs/(\d+)$", request.path)
-							if m:
-								return db.getJob (int(m.group (1)))
+						def api_rest():
+							"""REST API."""
+							
+							# REST PUT API
+							if request.method == "PUT":
+								if request.path == "/api/jobs":
+									if grantAddJob(self.user, getArg("command","")):
+										job = db.newJob ((getArg("parent",0)),
+														 (getArg("title","")),
+														 (getArg("command","")),
+														 (getArg("dir","")),
+														 (getArg("environment","")), 
+														 (getArg("state","WAITING")),
+														 (getArg("paused",0)),
+														 (getArg("timeout",1000)),
+														 (getArg("priority",1000)),
+														 (getArg("affinity", "")), 
+														 (getArg("user", "")),
+														 (getArg("url", "")),
+														 (getArg("progress_pattern", "")),
+														 (getArg("dependencies", [])))
+										return job['id']
+									else:
+										return False
 
-							m = re.match(r"^/api/jobs/(\d+)/children$", request.path)
-							if m:
-								return db.getJobChildren (int(m.group (1)), {})
+							# REST GET API
+							elif request.method == "GET":
+								m = re.match(r"^/api/jobs/(\d+)$", request.path)
+								if m:
+									return db.getJob(int(m.group (1)))
+								m = re.match(r"^/api/jobs/(\d+)/children$", request.path)
+								if m:
+									return db.getJobChildren(int(m.group (1)), {})
+								m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
+								if m:
+									return db.getJobDependencies(int(m.group (1)))
+								m = re.match(r"^/api/jobs/(\d+)/childrendependencies$", request.path)
+								if m:
+									return db.getChildrenDependencyIds(int(m.group (1)))
+								m = re.match(r"^/api/jobs/(\d+)/log$", request.path)
+								if m:
+									return self.getLog(int(m.group (1)))
+								if request.path == "/api/jobs":
+									db.ldap_permission = ldapUserActionAllowed(self.user, "view")
+									return db.getJobChildren(0, {})
+								if request.path == "/api/workers":
+									return db.getWorkers()
+								if request.path == "/api/events":
+									return db.getEvents(getArg("job", -1), getArg("worker", ""), getArg("howlong", -1))
+								if request.path == "/api/affinities":
+									return db.getAffinities()
 
-							m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
-							if m:
-								return db.getJobDependencies (int(m.group (1)))
-
-							m = re.match(r"^/api/jobs/(\d+)/childrendependencies$", request.path)
-							if m:
-								return db.getChildrenDependencyIds (int(m.group (1)))
-
-							m = re.match(r"^/api/jobs/(\d+)/log$", request.path)
-							if m:
-								return self.getLog (int(m.group (1)))
-
-							if request.path == "/api/jobs":
-								return db.getJobChildren (0, {})
-
-							if request.path == "/api/workers":
-								return db.getWorkers ()
-
-							if request.path == "/api/events":
-								return db.getEvents (getArg ("job", -1), getArg ("worker", ""), getArg ("howlong", -1))
-
-							if request.path == "/api/affinities":
-								return db.getAffinities ()
-
-						elif request.method == "POST":
-							if request.path == "/api/jobs":
-								db.editJobs (data)
-								return 1
-
-							if request.path == "/api/workers":
-								db.editWorkers (data)
-								return 1
-
-							m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
-							if m:
-								db.setJobDependencies (int(m.group (1)), data)
-								return 1
-
-							if request.path == "/api/resetjobs":
-								for jobId in data:
-									db.resetJob (int(jobId))
-								return 1
-
-							if request.path == "/api/reseterrorjobs":
-								for jobId in data:
-									db.resetErrorJob (int(jobId))
-								return 1
-
-							if request.path == "/api/startjobs":
-								for jobId in data:
-									db.startJob (int(jobId))
-								return 1
-
-							if request.path == "/api/pausejobs":
-								for jobId in data:
-									db.pauseJob (int(jobId))
-								return 1
-
-							if request.path == "/api/stopworkers":
-								for name in data:
-									db.stopWorker (name)
-								return 1
-
-							if request.path == "/api/startworkers":
-								for name in data:
-									db.startWorker (name)
-								return 1
-
-							if request.path == "/api/affinities":
-								db.setAffinities (data)
-								return 1
-
-							if request.path == "/api/terminateworkers":
-								if servermode != "normal":
-									# Cloud mode
-									for name in data:
-										db.cloudmanager.stopInstance(name)
-										db._setWorkerState(name, "TERMINATED")
+							# REST POST API
+							elif request.method == "POST":
+								if request.path == "/api/jobs":
+									db.editJobs(data)
 									return 1
-								else:
-									return None
+								if request.path == "/api/workers":
+									db.editWorkers(data)
+									return 1
+								m = re.match(r"^/api/jobs/(\d+)/dependencies$", request.path)
+								if m:
+									db.setJobDependencies(int(m.group (1)), data)
+									return 1
+								if request.path == "/api/resetjobs":
+									for jobId in data:
+										db.resetJob(int(jobId))
+									return 1
+								if request.path == "/api/reseterrorjobs":
+									for jobId in data:
+										db.resetErrorJob(int(jobId))
+									return 1
+								if request.path == "/api/startjobs":
+									for jobId in data:
+										db.startJob(int(jobId))
+									return 1
+								if request.path == "/api/pausejobs":
+									for jobId in data:
+										db.pauseJob(int(jobId))
+									return 1
+								if request.path == "/api/stopworkers":
+									for name in data:
+										db.stopWorker(name)
+									return 1
+								if request.path == "/api/startworkers":
+									for name in data:
+										db.startWorker(name)
+									return 1
+								if request.path == "/api/affinities":
+									db.setAffinities(data)
+									return 1
+								if request.path == "/api/terminateworkers":
+									if servermode != "normal": # Cloud mode
+										for name in data:
+											db.cloudmanager.stopInstance(name)
+											db._setWorkerState(name, "TERMINATED")
+										return 1
+									else:
+										return None
 
-						elif request.method == "DELETE":
+							# REST DELETE API
+							elif request.method == "DELETE":
+								if request.path == "/api/jobs":
+									for jobId in data:
+										deletedJobs = []
+										db.deleteJob(int(jobId), deletedJobs)
+										for deleteJobId in deletedJobs:
+											self.deleteLog(deleteJobId)
+									return 1
+								if request.path == "/api/workers":
+									for name in data:
+										db.deleteWorker(name)
+									return 1
 
-							if request.path == "/api/jobs":
-								for jobId in data:
-									deletedJobs = []
-									db.deleteJob (int(jobId), deletedJobs)
-									for deleteJobId in deletedJobs:
-										self.deleteLog (deleteJobId)
-								return 1
-
-							if request.path == "/api/workers":
-								for name in data:
-									db.deleteWorker (name)
-								return 1
-
-
-					result = api_rest ()
-					if result != None:
-						# Only JSON right now
-						return json.dumps (result)
-					else:
-						# return server.NOT_DONE_YET
-						request.setResponseCode(404)
-						return "Web service not found"
-			return 'Authorization required!'
+						result = api_rest ()
+						if result != None:
+							# Only JSON right now
+							return json.dumps(result)
+						else:
+							# return server.NOT_DONE_YET
+							request.setResponseCode(404)
+							return "Web service not found."
+					except LdapError as error:
+						vprint(error)
+						request.setResponseCode(http.UNAUTHORIZED)
+			return "LDAP authorization required."
 
 	def getLog (self, jobId):
 		# Look for the job
@@ -579,9 +611,8 @@ class Master (xmlrpc.XMLRPC):
 		except OSError:
 			pass
 
-# Unauthenticated connection for workers
 class Workers(xmlrpc.XMLRPC):
-	"""    """
+	"""Unauthenticated XMLRPC connection for workers."""
 
 	def render (self, request):
 		with db:
@@ -635,8 +666,8 @@ class Workers(xmlrpc.XMLRPC):
 	def json_endjob (self, hostname, jobId, errorCode, ip):
 		return str (db.endJob (hostname, int(jobId), int(errorCode), str(ip)))
 
-# Listen to an UDP socket to respond to the workers broadcast
 def listenUDP():
+	"""Listen to UDP socket to respond to the workers broadcast."""
 	from socket import SOL_SOCKET, SO_BROADCAST
 	from socket import socket, AF_INET, SOCK_DGRAM, error
 	s = socket (AF_INET, SOCK_DGRAM)
@@ -649,7 +680,7 @@ def listenUDP():
 			pass
 
 def main():
-	# Start the UDP server used for the broadcast
+	"""Start the UDP server used for the broadcast."""
 	thread.start_new_thread (listenUDP, ())
 
 	from twisted.internet import reactor

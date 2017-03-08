@@ -78,6 +78,7 @@ $(document).ready(function()
 	renderAffinities ();
 	showPage ("jobs");
 	timer=setTimeout(timerCB,4000);
+	renderLogoutButton();
 });
 
 function showHideTools ()
@@ -164,7 +165,7 @@ function renderLog (jobId)
 {
     showPage ("logs");
 	logId = jobId;
-    $.ajax({ type: "GET", url: "/api/jobs/"+jobId+"/log", dataType: "json", success: 
+    $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+jobId+"/log", dataType: "json", success: 
         function (data) 
         {
 	        $("#logs").empty();
@@ -193,7 +194,7 @@ function clearWorkers ()
 {
 	if (confirm("Do you really want to delete the selected workers?"))
 	{
-        $.ajax({ type: "DELETE", url: "/api/workers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
+        $.ajax({ type: "DELETE", url: "/api/webfrontend/workers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
             function () 
             {
     	        selectedWorkers = {}
@@ -237,7 +238,7 @@ function timerCB ()
 
 function refresh ()
 {
-    document.getElementById("refreshbutton").className = "refreshing";
+  document.getElementById("refreshbutton").className = "refreshing";
 	if (page == "jobs")
 		reloadJobs ();
 	else if (page == "workers") 
@@ -513,93 +514,93 @@ function logSelection ()
 // Ask the server for the jobs and render them
 function reloadJobs ()
 {
-    parents = [];
-    var tag = document.getElementById("filterJobs").value;
-    var affinity = document.getElementById("filterJobsAffinity").value;
-    var title = document.getElementById("filterJobsTitle").value;
-    tag = tag == "NONE" ? "" : tag;
-    var data = {filter:tag}
-    $.ajax({ type: "GET", url: "/api/jobs/"+viewJob+"/children", data: JSON.stringify(data), dataType: "json", success: 
+  parents = [];
+  var tag = document.getElementById("filterJobs").value;
+  var affinity = document.getElementById("filterJobsAffinity").value;
+  var title = document.getElementById("filterJobsTitle").value;
+  tag = tag == "NONE" ? "" : tag;
+  var data = {filter:tag}
+  $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+viewJob+"/children", data: JSON.stringify(data), dataType: "json", success: 
+    function(data) 
+    {
+      if (tag != "" || title != "" || affinity != "")
+      {
+        var newdata = [];
+        for (i = 0; i < data.length; ++i)
+        {
+          var	filtered = true;
+          if (tag != "" && data[i].state != tag)
+            filtered = false;
+          if (title != "" && data[i].title.search (title) < 0)
+            filtered = false;
+          if (affinity != "" && data[i].affinity.search (affinity) < 0)
+            filtered = false;
+          if (filtered)
+            newdata.push (data[i]);
+        }
+        data = newdata;
+
+      }
+      jobs = data;
+
+      var	idtojob = {}
+      for (i = 0; i < jobs.length; ++i)
+      {
+        var job = jobs[i]
+        idtojob[job.id] = job
+        job.dependencies = []
+      }
+
+      $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+viewJob+"/childrendependencies", dataType: "json", success: 
         function(data) 
         {
-        	if (tag != "" || title != "" || affinity != "")
-        	{
-        		var newdata = [];
-        		for (i = 0; i < data.length; ++i)
-        		{
-        			var	filtered = true;
-        			if (tag != "" && data[i].state != tag)
-        				filtered = false;
-        			if (title != "" && data[i].title.search (title) < 0)
-        				filtered = false;
-        			if (affinity != "" && data[i].affinity.search (affinity) < 0)
-        				filtered = false;
-        			if (filtered)
-        				newdata.push (data[i]);
-        		}
-        		data = newdata;
+          for (var i = 0; i < data.length; ++i)
+          {
+            var	job = idtojob[data[i].id];
+            if (job)
+              job.dependencies.push (data[i].dependency);
+          }
 
-        	}
-			jobs = data;
+          for (var i = 0; i < jobs.length; ++i)
+          {
+            var	job = jobs[i];
+            job.dependencies = job.dependencies.join (",");
+          }
 
-			var	idtojob = {}
-			for (i = 0; i < jobs.length; ++i)
-			{
-				var job = jobs[i]
-				idtojob[job.id] = job
-				job.dependencies = []
-			}
+          renderJobs ();
 
-			$.ajax({ type: "GET", url: "/api/jobs/"+viewJob+"/childrendependencies", dataType: "json", success: 
-				function(data) 
-				{
-					for (var i = 0; i < data.length; ++i)
-					{
-						var	job = idtojob[data[i].id];
-						if (job)
-							job.dependencies.push (data[i].dependency);
-					}
-
-					for (var i = 0; i < jobs.length; ++i)
-					{
-						var	job = jobs[i];
-						job.dependencies = job.dependencies.join (",");
-					}
-
-			        renderJobs ();
-
-//					for (i = 0; i < jobs.length; ++i)
-//						$("#job"+jobs[i].id+"Deps").text (jobs[i].dependencies)
-		            document.getElementById("refreshbutton").className = "refreshbutton";
-				}
-			});
+          //					for (i = 0; i < jobs.length; ++i)
+          //						$("#job"+jobs[i].id+"Deps").text (jobs[i].dependencies)
+          document.getElementById("refreshbutton").className = "refreshbutton";
         }
-    });
-
-    function getParent (id)
-    {
-    	if (id == 0)
-    	{
-    		parents.unshift ({id:0,title:"Root"});
-        	renderParents ();
-    	}
-    	else
-    	{
-		    $.ajax({ type: "GET", url: "/api/jobs/"+id, data: JSON.stringify(data), dataType: "json", success: 
-		        function(data) 
-		        {
-			        parents.unshift (data);
-			        getParent (data.parent);
-		        }
-		    });
-    	}
+      });
     }
-    getParent (viewJob)
+  });
+
+  function getParent (id)
+  {
+    if (id == 0)
+    {
+      parents.unshift ({id:0,title:"Root"});
+      renderParents ();
+    }
+    else
+    {
+      $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+id, data: JSON.stringify(data), dataType: "json", success: 
+        function(data) 
+        {
+          parents.unshift (data);
+          getParent (data.parent);
+        }
+      });
+    }
+  }
+  getParent (viewJob)
 }
 
 function startWorkers ()
 {
-    $.ajax({ type: "POST", url: "/api/startworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/api/webfrontend/startworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
         function () 
         {
         	reloadWorkers ();
@@ -609,7 +610,7 @@ function startWorkers ()
 
 function stopWorkers ()
 {
-    $.ajax({ type: "POST", url: "/api/stopworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/api/webfrontend/stopworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
         function () 
         {
         	reloadWorkers ();
@@ -639,7 +640,7 @@ function terminateWorkers ()
 {
 	if (confirm("Do you really want to terminate the selected worker instances?"))
 	{
-		$.ajax({ type: "POST", url: "/api/terminateworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
+		$.ajax({ type: "POST", url: "/api/webfrontend/terminateworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
 			function () 
 			{
 				reloadWorkers ();
@@ -753,7 +754,7 @@ function sendSelectionPropChanges (list, idName, values, props, objects, selecte
     	return;
 
     // One single call
-    $.ajax({ type: "POST", url: "/api/"+objects.toLowerCase(), data: JSON.stringify(data), dataType: "json", success:
+    $.ajax({ type: "POST", url: "/api/webfrontend/"+objects.toLowerCase(), data: JSON.stringify(data), dataType: "json", success:
         function ()
         {
             for (i = 0; i < props.length; ++i)
@@ -800,7 +801,7 @@ function updateworkers ()
 
 function reloadWorkers ()
 {
-    $.ajax({ type: "GET", url: "/api/workers", dataType: "json", success: 
+    $.ajax({ type: "GET", url: "/api/webfrontend/workers", dataType: "json", success: 
         function (data) 
         {
 	        workers = data;
@@ -936,7 +937,7 @@ function reloadActivities ()
     if (worker != "")
         data.worker = worker
     data.howlong = $('#howlong').attr("value")
-    $.ajax({ type: "GET", url: "/api/events", data: data, dataType: "json", success: 
+    $.ajax({ type: "GET", url: "/api/webfrontend/events", data: data, dataType: "json", success: 
         function (data) 
         {
 	        activities = data;
@@ -1076,7 +1077,7 @@ function onchangeaffinityprop (affinity)
 
 function updateAffinities ()
 {
-    $.ajax({ type: "GET", url: "/api/affinities", dataType: "json", success: 
+    $.ajax({ type: "GET", url: "/api/webfrontend/affinities", dataType: "json", success: 
         function (data) 
         {
 	        affinities = data;
@@ -1103,7 +1104,7 @@ function sendAffinities ()
 	}
 
 	var data = JSON.stringify(affinities)
-    $.ajax({ type: "POST", url: "/api/affinities", data: data, dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/api/webfrontend/affinities", data: data, dataType: "json", success: 
         function (data) 
         {
 			updateAffinities ();
@@ -1142,31 +1143,33 @@ function updatejobs ()
     );
 }
 
-function addjob ()
-{
-	dependencies = $.trim($('#dependencies').attr("value"));
-	dependencies = dependencies.split(',')
-	dependencies = dependencies != "" ? dependencies : []
-    var data = {
-        title:$('#title').attr("value"),
-        command:$('#cmd').attr("value"),
-        dir:$('#dir').attr("value"), 
-        env:$('#env').attr("value"), 
-        priority:$('#priority').attr("value"), 
-        timeout:$('#timeout').attr("value"),
-        affinity:$('#affinity').attr("value"),
-        dependencies:dependencies,
-        user:$('#user').attr("value"),
-        url:$('#url').attr("value"),
-        parent:viewJob
-    };
-    $.ajax({ type: "PUT", url: "/api/jobs", data: JSON.stringify(data), dataType: "json", success: 
-        function () 
-        {
-    		setSelectionDefaultProperties (JobProps);
-            reloadJobs ();
-        }
-    });
+function addjob() {
+  dependencies = $.trim($('#dependencies').attr("value"));
+  dependencies = dependencies.split(',');
+  dependencies = dependencies != "" ? dependencies : []
+	var data = {
+    title: $('#title').attr("value"),
+    command: $('#cmd').attr("value"),
+    dir: $('#dir').attr("value"), 
+    env: $('#env').attr("value"), 
+    priority: $('#priority').attr("value"), 
+    timeout: $('#timeout').attr("value"),
+    affinity: $('#affinity').attr("value"),
+    dependencies: dependencies,
+    user: $('#user').attr("value"),
+    url: $('#url').attr("value"),
+    parent: viewJob
+  };
+  $.ajax({
+    type: "PUT",
+    url: "/api/webfrontend/jobs",
+    data: JSON.stringify(data),
+    dataType: "json",
+    success: function () {
+      setSelectionDefaultProperties (JobProps);
+      reloadJobs ();
+    }
+  });
 }
 
 function selectJobs ()
@@ -1337,7 +1340,7 @@ function removeSelection ()
 			if (selectedJobs[job.id])
 			    data.push (job.id);
 		}
-        $.ajax({ type: "DELETE", url: "/api/jobs", data: JSON.stringify(data), dataType: "json", success: 
+        $.ajax({ type: "DELETE", url: "/api/webfrontend/jobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
             {
         		selectedJobs = {};
@@ -1357,7 +1360,7 @@ function startSelection ()
 		if (selectedJobs[job.id])
 		    data.push (job.id);
 	}
-    $.ajax({ type: "POST", url: "/api/startjobs", data: JSON.stringify(data), dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/api/webfrontend/startjobs", data: JSON.stringify(data), dataType: "json", success: 
         function () 
         {
     	    reloadJobs ();
@@ -1386,7 +1389,7 @@ function resetSelection ()
 			if (selectedJobs[job.id])
 			    data.push (job.id);
 		}
-        $.ajax({ type: "POST", url: "/api/resetjobs", data: JSON.stringify(data), dataType: "json", success: 
+        $.ajax({ type: "POST", url: "/api/webfrontend/resetjobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
             {
         	    reloadJobs ();
@@ -1406,7 +1409,7 @@ function resetErrorSelection ()
 			if (selectedJobs[job.id])
 			    data.push (job.id);
 		}
-        $.ajax({ type: "POST", url: "/api/reseterrorjobs", data: JSON.stringify(data), dataType: "json", success: 
+        $.ajax({ type: "POST", url: "/api/webfrontend/reseterrorjobs", data: JSON.stringify(data), dataType: "json", success: 
             function () 
             {
         	    reloadJobs ();
@@ -1424,7 +1427,7 @@ function pauseSelection ()
 		if (selectedJobs[job.id])
 		    data.push (job.id);
 	}
-    $.ajax({ type: "POST", url: "/api/pausejobs", data: JSON.stringify(data), dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/api/webfrontend/pausejobs", data: JSON.stringify(data), dataType: "json", success: 
         function () 
         {
     	    reloadJobs ();
@@ -1462,10 +1465,54 @@ function pasteSelection ()
     var data = {}
 	for (var id in cutJobs)
 		data[id] = {parent:viewJob}
-    $.ajax({ type: "POST", url: "/api/jobs", data: JSON.stringify(data), dataType: "json", success: 
+    $.ajax({ type: "POST", url: "/api/webfrontend/jobs", data: JSON.stringify(data), dataType: "json", success: 
         function () 
         {
     	    reloadJobs ();
         }
     });
+}
+
+/* logout functions */
+function renderLogoutButton() {
+  var userName = getCookie("authenticated_user");
+	if ( userName != "" )
+		$("#logout-button").html('<input type="button" class="button" onClick="onLogout()" value="Logout '+userName+'"/>');
+}
+
+function onLogout() {
+  /* Set the auth user to "logout" and get a 401 error response to reset the cached crendentials */
+	$.ajax({
+		type: "POST",
+		url: "/api/webfrontend/logout",
+		username: "logout",
+		error: function() {
+	    window.location = "/";
+      /* expiration time set to 0 to delete the cookie */
+			setCookie("authenticated_user", "", 0);
+		}
+	})
+}
+
+/* Cookie functions */
+function setCookie(cname, cvalue, exp) {
+    var d = new Date();
+    d.setTime(exp);
+    var expires = "expires="+d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+}
+
+function getCookie(cname) {
+    var name = cname + "=";
+    var ca = document.cookie.split(';');
+    for(var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
 }
