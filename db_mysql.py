@@ -9,6 +9,7 @@ class DBMySQL(DBSQL):
 		self.Conn.ping(True)
 		# super is called *after* because DBSQL inits stuffs in the DB
 		super(DBMySQL, self).__init__ ()
+
 	def install (self):
 		with self.Conn:
 			cur = self.Conn.cursor()
