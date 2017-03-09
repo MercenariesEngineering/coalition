@@ -4,8 +4,14 @@ Cloud mode
 .. toctree::
     :maxdepth: 3
 
-.. automodule:: cloud
+common.py
+---------
+
+.. automodule:: coalition.cloud.common
     :members:
-    :undoc-members:
-    :show-inheritance:
-    :imported-members:
+
+aws.py
+------
+
+.. automodule:: coalition.cloud.aws
+    :members:
