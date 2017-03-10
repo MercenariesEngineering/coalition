@@ -25,8 +25,6 @@ class DBSQL(DB):
 		self.Verbose = False
 		self.NotifyFinished = None
 		self.NotifyError = None
-		self.Workers = dict()
-		self.AffinityBitsToName = dict()
 
 		tables = self._getDatabaseTables()
 
@@ -424,12 +422,7 @@ class DBSQL(DB):
 
 	def _getDatabaseType(self):
 		"""Get the database type."""
-		if self.config.has_option("server", "db_type"):
-			if self.config.get("server", "db_type") == "mysql":
-				db_type = "mysql"
-		else:
-			db_type = "sqlite"
-		return db_type
+		return self.config.get("server", "db_type")
 
 	def _getDatabaseTables(self):
 		"""Return list of database tables."""
@@ -441,56 +434,6 @@ class DBSQL(DB):
 			req = "SELECT name FROM	sqlite_master WHERE type = 'table';"
 		self._execute(cur, req)
 		return cur.fetchall()
-
-	def _getDatabaseVersion(self):
-		"""Return database version."""
-		cur = self.Conn.cursor()
-		tables = self._getDatabaseTables()
-		if not ("Migrations",) in tables:
-			current_version = [("0000",)]
-		else:
-			req = "SELECT database_version FROM Migrations;"
-			self._execute(cur, req)
-			current_version = cur.fetchall()
-		return int(current_version[0][0])
-
-	def _getMigrationVersion(self):
-		"""Return latest migration version."""
-		return int(max([re.sub(r'_.*$', '', f) for f in
-			os.walk("migrations").next()[2]]))
-
-	def initDatabase(self):
-		"""Initialize the database."""
-		if len(self._getDatabaseTables()):
-			print("The database is not empty, it will not be initialized.")
-			return False
-		print("Initializing database.")
-		return self.migrateDatabase(init=True)
-
-	def migrateDatabase(self, init=False):
-		"""Migrate the database."""
-		db_type = self._getDatabaseType()
-		current = self._getDatabaseVersion()
-		target = self._getMigrationVersion()
-		if init:
-			# Init with the '0000' migration
-			current -= 1
-		cur = self.Conn.cursor()
-		print("The database version is {current} and the migration target is {target}. Migrating.".format(current=current, target=target))
-		while current < target:
-			current += 1
-			migration_module_name = "{current:04d}_db_{db_type}".format(current=current, db_type=db_type)
-			migration_module = import_module("migrations.{}".format(migration_module_name))
-			with self.Conn:
-				for step in migration_module.steps:
-					self._execute(cur, step.strip())
-		if init:
-			with self.Conn:
-				for i in range(1, 64):
-					self._execute(cur, dedent("""
-					INSERT INTO Affinities (id, name)
-					VALUES ('{}', '')""".format(i)))
-		return True
 
 	def moveJob (self, jobId, parent):
 		cur = self.Conn.cursor ()
@@ -1068,13 +1011,6 @@ class DBSQL(DB):
 					self.cloudmanager.stopInstance(name)
 					if self.Verbose:
 						print("[CLOUD] Terminating instance %s" % name)
-
-	def requiresMigration(self):
-		"""
-		Check if database requires migration.
-		Returns a boolean.
-		"""
-		return self._getDatabaseVersion() < self._getMigrationVersion()
 
 	def reset (self):
 		cur = self.Conn.cursor ()
