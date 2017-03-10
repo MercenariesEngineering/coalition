@@ -25,6 +25,8 @@ class DBSQL(DB):
 		self.Verbose = False
 		self.NotifyFinished = None
 		self.NotifyError = None
+		self.Workers = dict()
+		self.AffinityBitsToName = dict()
 
 		tables = self._getDatabaseTables()
 
