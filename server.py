@@ -57,8 +57,6 @@ def usage():
 	print ("  -h, --help\t\tShow this help")
 	print ("  -p, --port=PORT\tPort used by the server (default: "+str(port)+")")
 	print ("  -v, --verbose\t\tIncrease verbosity")
-	print ("  --init\t\tInitialize the database")
-	print ("  --migrate\t\tMigrate the database with interactive confirmation")
 	print ("  --reset\t\tReset the database (warning: all previous data are lost)")
 	if sys.platform == "win32":	
 		print ("  -c, --console=\t\tRun as a windows console application")
@@ -139,11 +137,6 @@ def notifyFirstFinished (job):
 	if job['user'] :
 		sendEmail (job['user'], 'The job ' + job['title'] + ' (' + str(job['id']) + ') has finished ' + str(notifyafter) + ' jobs.')
 
-def _interactiveConfirmation(confirmation_sentence="Yes I know what I'm doing."):
-	"""Ask the user for confirmation."""
-	text = "Please write this sentence then press enter to confirm:\n"+confirmation_sentence+'\n'
-	answer = raw_input(text)
-	if answer == confirmation_sentence:
 		return True
 	return False
 
@@ -666,7 +659,6 @@ service = service and sys.platform == "win32"
 
 migratedb = False
 resetdb = False
-initdb = False
 
 # Cloud mode
 servermode = cfgStr ('servermode', 'normal')
@@ -685,7 +677,7 @@ else:
 # Parse the options
 try:
 	opts, args = getopt.getopt(sys.argv[1:], "hp:vcs", ["help", "port=",
-		"verbose", "init", "migrate", "reset"])
+		"verbose", "reset"])
 	if len(args) != 0:
 		usage()
 		sys.exit(2)
@@ -706,8 +698,6 @@ for o, a in opts:
 		migratedb = True
 	elif o in ("--reset"):
 		resetdb = True
-	elif o in ("--init"):
-		initdb = True
 	else:
 		assert False, "unhandled option " + o
 
@@ -744,48 +734,7 @@ db.NotifyError = notifyError
 db.NotifyFinished = notifyFinished
 db.Verbose = verbose
 
-if initdb:
-	vprint ("[Init] Initial database setup")
-	if not db.initDatabase():
-		exit(1)
-
-if not len(db._getDatabaseTables()):
-	vprint(dedent("""
-	The database is empty. It should be initialized first using 'python
-	server.py --verbose --init'."""))
-	exit(1)
-
 with db:
-	requires_migration = db.requiresMigration()
-	if not migratedb and requires_migration:
-		print(dedent("""
-		Coalition cannot start since the database schema and the source code
-		are not compatible. The database needs to be migrated. First the
-		database should be backuped in case the migration fails. Then, the
-		command 'coalition server.py --verbose --migrate' should be run.
-		Another option is to install the previous version of coalition code
-		that worked with the current database schema."""))
-		exit(1)
-
-	if migratedb and not requires_migration:
-		print(dedent("""
-		The database does not require migration, but the '--migrate' parameter was provided."""))
-		exit(1)
-
-	if requires_migration and migratedb:
-		print(dedent("""
-		Please consider doing a backup of the database first. Are you ready to proceed?"""))
-		if _interactiveConfirmation("Yes, proceed to migration!"):
-			success = db.migrateDatabase()
-			if success:
-				print("Database migration was successfull.")
-				exit(0)
-			else:
-				print("A problem occured during the database migration.")
-				exit(1)
-		else:
-			print("Database migration was cancelled by user.")
-			exit(0)
 
 	if resetdb:
 		db.reset ()
