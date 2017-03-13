@@ -170,7 +170,7 @@ class DBSQL(DB):
 		if affinity_bits in self.AffinityBitsToName:
 			return self.AffinityBitsToName[affinity_bits]
 		names = []
-		aff = self.getAffinities ()
+		aff = self.getAffinities()
 		for id, name in aff.iteritems ():
 			bit = (1L << (id-1))
 			if affinity_bits & bit != 0:
@@ -193,7 +193,7 @@ class DBSQL(DB):
 		if data is None:
 			data = [-1, 0, 0, False, '']
 		if data[4] != '':
-			print ("Error: can't add job, parent %d is not a group" % parent)
+			print ("Error : can't add job, parent %d is not a group" % parent)
 			return None
 		# one depth below
 		h_depth = data[0]+1
@@ -627,7 +627,7 @@ class DBSQL(DB):
 
 	def setWorkerAffinity (self, name, affinity):
 		cur = self.Conn.cursor ()
-    	# Delete all the worker's affinities
+		# Delete all the worker's affinities
 		self._execute( cur, "DELETE FROM WorkerAffinities WHERE worker_name = '%s'" % ( name ) )
 
 		if len( affinity ) > 0:
@@ -732,26 +732,26 @@ class DBSQL(DB):
 	def pickJob (self, hostname, cpu, free_memory, total_memory, ip):
 		self.PickJobs += 1
 		current_time = int(time.time())
-		cur = self.Conn.cursor ()
+		cur = self.Conn.cursor()
 
-		self._updateWorkerInfo (hostname, cpu, free_memory, total_memory, ip)
+		self._updateWorkerInfo(hostname, cpu, free_memory, total_memory, ip)
 
 		# get the worker active and state
-		self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
-		worker = cur.fetchone ()
+		self._execute(cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+		worker = cur.fetchone()
 		if worker is None:
-			self.newWorker (hostname)
-			self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
-			worker = cur.fetchone ()
+			self.newWorker(hostname)
+			self._execute(cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+			worker = cur.fetchone()
 
 		# check the worker is not already working
 		# this can happen if the worker crashed and restarted before
 		# timeout is detected
 		if worker[1] == "WORKING":
 			# reset all working jobs assigned to this worker
-			self._execute (cur, "SELECT id FROM Jobs WHERE state = 'WORKING' and worker = '%s'" % hostname)
+			self._execute(cur, "SELECT id FROM Jobs WHERE state = 'WORKING' and worker = '%s'" % hostname)
 			for job in cur:
-				self._setJobState (job[0], "WAITING", True)
+				self._setJobState(job[0], "WAITING", True)
 
 		# worker is not active, drop now
 		if not worker[0]:
@@ -789,8 +789,8 @@ class DBSQL(DB):
 
 			job = cur.fetchone ()
 
-		if job is None: # Finally, return nothing if there is no job.
-			return -1,"","","",None
+			if job is None: # Finally, return nothing if there is no job.
+				return -1, "", "", "", None
 
 		# update the job and worker
 		id = job[0]
@@ -882,7 +882,7 @@ class DBSQL(DB):
 				self._updateDependentJobsState (id)
 				self._updateChildren (id)
 				if updateCounters:
-	 				self._updateJobCounters (job[1])
+					self._updateJobCounters (job[1])
 
 	# recompute the whole job hierarchy counters
 	def _resetJobCounters (self, id, updateParent = True):

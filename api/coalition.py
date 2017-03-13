@@ -2,6 +2,13 @@
 
 import httplib, urllib, json, sys
 
+
+class CoalitionError(Exception):
+	pass
+
+
+
+
 class Connection(object):
 	"""A connection to the coalition server.
 
@@ -12,9 +19,9 @@ class Connection(object):
 	def __init__(self, host='localhost', port=19211):
 		"""Setup http connection."""
 		self.IntoWith = False
-		self._Conn = httplib.HTTPConnection(host, port)
+		self._Conn = httplib.HTTPConnection (host, port)
 
-	def _send(self, method, command, params=None):
+	def _send (self, method, command, params=None):
 		"""Send message to server.
 		
 		:param str method: Http request method between "GET", "PUT", "POST" and "DELETE".
@@ -25,14 +32,14 @@ class Connection(object):
 		"""
 
 		if params:
-			params = json.dumps(params)
+			params = json.dumps (params)
 		headers = {'Content-Type': 'application/json'}
-		self._Conn.request(method, command, params, headers)
+		self._Conn.request (method, command, params, headers)
 		res = self._Conn.getresponse()
 		if res.status == 200:
-			return res.read()
+			return res.read ()
 		else:
-			raise CoalitionError(res.read())
+			raise CoalitionError (res.read())
 
 	def newJob(self, parent=0, title='', command='', dir='', environment='',
 			state="WAITING", paused=False, priority=1000, timeout=0,
@@ -54,13 +61,13 @@ class Connection(object):
 		:return: The :class:`Job` id.
 		:rtype: int
 		"""
-
-		params = locals().copy()
+				
+		params = locals().copy ()
 		del params['self']
-		res = self._send("PUT", '/api/jobs', params)
+		res = self._send ("PUT", '/api/jobs', params)
 		return int(res)
 
-	def getJob(self, id):
+	def getJob (self, id):
 		"""Get a :class:`Job` instance.
 
 		:param int id: The id of the :class:`Job`.
@@ -69,7 +76,7 @@ class Connection(object):
 		"""
 
 		res = self._send('GET', '/api/jobs/' + str(id))
-		return Job(json.loads(res), self)
+		return Job (json.loads(res), self)
 
 	def getJobChildren (self, id):
 		"""Get :class:`Job` children instances.
@@ -219,8 +226,6 @@ class Job(object):
 				raise CoalitionError("Can't write attributes outside a connection block")
 		super(Job, self).__setattr__(attr, value)
 
-
-# FIXME add pagination
 
 class CoalitionError(Exception):
 	pass
