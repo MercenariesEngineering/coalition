@@ -3,6 +3,6 @@ configparser
 Twisted
 MySQL-python
 python-ldap
-Sphinx
+#Sphinx
 sphinxcontrib.httpdomain
 sphinx_rtd_theme
