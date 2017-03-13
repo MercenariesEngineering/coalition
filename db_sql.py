@@ -454,11 +454,23 @@ class DBSQL(DB):
 		return int(max([re.sub(r'_.*$', '', f) for f in
 			os.walk("migrations").next()[2]]))
 
+	def _getDatabaseDataCount(self):
+		datacount = 0
+		cur = self.Conn.cursor()
+		for table in self._getDatabaseTables():
+			req = "SELECT COUNT(*) FROM {}".format(table[0])
+			self._execute(cur, req)
+			fetched = cur.fetchone()
+			if fetched:
+				datacount += fetched[0]
+		return datacount
+
 	def initDatabase(self):
 		"""Initialize the database."""
 		if len(self._getDatabaseTables()):
-			print("The database is not empty, it will not be initialized.")
-			return False
+			if self._getDatabaseDataCount() != 0:
+				print("The database is not empty, it will not be initialized.")
+				return False
 		print("Initializing database.")
 		return self.migrateDatabase(init=True)
 
@@ -1079,6 +1091,8 @@ class DBSQL(DB):
 		self._execute (cur, "DELETE FROM Events");
 		self._execute (cur, "DELETE FROM Affinities");
 		self._execute (cur, "DELETE FROM WorkerAffinities");
+		print("[SQL] Database has been reset.")
+		exit(0)
 
 
 # vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
