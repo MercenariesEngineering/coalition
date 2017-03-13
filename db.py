@@ -1,4 +1,7 @@
+# -*- coding: utf-8 -*-
+
 import time
+
 
 class DB(object):
 	def __init__(self):
@@ -20,11 +23,12 @@ class DB(object):
 	def __exit__ (self, type, value, traceback):
 		self.IntoWith = False
 		if not isinstance(value, TypeError):
-			self.editJobs (self.JobsToUpdate)
-			self.editWorkers (self.WorkersToUpdate)
+			self.editJobs(self.JobsToUpdate)
+			self.editWorkers(self.WorkersToUpdate)
 
 	def getRoot (self):
 		return Job (self, 0, 0, "Root", "", "", "", "", "", 0, 0, 0, 0, 0, 0,  0, "", "", 0, 0, 0, 0, 0, 0, 0, "", "", "")
+
 
 class Worker(object):
 	'''
@@ -92,3 +96,7 @@ class Job(object):
 	def __getattr__(self, attr):
 		data = super (object, self).__getattr__ ('data')
 		return data[attr]
+
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
+

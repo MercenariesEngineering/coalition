@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import worker
 
 # Windows Service
@@ -32,3 +35,6 @@ class WindowsService(win32serviceutil.ServiceFramework):
 			gogogo = False
 
 win32serviceutil.HandleCommandLine(WindowsService)
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
+

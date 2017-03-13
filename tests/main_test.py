@@ -35,9 +35,10 @@ def launch_server():
 	"""Launch a coalition server."""
 	# The --init parameter prevents database overwriting. The database has to be
 	# initially empty.
-	cmd = ["python", "server.py", "--init"]
-	#cmd = ["python", "server.py", "--verbose"]
+	#cmd = ["python", "server.py", "--init"]
+	cmd = ["python", "server.py", "--verbose"]
 	return subprocess.Popen(cmd)
+
 
 def launch_worker(identifier):
 	"""Launch coalition worker."""
@@ -120,7 +121,7 @@ class ServerPythonApiTestCase(unittest.TestCase):
 		new_workers[workers[0]['name']]['affinity'] = "windows\nlinux"
 		new_workers[workers[1]['name']] = dict()
 		new_workers[workers[1]['name']]['affinity'] = "windows project\nwin\ndos"
-		self.assertEqual(self.conn.editWorkers(new_workers), None)
+		self.assertEqual(self.conn.editWorkers(new_workers), '1')
 
 	def test_priorities(self):
 		firstSleepJob = self.conn.getJob(self.firstSleepJobId)

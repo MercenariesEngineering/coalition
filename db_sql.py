@@ -170,9 +170,9 @@ class DBSQL(DB):
 		if affinity_bits in self.AffinityBitsToName:
 			return self.AffinityBitsToName[affinity_bits]
 		names = []
-		aff = self.getAffinities()
+		aff = self.getAffinities ()
 		for id, name in aff.iteritems ():
-			bit = (1L << (id-1));
+			bit = (1L << (id-1))
 			if affinity_bits & bit != 0:
 				if name != '':
 					names.append (name)
@@ -193,7 +193,7 @@ class DBSQL(DB):
 		if data is None:
 			data = [-1, 0, 0, False, '']
 		if data[4] != '':
-			print ("Error : can't add job, parent %d is not a group" % parent)
+			print ("Error: can't add job, parent %d is not a group" % parent)
 			return None
 		# one depth below
 		h_depth = data[0]+1
@@ -268,6 +268,48 @@ class DBSQL(DB):
 		rows = cur.fetchall()
 		return [self._rowAsDict (cur, row) for row in rows]
 
+	def getCountJobsWhere(self, where_clause=''):
+		"""Get the number of matching jobs."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT COUNT(*) FROM Jobs WHERE {}".format(where_clause[0]))
+		return cur.fetchone()[0]
+
+	def getJobsWhere(self, where_clause='', index_min=0, index_max=1):
+		"""Get Jobs via a readonly SQL request."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT * FROM Jobs WHERE {} LIMIT {},{}".format(where_clause, index_min, index_max))
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsUsers(self):
+		"""Get users."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT user FROM Jobs ORDER BY user")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsStates(self):
+		"""Get States."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT state FROM Jobs")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsWorkers(self):
+		"""Get States."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT worker FROM Jobs")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsPriorities(self):
+		"""Get States."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT priority FROM Jobs")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
+	def getJobsAffinities(self):
+		"""Get States."""
+		cur = self.Conn.cursor()
+		self._execute(cur, "SELECT DISTINCT affinity FROM Jobs")
+		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
+
 	def getChildrenDependencyIds (self, id):
 		cur = self.Conn.cursor ()
 		self._execute (cur, "SELECT job.id AS id, dep.dependency AS dependency FROM Dependencies AS dep "
@@ -299,7 +341,7 @@ class DBSQL(DB):
 			return worker
 
 		for data in cur:
-			affinities.append( self.getAffinityString( data ) )
+			affinities.append( self.getAffinityString( data[0] ) )
 
 		worker['affinity'] = "\n".join( affinities )
 		return worker
@@ -339,7 +381,6 @@ class DBSQL(DB):
 				affinities.append( self.getAffinityString( d[0] ) )
 
 			worker['affinity'] = "\n".join( affinities )
-			print worker['affinity']
 			worker['start_time'] = self.getWorkerStartTime(worker['name'])
 			workers.append (worker)
 		return workers
@@ -470,7 +511,7 @@ class DBSQL(DB):
 		if len(self._getDatabaseTables()):
 			if self._getDatabaseDataCount() != 0:
 				print("The database is not empty, it will not be initialized.")
-				return False
+			return False
 		print("Initializing database.")
 		return self.migrateDatabase(init=True)
 
@@ -586,7 +627,7 @@ class DBSQL(DB):
 
 	def setWorkerAffinity (self, name, affinity):
 		cur = self.Conn.cursor ()
-		# Delete all the worker's affinities
+    	# Delete all the worker's affinities
 		self._execute( cur, "DELETE FROM WorkerAffinities WHERE worker_name = '%s'" % ( name ) )
 
 		if len( affinity ) > 0:
@@ -597,7 +638,6 @@ class DBSQL(DB):
 
 				query = "INSERT INTO WorkerAffinities ( worker_name, affinity, ordering ) VALUES( '%s', %d, %d )" % ( name, self.getAffinityMask( aff ), index+1 )
 				self._execute( cur, query )
-
 
 	def stopWorker (self, name):
 		cur = self.Conn.cursor ()
@@ -692,26 +732,26 @@ class DBSQL(DB):
 	def pickJob (self, hostname, cpu, free_memory, total_memory, ip):
 		self.PickJobs += 1
 		current_time = int(time.time())
-		cur = self.Conn.cursor()
+		cur = self.Conn.cursor ()
 
-		self._updateWorkerInfo(hostname, cpu, free_memory, total_memory, ip)
+		self._updateWorkerInfo (hostname, cpu, free_memory, total_memory, ip)
 
 		# get the worker active and state
-		self._execute(cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
-		worker = cur.fetchone()
+		self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+		worker = cur.fetchone ()
 		if worker is None:
-			self.newWorker(hostname)
-			self._execute(cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
-			worker = cur.fetchone()
+			self.newWorker (hostname)
+			self._execute (cur, "SELECT active, state, last_job FROM Workers WHERE name = '%s'" % hostname)
+			worker = cur.fetchone ()
 
 		# check the worker is not already working
 		# this can happen if the worker crashed and restarted before
 		# timeout is detected
 		if worker[1] == "WORKING":
 			# reset all working jobs assigned to this worker
-			self._execute(cur, "SELECT id FROM Jobs WHERE state = 'WORKING' and worker = '%s'" % hostname)
+			self._execute (cur, "SELECT id FROM Jobs WHERE state = 'WORKING' and worker = '%s'" % hostname)
 			for job in cur:
-				self._setJobState(job[0], "WAITING", True)
+				self._setJobState (job[0], "WAITING", True)
 
 		# worker is not active, drop now
 		if not worker[0]:
@@ -749,8 +789,8 @@ class DBSQL(DB):
 
 			job = cur.fetchone ()
 
-			if job is None: # Finally, return nothing if there is no job.
-				return -1, "", "", "", None
+		if job is None: # Finally, return nothing if there is no job.
+			return -1,"","","",None
 
 		# update the job and worker
 		id = job[0]
@@ -842,7 +882,7 @@ class DBSQL(DB):
 				self._updateDependentJobsState (id)
 				self._updateChildren (id)
 				if updateCounters:
-					self._updateJobCounters (job[1])
+	 				self._updateJobCounters (job[1])
 
 	# recompute the whole job hierarchy counters
 	def _resetJobCounters (self, id, updateParent = True):

@@ -49,7 +49,6 @@ def cfgStr (name, defvalue):
 			pass
 	return defvalue
 
-
 def usage():
 	print ("Usage: server [OPTIONS]")
 	print ("Start a Coalition server.\n")
@@ -205,7 +204,7 @@ def grantAddJob (user, cmd):
 		if GlobalCmdWhiteList:
 			if not checkWhiteList (GlobalCmdWhiteList):
 				return False
-	
+
 	# Cleared
 	return True
 
@@ -298,6 +297,7 @@ class Master (xmlrpc.XMLRPC):
 			if authenticate (request):
 				# If not autenticated, user == ""
 				self.user = request.getUser ()
+				# Addjob
 
 				def getArg (name, default):
 					value = request.args.get (name, [default])
@@ -305,6 +305,7 @@ class Master (xmlrpc.XMLRPC):
 
 				# The legacy method for compatibility
 				if request.path == "/xmlrpc/addjob":
+
 					parent = getArg ("parent", "0")
 					title = getArg ("title", "New job")
 					cmd = getArg ("cmd", getArg ("command", ""))
@@ -335,8 +336,8 @@ class Master (xmlrpc.XMLRPC):
 							dependencies[i] = int (dep)
 
 						job = db.newJob (parent, str (title), str (cmd), str (dir), str (environment),
-									str (state), int (paused), int (timeout), int (priority), str (affinity),
-									str (user), str (url), str (progress_pattern))
+								str (state), int (paused), int (timeout), int (priority), str (affinity),
+								str (user), str (url), str (progress_pattern))
 						if job is not None:
 							db.setJobDependencies (job['id'], dependencies)
 							return str(job['id'])
@@ -372,19 +373,19 @@ class Master (xmlrpc.XMLRPC):
 						if request.method == "PUT":
 							if request.path == "/api/jobs":
 								job = db.newJob ((getArg ("parent",0)),
-												 (getArg("title","")),
-												 (getArg("command","")),
-												 (getArg("dir","")),
-												 (getArg("environment","")), 
-												 (getArg("state","WAITING")),
-												 (getArg("paused",0)),
-												 (getArg("timeout",1000)),
-												 (getArg("priority",1000)),
-												 (getArg("affinity", "")), 
-												 (getArg("user", "")),
-												 (getArg("url", "")),
-												 (getArg("progress_pattern", "")),
-												 (getArg("dependencies", [])))
+										(getArg("title","")),
+										(getArg("command","")),
+										(getArg("dir","")),
+										(getArg("environment","")), 
+										(getArg("state","WAITING")),
+										(getArg("paused",0)),
+										(getArg("timeout",1000)),
+										(getArg("priority",1000)),
+										(getArg("affinity", "")), 
+										(getArg("user", "")),
+										(getArg("url", "")),
+										(getArg("progress_pattern", "")),
+										(getArg("dependencies", [])))
 								return job['id']
 
 						elif request.method == "GET":
@@ -411,6 +412,18 @@ class Master (xmlrpc.XMLRPC):
 							if request.path == "/api/jobs":
 								return db.getJobChildren (0, {})
 
+							m = re.match(r"^/api/jobs/count/where/$", request.path)
+							if m:
+								return db.getCountJobsWhere(request.args["where_clause"])
+
+							m = re.match(r"^/api/jobs/where/$", request.path)
+							if m:
+								return db.getJobsWhere(
+										where_clause=request.args["where_clause"][0],
+										index_min=request.args["min"][0],
+										index_max=request.args["max"][0],
+										)
+
 							if request.path == "/api/workers":
 								return db.getWorkers ()
 
@@ -419,6 +432,21 @@ class Master (xmlrpc.XMLRPC):
 
 							if request.path == "/api/affinities":
 								return db.getAffinities ()
+
+							if request.path == "/api/jobs/users/":
+								return db.getJobsUsers()
+
+							if request.path == "/api/jobs/states/":
+								return db.getJobsStates()
+
+							if request.path == "/api/jobs/workers/":
+								return db.getJobsWorkers()
+
+							if request.path == "/api/jobs/priorities/":
+								return db.getJobsPriorities()
+
+							if request.path == "/api/jobs/affinities/":
+								return db.getJobsAffinities()
 
 						elif request.method == "POST":
 							if request.path == "/api/jobs":
@@ -554,7 +582,7 @@ class Workers(xmlrpc.XMLRPC):
 			try:
 				logFile = open (getLogFilename (jobId), "a")
 				log = base64.decodestring(log)
-				
+
 				# Filter the log progression message
 				progress = None
 				job = db.getJob (int (jobId))
@@ -612,7 +640,6 @@ try:
 except OSError:
 	pass
 
-global timeout, port, verbose, config
 config = ConfigParser.SafeConfigParser()
 config.read ("coalition.ini")
 

@@ -1,5 +1,8 @@
-"""This module contains functions common to various cloud providers."""
+# -*- coding: utf-8 -*-
 
+"""
+This module contains functions common to various cloud providers.
+"""
 
 from time import time
 import subprocess
@@ -18,4 +21,6 @@ def _run_or_none(cmd):
 	except Exception as e:
 		print(e)
 	return None
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 
