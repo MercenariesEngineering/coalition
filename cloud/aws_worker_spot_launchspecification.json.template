@@ -1,8 +1,0 @@
-{
-  "ImageId": "$image_id",
-  "KeyName": "$keyname",
-  "SecurityGroupIds": [ "$security_group_id" ],
-  "InstanceType": "$instance_type",
-  "UserData": "$user_data"
-}
-
