@@ -4,5 +4,5 @@ Twisted
 MySQL-python
 python-ldap
 Sphinx
-sphinxcontrib.httpdomain
+#sphinxcontrib.httpdomain
 sphinx_rtd_theme
