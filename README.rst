@@ -14,7 +14,7 @@
 
 |badge-doc| |badge-size| |badge-version| |badge-coverage| |badge-tests|
 
-`Full online documentation is avaialble on ReadTheDocs <http://coalition.readthedocs.io/en/latest/>`_.
+`Full online documentation is availlble on ReadTheDocs <http://coalition.readthedocs.io/en/latest/>`_.
 
 Coalition
 =========
