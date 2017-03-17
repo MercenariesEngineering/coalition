@@ -1,6 +1,19 @@
 Coalition
 =========
 
+.. image:: https://readthedocs.org/projects/coalition/badge/?version=latest
+:target: http://coalition.readthedocs.io/en/latest/?badge=latest
+:alt: Documentation Status
+
+![](https://reposs.herokuapp.com/?path=https://github.com/MercenariesEngineering/coalition)
+
+.. image:: https://badge.fury.io/gh/AlphonseAllais%2Fcoalition.svg
+   :target: https://badge.fury.io/gh/AlphonseAllais%2Fcoalition
+
+.. image:: https://coveralls.io/repos/github/AlphonseAllais/coalition/badge.svg?branch=master
+   :target: https://coveralls.io/github/AlphonseAllais/coalition?branch=master
+
+
 `Full online documentation is avaialble on ReadTheDocs <http://coalition.readthedocs.io/en/latest/>`_.
 
 
