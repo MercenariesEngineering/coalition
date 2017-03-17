@@ -12,7 +12,7 @@
 
 .. |badge-tests| image:: https://travis-ci.org/AlphonseAllais/coalition.svg?branch=development
 
-|badge-doc| |badge-size| |badge-version| |bagde-coverage| |badge-tests|
+|badge-doc| |badge-size| |badge-version| |badge-coverage| |badge-tests|
 
 `Full online documentation is avaialble on ReadTheDocs <http://coalition.readthedocs.io/en/latest/>`_.
 
