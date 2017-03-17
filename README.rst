@@ -29,17 +29,16 @@ The server waits for incoming workers connections. Workers ask the server for a 
 
 *Coalition* provides:
 
- - **Broadcast discovery** for workers to find the server whithout configuration;
- - **RESTfull python API** based on `Twisted matrix <https://twistedmatrix.com>`_ for program to program communication;
- - **Cloud ready** configuration to manage starting/termination of workers in the cloud;
- - **Web interface** for humans to control jobs, workers, affinities and view status and logs;
- - **Database** interface for sqlite and mysql;
- - **Logging** system;
- - **Email notification** system;
- - **Access Control List** when connected to a **LDAP** server;
- - **Unittests** of critical code parts;
- - **Source code** and **documentation** on `the development platform <https://github.com/MercenariesEngineering/coalition>`_.
-
+- **Broadcast discovery** for workers to find the server whithout configuration;
+- **RESTfull python API** based on `Twisted matrix <https://twistedmatrix.com>`_ for program to program communication;
+- **Cloud ready** configuration to manage starting/termination of workers in the cloud;
+- **Web interface** for humans to control jobs, workers, affinities and view status and logs;
+- **Database** interface for sqlite and mysql;
+- **Logging** system;
+- **Email notification** system;
+- **Access Control List** when connected to a **LDAP** server;
+- **Unittests** of critical code parts;
+- **Source code** and **documentation** on `the development platform <https://github.com/MercenariesEngineering/coalition>`_.
 
 The current stable version are 3.8 and 3.10.
 
