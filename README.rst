@@ -28,5 +28,7 @@ The server waits for incoming workers connections. Workers ask the server for a 
 
 The current stable version are 3.8 and 3.10.
 
-The development version is .. include:: version
+The development version is
+
+.. include:: version
 
