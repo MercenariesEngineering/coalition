@@ -953,13 +953,13 @@ function renderWorkers ()
 function reloadActivities ()
 {
   var data = {}
-  var job = $('#activityJob').attr("value")
+  var job = $('#activityJob').prop("value")
   if (job != "")
     data.job = job
-  var worker = $('#activityWorker').attr("value")
+  var worker = $('#activityWorker').prop("value")
   if (worker != "")
     data.worker = worker
-  data.howlong = $('#howlong').attr("value")
+  data.howlong = $('#howlong').prop("value")
   $.ajax({ type: "GET", url: "/api/events", data: data, dataType: "json", success: 
     function (data) 
     {
