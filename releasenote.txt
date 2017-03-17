@@ -1,0 +1,82 @@
+4.0
+First version using a SQL database as storage.
+Uses SQLite by default, and provides a mysql driver (see coalition.ini).
+The server provides now a REST api.
+A phyton module is also available in /api to warp the REST api in some sugar.
+
+
+3.17
+Added : A trusted user list in LDAP mode
+Added : Global command white list : restrict the job commands for all the users
+Added : User command white list : restrict the job commands by users
+Changed : User can't change the username of a job in LDAP mode anymore
+
+3.16
+Changed : usesudo and usesu have been replaced by a custom user run command. See the runcommand option in coalition.ini for details.
+
+3.15
+Fixed : hierarchical affinities are working
+
+3.14
+Added : worker log file path in coalition.ini
+Changed : reset job clear the job logs
+Changed : better worker logs
+Added : workers IP address visible in the web interface
+
+3.13
+Fixed : Optional environment would replace the worker environment, loosing previous values
+Added : Now use sudo instead of su
+Fixed : Recursive environment variables were not properly expanded
+
+3.12
+Added : Optional environment to override the worker environment
+
+3.11
+Added : umask 022 for the worker
+
+3.10
+Fixed : Patch for the darwin plateform (by Peter Postma)
+Changed : Background saving of the database, no more freeze during the save
+Changed : The file format has been changed to support background saving
+Added : Reset error jobs command
+
+3.9
+Added : Better log progress parsing
+Fixed : All job attributes available in control.py 
+
+3.8
+Added : Emails sent to the user
+Added : activities list
+Fixed : it is now possible to add a jobs in any parent job from the ui
+Fixed : parent job state is now correct
+Fixed : sort by progress works
+Added : sum of jobs
+Fixed : month in date was wrong
+Added : show the average duration
+Changed : sequentiel mode (no more random)
+Added : cut and paste jobs
+Added : URL link per job
+
+3.7
+Fixed : bad json code generation with big numbers
+
+3.6
+Added : command line worker on windows
+Added : the database is backuped
+Added : working column
+Added : start time column
+Added : CSV export of the jobs
+Changed : if the database is corrupted, the server quits with an error
+Fixed : variable timeout was not properly read from the config file
+
+3.2
+Changed : No psutil anymore, was crashing at service start
+
+3.1
+Fixed : Install MS dll
+
+3.0
+Changed : Major rework of the JS GUI
+Added : Progression of jobs is shown
+Changed : Best multi-cores monitoring
+Added : Memory monitoring
