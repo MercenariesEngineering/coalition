@@ -1,9 +1,6 @@
 REST API
 ========
 
-.. toctree::
-   :maxdepth: 3
-
 The coalition server provides a REST API using json data.
 
 Jobs
@@ -700,4 +697,5 @@ Events
 
    :statuscode 200: no error
    :statuscode 500: error
+
 
