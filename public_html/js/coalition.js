@@ -385,18 +385,20 @@ function renderJobs (jobsCurrent=[]) {
 
   // Returns the HTML code for a job title column
   function addTitleHTMLEx (attribute, alias, input, min, max) {
-    console.log(attribute, alias);
     table += '<th class="headerCell" data-key=\''+attribute+'\'>';
     table += '<div class="flex-column">';
-		table += '<div class="flex-row">';
+    table += '<div class="flex-row">';
     table += '<label onclick="setJobKey(\''+attribute+'\')">';
     var value = jobs[0];
     if (value) {
       table += alias+'</label>';
-      if (attribute == jobsSortKey && jobsSortKeyToUpper)
+      if (attribute == jobsSortKey && jobsSortKeyToUpper) {
         table += '<div class="sort-arrow">&#8595;</div></div>';
-      if (attribute == jobsSortKey && !jobsSortKeyToUpper)
+      }else if (attribute == jobsSortKey && !jobsSortKeyToUpper) {
         table += '<div class="sort-arrow">&#8593;</div></div>';
+      } else {
+        table += '</div>'
+      }
     } else {
       table += alias+"</label></div>";
     }
@@ -484,10 +486,10 @@ function renderJobs (jobsCurrent=[]) {
     addTD (job.priority);
     if (job.total > 0)
     {
-      table += '<td class="'+(job.total_finished > 0 ? 'FINISHED' : 'WAITING')+'" width=30>'+job.total_finished+'</td>';
-      table += '<td class="'+(job.total_working > 0 ? 'WORKING' : 'WAITING')+'" width=30>'+job.total_working+'</td>';
-      table += '<td class="'+(job.total_errors > 0 ? 'ERROR' : 'WAITING')+'" width=30>'+job.total_errors+'</td>';
-      table += '<td class="'+(job.total == job.total_finished ? 'FINISHED' : 'WAITING')+'" width=30>'+job.total+'</td>';
+      table += '<td class="'+(job.total_finished > 0 ? 'FINISHED' : 'WAITING')+'">'+job.total_finished+'</td>';
+      table += '<td class="'+(job.total_working > 0 ? 'WORKING' : 'WAITING')+'">'+job.total_working+'</td>';
+      table += '<td class="'+(job.total_errors > 0 ? 'ERROR' : 'WAITING')+'">'+job.total_errors+'</td>';
+      table += '<td class="'+(job.total == job.total_finished ? 'FINISHED' : 'WAITING')+'">'+job.total+'</td>';
     }
     else
     {
@@ -898,7 +900,8 @@ function renderWorkers ()
       var workerload = JSON.parse (worker.cpu)
       for (j=0; j < workerload.length; ++j)
       {
-        load += "<div class='loadbar' style='width:" + workerload[j] + "%;height:" + 16/workerload.length + "' />";
+        //load += "<div class='loadbar' style='width:" + workerload[j] + "%;height:" + 16/workerload.length + "' />";
+        load += "<div class='loadbar' style='width:" + workerload[j] + "%></div>";
         loadValue += workerload[j];
       }
       Math.floor(loadValue/workerload.length);
@@ -1083,7 +1086,7 @@ function renderAffinities ()
   for (i = 1; i <= 63; ++i)
   {
     table += "<tr>";
-    table += "<td width='50px'>"+i+"</td><td width='200px'><input type='edit' class='ttedit' id='affinity"+i+"' name='affinity' value='' onchange='onchangeaffinityprop ("+i+")'></td>"
+    table += "<td>"+i+"</td><td><input type='edit' class='ttedit' id='affinity"+i+"' name='affinity' value='' onchange='onchangeaffinityprop ("+i+")'></td>"
     table += "</tr>\n";
   }
 
