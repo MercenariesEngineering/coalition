@@ -1,0 +1,8 @@
+httplib2
+configparser
+Twisted
+MySQL-python
+python-ldap
+Sphinx
+#sphinxcontrib.httpdomain
+sphinx_rtd_theme
