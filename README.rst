@@ -5,7 +5,7 @@ Coalition
    :target: http://coalition.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
 
-![](https://reposs.herokuapp.com/?path=https://github.com/MercenariesEngineering/coalition)
+.. image:: https://reposs.herokuapp.com/?path=https://github.com/MercenariesEngineering/coalition
 
 .. image:: https://badge.fury.io/gh/AlphonseAllais%2Fcoalition.svg
    :target: https://badge.fury.io/gh/AlphonseAllais%2Fcoalition
