@@ -7,8 +7,8 @@
 .. |badge-version| image:: https://badge.fury.io/gh/AlphonseAllais%2Fcoalition.svg
    :target: https://badge.fury.io/gh/AlphonseAllais%2Fcoalition
 
-.. |badge-coverage| image:: https://coveralls.io/repos/github/AlphonseAllais/coalition/badge.svg?branch=master
-   :target: https://coveralls.io/github/AlphonseAllais/coalition?branch=master
+.. |badge-coverage| image:: https://coveralls.io/repos/github/AlphonseAllais/coalition/badge.svg?branch=development
+   :target: https://coveralls.io/github/AlphonseAllais/coalition?branch=development
 
 .. |badge-tests| image:: https://travis-ci.org/AlphonseAllais/coalition.svg?branch=development
 
