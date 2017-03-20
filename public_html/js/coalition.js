@@ -16,7 +16,7 @@ var affinities = [];
 var configJobFilter = [];
 var configJobSqlFilterParameters = ["id", "title", "user", "state", "priority", "progress", "affinity", "worker", "start_time", "command", "dependencies"];
 var jobsSortKey = "id";
-var jobsSortKeyToUpper = true;
+var jobsSortKeyToUpper = false;
 var workersSortKey = "name";
 var workersSortKeyToUpper = true;
 var activitiesSortKey = "start";
@@ -394,7 +394,7 @@ function renderJobs (jobsCurrent=[]) {
       table += alias+'</label>';
       if (attribute == jobsSortKey && jobsSortKeyToUpper) {
         table += '<div class="sort-arrow">&#8595;</div></div>';
-      }else if (attribute == jobsSortKey && !jobsSortKeyToUpper) {
+      } else if (attribute == jobsSortKey && !jobsSortKeyToUpper) {
         table += '<div class="sort-arrow">&#8593;</div></div>';
       } else {
         table += '</div>'
@@ -505,8 +505,8 @@ function renderJobs (jobsCurrent=[]) {
     _progress = Math.floor(_progress*100.0);
 
     // A bar div
-    progress = '<div class="progress">';
-    progress += '<div class="lprogressbar" style="width:' + _progress + '%" />';
+    progress =  '<div class="progress">';
+    progress += '<div class="lprogressbar" style="width:' + _progress + '%"></div>';
     progress += '<div class="progresslabel">' + _progress + '%</div>';
     progress += '</div>';
 
@@ -1518,8 +1518,10 @@ function buildSelectForField(nodeSelector, form, field, type) {
       ajax = getAjaxJobsUsers();
       break;
     case "state":
-      ajax = getAjaxJobsStates();
-      break;
+      //ajax = getAjaxJobsStates();
+      //break;
+      content = getSelectForFieldStatesStatic(form, field);
+      return '<div class="job-sql-search-field">'+content+'</div>';
   }
   ajax.done(function(items) {
     var content = '<select form="'+form+'" class="sql-input" id="job-filter-'+field+'"';
@@ -1618,6 +1620,21 @@ function getAjaxJobsStates() {
   })
 }
 
+function getSelectForFieldStatesStatic(form, field) {
+    var content = '<select form="'+form+'" class="sql-input" id="job-filter-'+field+'"';
+    content += ' form="sql-select" multiple';
+    content += ' onclick="checkJobSqlInputChange(\''+field+'\', event)"';
+    content += ' onkeydown="checkJobSqlInputChange(\''+field+'\', event)"';
+    content += ' onkeyup="checkJobSqlInputChange(\''+field+'\', event)">';
+    items = ["WORKING", "ERROR", "WAITING", "FINISHED", "PAUSED", "CUSTOM"];
+    for (i=0; i < items.length; i++) {
+      var item = items[i];
+      content += '<option value="'+item+'">'+item+'</option>';
+    }   
+    content += '</select>';
+  return content;
+}
+
 function getAjaxSqlWhereCountJobs(where_clause) {
   return $.ajax({
     type: "GET",
@@ -1667,10 +1684,19 @@ function getSqlWhereJobs() {
         sql += " and (";
         for (j in values) {
           var value = values[j];
+          if (value == "WAITING" && (values.indexOf("PAUSED") < 0) ) {
+            sql_exclude_paused = " and paused = 0";
+          } else {
+            sql_exclude_paused = "";
+          }
+          if (value == "PAUSED") {
+              key = "paused";
+              value = 1;
+          }
           sql += key+"='"+value+"'";
-          if (j+1<values.length) sql += " or ";
+          if (Number(j)+1<values.length) sql += " or ";
         }
-        sql += ")";
+        sql += ")"+sql_exclude_paused;
         break;
       case "progress":
         values = data[i].value;

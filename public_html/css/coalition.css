@@ -85,7 +85,11 @@ input, select, textarea {
     color: white;
 }
 
-#jobsTable, #workersTable, #activitiesTable, #affinitiesTable {
+#jobsTable,
+#workersTable,
+#activitiesTable,
+#affinitiesTable
+{
     width:100%;
     border-collapse: collapse;
     text-align: left;
@@ -97,6 +101,10 @@ input, select, textarea {
 
 #jobsTable thead {
     min-height: 4rem;
+}
+
+#jobsTable thead label {
+    cursor: pointer;
 }
 
 table {
@@ -136,6 +144,7 @@ tbody tr {
 
 tbody td {
     border-right: 1px dotted #444;
+    height: 1.2rem;
 }
 
 
@@ -586,13 +595,24 @@ tbody td {
     background-color: #00F000;
 }
 
-#jobtools, #workertools, #logtools, #activitiestools, #affinitiestools
+#jobtools .button,
+#jobtools .button label,
+#jobtools .button select,
+#workertools .button,
+#logtools .button,
+#activitiestools .button,
+#affinitiestools .button
 {
-    /*position: fixed;*/
-    /*left: 10px;*/
-    /*top: 65px;*/
-    color: #dddddd;
     cursor: pointer;
+}
+
+#jobtools,
+#workertools,
+#logtools,
+#activitiestools,
+#affinitiestools 
+{
+    color: #dddddd;
     padding: 0.5rem;
     justify-content: flex-end;
 }
@@ -691,10 +711,6 @@ tbody input:hover {
 {
 }
 
-.headerCell {
-    cursor: pointer;
-}
-
 .headerCell .flex-column {
     justify-content: flex-start;
     flex-grow: 1;
@@ -740,9 +756,14 @@ tbody input:hover {
     /*position: relative;*/
 }
 
+.progress
+{
+    height: inherit;
+}
+
 .lprogressbar
 {
-    height: 1rem;
+    height: inherit;
     background-color: #009000;
 }
 
@@ -755,13 +776,7 @@ tbody input:hover {
 {
     text-align: center;
     position: relative;
-    top: -1rem;
-}
-
-.progress
-{
-    /*width: 100%;*/
-    /*position: relative;*/
+    top: -100%;
 }
 
 .worker_affinities
