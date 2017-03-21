@@ -1797,7 +1797,7 @@ function configLoad(category="job-filter") {
       break;
     case "job-sort-key":
       jobsSortKey = configGet("job-sort-key");
-      JobsSortKeyToUpper = configGet("job-sort-key-to-upper");
+      jobsSortKeyToUpper = (configGet("job-sort-key-to-upper") === "true");
       break;
   }
   return false;
