@@ -66,6 +66,7 @@ function setJobKey (id)
     jobsSortKey = id;
     jobsSortKeyToUpper = true;
   }
+  configSave("job-sort-key");
   renderJobs (jobs);
 }
 
@@ -360,6 +361,7 @@ function renderParents ()
 
 // Render the current jobs
 function renderJobs (jobsCurrent=[]) {
+  configLoad("job-sort-key");
   if (jobsCurrent.length) jobs = jobsCurrent;
   
   var table = '<table id="jobsTable">';
@@ -1764,6 +1766,11 @@ function configSave(category="job-filter") {
         localStorage.setItem(nodeId, value);
         if (value) configJobFilter.push([param, value]);
       }
+      break;
+    case "job-sort-key":
+      localStorage.setItem("job-sort-key", jobsSortKey);
+      localStorage.setItem("job-sort-key-to-upper", jobsSortKeyToUpper);
+      break;
   }
 }
 
@@ -1787,6 +1794,10 @@ function configLoad(category="job-filter") {
           configJobFilter.push([param, value]);
         }
       }
+      break;
+    case "job-sort-key":
+      jobsSortKey = configGet("job-sort-key");
+      JobsSortKeyToUpper = configGet("job-sort-key-to-upper");
       break;
   }
   return false;

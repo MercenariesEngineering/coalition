@@ -107,6 +107,10 @@ input, select, textarea {
     cursor: pointer;
 }
 
+#jobsTable thead .headerCell .flex-row {
+    justify-content: center;
+}
+
 table {
     height: 100%;
     display: flex;
