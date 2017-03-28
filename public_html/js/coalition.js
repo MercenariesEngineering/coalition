@@ -468,11 +468,11 @@ function renderJobs (jobsCurrent=[]) {
 
     table += '<tr id="jobtable'+i+'" '+mouseDownEvent+' class="entry'+(i%2)+(selectedJobs[job.id]?'Selected':'')+'">';
     function addTD (attr) {
-      table += "<td>" + attr + "</td>";
+      table += "<td title='" + attr + "'>" + attr + "</td>";
     }
     //addTD (job.Order);
     addTD (job.id);
-    table += "<td>" + job.title + "</td>\n";
+    addTD (job.title);
 
     // url
     if (job.url != "")
@@ -1163,16 +1163,16 @@ function addjob ()
   dependencies = dependencies.split(',')
   dependencies = dependencies != "" ? dependencies : []
   var data = {
-    title:$('#title').attr("value"),
-    command:$('#cmd').attr("value"),
-    dir:$('#dir').attr("value"), 
-    env:$('#env').attr("value"), 
-    priority:$('#priority').attr("value"), 
-    timeout:$('#timeout').attr("value"),
-    affinity:$('#affinity').attr("value"),
-    dependencies:dependencies,
-    user:$('#user').attr("value"),
-    url:$('#url').attr("value"),
+    title:$('#title')[0].value,
+    command:$('#cmd')[0].value,
+    dir:$('#dir')[0].value, 
+    env:$('#env')[0].value, 
+    priority:$('#priority')[0].value, 
+    timeout:$('#timeout')[0].value,
+    affinity:$('#affinity')[0].value,
+    dependencies:$("#dependencies")[0].value,
+    user:$('#user')[0].value,
+    url:$('#url')[0].value,
     parent:viewJob
   };
   $.ajax({ type: "PUT", url: "/api/jobs", data: JSON.stringify(data), dataType: "json", success: 
@@ -1666,6 +1666,7 @@ function getSqlWhereJobs() {
     values = configJobFilter[i][1];
     if (typeof(values) == "string") values = [values]
     // build sql clause
+    originalKey = key;
     switch (key) {
       case "id":
       case "priority":
@@ -1696,6 +1697,7 @@ function getSqlWhereJobs() {
               value = 1;
           }
           sql += key+"='"+value+"'";
+          key = originalKey;
           if (Number(j)+1<values.length) sql += " or ";
         }
         sql += ")"+sql_exclude_paused;
@@ -1835,3 +1837,39 @@ function resetSqlFilter() {
   configSave();
 } 
 
+function configJobsTable() {
+  if ($("#config-jobs-table").length != 0) return
+  var config_menu =  '\
+    <div id="config-jobs-table"><form id="config-jobs-table-form">\
+        <input id="column-id-visibility" form="config-jobs-table-form" type="checkbox" checked="checked">\
+        <label for="config-jobs-table">Id column visibility</label>\
+        <input id="column-id-ratio" form="config-jobs-table-form" type="range">\
+        <label for="column-id-ratio">% width</label>\
+        <button id="column-preview" form="config-jobs-table-form" type="submit" value="preview">Preview</button>\
+        <button id="column-save" form="config-jobs-table-form" type="submit" value="save">Save</button>\
+        <button id="column-cancel" form="config-jobs-table-form" type="submit" value="reset">Cancel</button>\
+    </form></div>'
+  $(config_menu).insertBefore("#jobs");
+  $("#config-jobs-table").submit(function(e) {
+    e.preventDefault();
+    var action = $(document.activeElement)[0].value;
+    switch (action) {
+      case "preview":
+        configJobsTablePreview();
+        break;
+      case "reset":
+        $("#config-jobs-table").remove();
+      case "save":
+        configJobsTableSave();
+        break;
+    }
+  });
+}
+
+function configJobsTablePreview() {
+    console.log("preview");
+}
+
+function configJobsTableSave() {
+    console.log("save");
+}

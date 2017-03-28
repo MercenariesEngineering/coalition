@@ -6,20 +6,23 @@ Installing the server
 =====================
 .. _installing a server:
 
-*Coalition* requires python2 (no python3 yet).
+The *Coalition server* can be installed on a localhost or on a remote host. Please remind that communication between server and workers is not encrypted, so if the server is installed on localhost and workers on remote machines, using a VPN or a VLAN is a good idea.
+
+*Coalition* works with python2.7.
 
 Debian like, Ubuntu, etc. via system packages
 ---------------------------------------------
 
 Logged as a priviledged user, in a shell prompt, run::
 
-  aptitude install \
+  apt-get install -y \
+      python2.7 \
       python-httplib2 \
       python-configparser \
       python-twisted \
       python-mysqldb \
       python-ldap \
-      python-sphynx \
+      python-sphinx \
       python-sphinxcontrib-httpdomain
   
   cd /usr/local/bin
@@ -32,8 +35,8 @@ Edit the section *[server]* in the file *coalition.ini* according to your needs.
 You may want to fine tune the installation using:
 
  - a dedicated system user and group to isolate the process and file ownership;
- - a `systemd service definition file <https://wiki.archlinux.org/index.php/Systemd>`_.
- - any system service monitoring daemon
+ - a `systemd service definition file <https://wiki.archlinux.org/index.php/Systemd>`_;
+ - any system service monitoring daemon.
 
 Via pip, the python package manager
 -----------------------------------
@@ -53,8 +56,8 @@ Edit the section *[server]* in the file *coalition.ini* according to your needs.
 You may want to fine tune the installation using:
 
  - a dedicated system user and group to isolate the process and file ownership;
- - a `systemd service definition file <https://wiki.archlinux.org/index.php/Systemd>`_.
- - any system service monitoring daemon
+ - a `systemd service definition file <https://wiki.archlinux.org/index.php/Systemd>`_;
+ - any system service monitoring daemon.
 
 Windows
 -------
@@ -134,8 +137,8 @@ Edit the section *[worker]* of the configuration file *coalition.ini* according 
 You may want to fine tune the installation using:
 
  - a dedicated system user and group to isolate the process and file ownership;
- - a `systemd service definition file <https://wiki.archlinux.org/index.php/Systemd>`_.
- - any system service monitoring daemon
+ - a `systemd service definition file <https://wiki.archlinux.org/index.php/Systemd>`_;
+ - any system service monitoring daemon.
 
 Running a worker
 ----------------

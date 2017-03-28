@@ -95,6 +95,10 @@ input, select, textarea {
     text-align: left;
 }
 
+#config-jobs-table {
+    display: flex;
+}
+
 #jobsTable td a:link, #workersTable td a:link, #activitiesTable td a:link {
     color: #DDDDDD;
 }
@@ -139,16 +143,18 @@ tfoot {
 tbody {
     height: 100%;
     overflow-y: scroll;
-    word-break: break-all;
+    word-break: keep-all;
 }
 
 tbody tr {
-    /*max-height: 2rem;*/
+    justify-content: flex-start;
 }
 
 tbody td {
     border-right: 1px dotted #444;
     height: 1.2rem;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 
@@ -617,7 +623,6 @@ tbody td {
 #affinitiestools 
 {
     color: #dddddd;
-    padding: 0.5rem;
     justify-content: flex-end;
 }
 

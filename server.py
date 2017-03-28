@@ -492,7 +492,7 @@ class Master (xmlrpc.XMLRPC):
 							if request.path == "/api/terminateworkers":
 								if servermode != "normal":
 									for name in data:
-										db.cloudmanager.stopInstance(name)
+										db.cloudmanager.stopInstance(name, config)
 										db._setWorkerState(name, "TERMINATED")
 									return 1
 								else:
@@ -694,7 +694,7 @@ if servermode != "normal":
 	if servermode == "aws":
 		cloudconfig.read("cloud_aws.ini")
 	elif servermode == "gcloud":
-		cloudconfig.read("cloud_gloud.ini")
+		cloudconfig.read("cloud_gcloud.ini")
 	elif servermode == "qarnot":
 		cloudconfig.read("cloud_qarnot.ini")
 	cloudconfig.set("coalition", "port", str(port))

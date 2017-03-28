@@ -48,7 +48,7 @@ def startInstance(name, config):
 	return None
 
 
-def stopInstance(name):
+def stopInstance(name, config):
 	"""Run the aws command to terminate the instance."""
 	cmd = ["aws", "ec2", "terminate-instances", "--instance-ids",
 			_getInstanceIdByName(name)]

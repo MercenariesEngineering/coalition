@@ -1112,7 +1112,7 @@ class DBSQL(DB):
 						self.cloudconfig.get("coalition",
 						"workerinstanceminimumlifetime"))):
 					self._setWorkerState(name, "TERMINATED")
-					self.cloudmanager.stopInstance(name)
+					self.cloudmanager.stopInstance(name, config)
 					if self.Verbose:
 						print("[CLOUD] Terminating instance %s" % name)
 
