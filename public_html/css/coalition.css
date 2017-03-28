@@ -104,7 +104,7 @@ input, select, textarea {
 }
 
 #jobsTable thead {
-    min-height: 4rem;
+    min-height: 5rem;
 }
 
 #jobsTable thead label {
@@ -261,7 +261,7 @@ tbody td {
 
 /* name */
 #workersTable th:nth-child(1), #workersTable td:nth-child(1) {
-    width: 10%;
+    width: 20%;
 }
 
 /* active */
@@ -286,12 +286,12 @@ tbody td {
 
 /* cpu */
 #workersTable th:nth-child(6), #workersTable td:nth-child(6) {
-    width: 6%;
+    width: 11%;
 }
 
 /* memory */
 #workersTable th:nth-child(7), #workersTable td:nth-child(7) {
-    width: 6%;
+    width: 11%;
 }
 
 /* last_jobs */
@@ -311,7 +311,7 @@ tbody td {
 
 /* ip */
 #workersTable th:nth-child(11), #workersTable td:nth-child(11) {
-    width: 10%;
+    width: 11%;
 }
 
 /* start */
@@ -530,7 +530,7 @@ tbody td {
 
 #tabs button {
     margin: 0 0.3rem;
-    /*border-radius: 0.4rem 0.4rem 0 0;*/
+    border-radius: 0.4rem 0.4rem 0 0;
     border-top: 1px solid #777777;
     border-right: 1px solid #222222;
     border-bottom: 1px solid transparent;
@@ -633,7 +633,7 @@ tbody td {
     margin: 0.2rem 0.3rem;
     background-color: #444;
     cursor: pointer;
-    /*border-radius: 0.4rem;*/
+    border-radius: 0.4rem;
     border-top: 1px solid #777777;
     border-right: 1px solid #222222;
     border-bottom: 1px solid #222222;
@@ -657,26 +657,32 @@ button:hover
     /*width: 10px;*/
 }
 
+/* Selection button */
+#b01 {
+    padding: 0.1rem 0.2rem 0.2rem 1rem;
+}
+
 #toolstable input,
 #workertoolstable textarea,
 tbody input {
-    color: gray;
+    color: white;
     background-color: #222;
 }
 
 #toolstable input:hover,
 #workertoolstable textarea:hover,
 tbody input:hover {
-    color: black;
     background-color: #333;
 }
 
 #toolstable .flex-column {
     align-items: flex-end;
+    flex-grow: 1;
 }
 
 #toolstable label {
     flex-wrap: nowrap;
+    width: 100%;
 }
 
 #toolstable label span {
@@ -746,23 +752,21 @@ tbody input:hover {
 
 .membar
 {
-    /*height: 16;*/
-    height: 1.4rem;
+    height: inherit;
     background-color: #009000;
 }
 
 .memlabel
 {
-    /*width: 100%;*/
+	height: inherit;
     text-align: center;
-    /*position: absolute;*/
-    /*top: 1;*/
+    position: relative;
+    top: -100%;
 }
 
 .mem
 {
-    /*width: 100%;*/
-    /*position: relative;*/
+    height: inherit;
 }
 
 .progress
@@ -783,6 +787,7 @@ tbody input:hover {
 
 .progresslabel
 {
+	height: inherit;
     text-align: center;
     position: relative;
     top: -100%;

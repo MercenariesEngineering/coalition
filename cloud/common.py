@@ -16,6 +16,15 @@ def createWorkerInstanceName(prefix):
 def _run_or_none(cmd): 
 	"""Execute command. Returns None in case of exception."""
 	try:
+		return subprocess.Popen(cmd, stderr=subprocess.STDOUT,
+			universal_newlines=True)
+	except Exception as e:
+		print(e)
+	return None
+
+def _check_output_or_none(cmd): 
+	"""Execute command. Returns None in case of exception."""
+	try:
 		return subprocess.check_output(cmd, stderr=subprocess.STDOUT,
 			universal_newlines=True)
 	except Exception as e:

@@ -158,6 +158,8 @@ Monitoring the cloud deployment
 ===============================
 The coalition server limits the number of simultaneous instances to the configuration parameter **workerinstancemax** in **coalition.ini**. But if there is a configuration problem (for instance in the workers starting scripts located in the bucket), coalition server might not be reached by the workers. In this case, coalition server will keep starting instances. So, as long as the configuration is not confirmed, you are advised to check in your cloud provider console the the effective number of starting instances. Some limits can also be setup directly in the cloud provider preventing any excessive cloud usage.
 
+On the web frontend, in the workers tab, clicking the button **Terminate** destroys the selected instances after confirmation.
+
 Additional documentation for programmers
 ========================================
 

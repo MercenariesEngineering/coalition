@@ -99,12 +99,10 @@ class DBSQL(DB):
 		for row in cur:
 			print (self._rowAsDict (cur, row))
 
-	def listJobsByStates(self, state, *argv):
+	def listUnpausedWaitingJobs(self):
+		"""Get jobs currently waiting for a worker."""
 		cur = self.Conn.cursor ()
-		req = "SELECT * FROM Jobs WHERE state = '%s'" % state
-		if argv:
-			for arg in argv:
-				req += " OR state = '%s'" % arg
+		req = "SELECT * FROM Jobs WHERE state = 'WAITING' and paused = 0"
 		self._execute (cur, req)
 		return [self._rowAsDict (cur, row) for row in cur]
 
@@ -1063,7 +1061,7 @@ class DBSQL(DB):
 				cloudprovider = self.config.get('server', 'servermode')
 				# Dynamic module loading for configured provider
 				self.cloudmanager = import_module('cloud.{}'.format(cloudprovider))
-				waitingjobs = self.listJobsByStates("WAITING")
+				waitingjobs = self.listUnpausedWaitingJobs()
 				if len(waitingjobs):
 					self._manageWorkerInstanceStart(current_time,
 						waitingjobs)
@@ -1112,7 +1110,7 @@ class DBSQL(DB):
 						self.cloudconfig.get("coalition",
 						"workerinstanceminimumlifetime"))):
 					self._setWorkerState(name, "TERMINATED")
-					self.cloudmanager.stopInstance(name, config)
+					self.cloudmanager.stopInstance(name, self.cloudconfig)
 					if self.Verbose:
 						print("[CLOUD] Terminating instance %s" % name)
 

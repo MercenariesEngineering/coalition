@@ -25,11 +25,6 @@ def startInstance(name, config):
 				"--instance-count", config.get("spot", "instancecount"),
 				"--type", config.get("spot", "type"),
 				"--launch-specification", _getLaunchSpecification(name, config),]
-		output = common._run_or_none(cmd)
-		if output:
-			requestid = json.loads(output)["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
-			return requestid
-
 	else:
 		cmd = ["aws", "ec2", "run-instances",
 				"--key-name", config.get("authentication", "keyname"),
@@ -41,18 +36,14 @@ def startInstance(name, config):
 				"--iam-instance-profile",
 					"Arn=%s" % config.get("worker", "iaminstanceprofile"),
 				"--user-data", _getUserData(name, config),]
-		output = common._run_or_none(cmd)
-		if output:
-			instanceid = json.loads(output)["Instances"][0]["InstanceId"]
-			return instanceid
-	return None
+	common._run_or_none(cmd)
 
 
 def stopInstance(name, config):
 	"""Run the aws command to terminate the instance."""
 	cmd = ["aws", "ec2", "terminate-instances", "--instance-ids",
 			_getInstanceIdByName(name)]
-	return common._run_or_none(cmd)
+	common._run_or_none(cmd)
 
 
 def _getLaunchSpecification(name, config):
@@ -95,7 +86,7 @@ def _getUserData(name, config):
 def _getInstanceIdByName(name):
 	"""Return instanceid from name."""
 	cmd = ["aws", "ec2", "describe-instances"]
-	output = common._run_or_none(cmd)
+	output = common._check_output_or_none(cmd)
 	if output:
 		for resources in json.loads(output)["Reservations"]:
 			instance = resources["Instances"][0]
