@@ -1,0 +1,48 @@
+#! /bin/bash
+
+# This template is the qarnot cloud worker docker startup-script
+# https://computing.qarnot.com/developers/apps/docker
+
+### Set hostname
+hostname $hostname
+
+### Securing instance
+systemctl disable ssh
+systemctl stop ssh
+
+### Installing coalition worker requirements
+apt-get install -y \
+    curl \
+    python2.7 \
+    python-httplib2 \
+    python-configparser \
+    python-twisted \
+    python-mysqldb \
+    python-ldap
+
+### Saving key-id json file for authentication
+cat <<EOF > /usr/local/share/gcloud-key-id.json
+$key_id_json 
+EOF
+
+### Installing gcs-fuse
+export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
+echo "deb http://packages.cloud.google.com/apt $$GCSFUSE_REPO main" | tee /etc/apt/sources.list.d/gcsfuse.list
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+apt-get update
+apt-get install -y gcsfuse
+
+### Mounting bucket
+mkdir $mount_point
+chmod a+w $mount_point
+gcsfuse --implicit-dirs --key-file /usr/local/share/gcloud-key-id.json $bucket_name $mount_point
+
+### Installing coalition worker
+cat $mount_point/$coalition_package | tar xzf - -C $install_dir
+
+### Installing the main program
+cat $mount_point/$main_program_package | tar xzf - -C $install_dir
+
+### Running coalition worker with main program required environment variables
+$main_program_environment /usr/bin/python2.7 /usr/local/bin/coalition/worker.py http://$coalition_server_ip:$coalition_server_port
+

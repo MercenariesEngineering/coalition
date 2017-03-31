@@ -12,6 +12,7 @@ Welcome to *"Coalition, a small but beautiful task manager"* documentation page.
    Web interface <web_frontend>
    Python API <python_api>
    REST API <rest_api>
+   Usage <usage>
    Contribute <contribute>
 
 * :ref:`genindex`

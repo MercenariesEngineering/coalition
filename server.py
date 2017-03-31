@@ -695,7 +695,7 @@ if servermode != "normal":
 		cloudconfig.read("cloud_aws.ini")
 	elif servermode == "gcloud":
 		cloudconfig.read("cloud_gcloud.ini")
-	elif servermode == "qarnot":
+	elif servermode == "qarnot_api":
 		cloudconfig.read("cloud_qarnot.ini")
 	cloudconfig.set("coalition", "port", str(port))
 else:
