@@ -35,8 +35,7 @@ def launch_server():
 	"""Launch a coalition server."""
 	# The --init parameter prevents database overwriting. The database has to be
 	# initially empty.
-	#cmd = ["python", "server.py", "--init"]
-	cmd = ["python", "server.py", "--verbose"]
+	cmd = ["python", "server.py"]
 	return subprocess.Popen(cmd)
 
 
