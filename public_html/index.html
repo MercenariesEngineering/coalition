@@ -1,200 +1,191 @@
-<html>	
-<head>
-<meta charset="ISO-8859-1">
-<title>Coalition Server</title>
-<script src="jquery-1.2.6.min.js"></script>
-<script type="text/javascript" src="/jsolait/jsolait.js"></script>
-<script type="text/javascript">jsolait.baseURI="/jsolait";</script>
-<script src="coalition.js"></script>
-<link href="coalition.css" rel="stylesheet" type="text/css"></link>
-</head>
+<!doctype html>
 
-<body>
-<div id="header">
-    <div id="maintitle"><a href="http://code.google.com/p/coalition/">Coalition</a></div>
-    <div id="subtitle">- A small but beautiful job manager by <a href="http://www.mercenaries-engineering.com">Mercenaries Engineering</a> - GPL licence - <a href="iphone.html">iPhone</a></div>
+<html lang="en">	
+	<head>
+		<meta charset="utf-8">
+		<title>Coalition Server</title>
+		<script src="js/jquery.min.js"></script>
+		<script src="js/jquery-ui.min.js"></script>
+		<script src="js/coalition.js"></script>
+		<link href="css/coalition.css" rel="stylesheet" type="text/css"></link>
+	</head>
 
-    <div id="tabs">
-            <div id="jobtab" class="activetab" onclick='showPage("jobs")'>Jobs</div>
-            <div id="workertab" class="unactivetab" onclick='showPage("workers")'>Workers</div>
-            <div id="activitytab" class="unactivetab" onclick='showPage("activities")'>Activities</div>
-            <div id="logtab" class="unactivetab" onclick='showPage("logs")'>Log</div>
-            <div id="affinitytab" class="unactivetab" onclick='showPage("affinities")'>Affinities</div>
-    </div>
+	<body class="flex-column">
 
-    <div class="refreshtools">
-        <input id="autorefresh" class="auto" type="checkbox">auto</input>
-        <input type="button" id="refreshbutton" class="refreshbutton" onclick='refresh()' value='Refresh'/>
-    </div>
-        
-</div>
+		<div id="header" class="flex-row">
 
-<div id="main">
-    <div id="jobsTab">
-        <div id="jobtools">
-            <div class='button' id='Div1'>Filter
-                <select id='filterJobs' onchange='javascript:reloadJobs ()'>
-                    <option value='NONE'>NONE</option>
-                    <option value='WORKING'>WORKING</option>
-                    <option value='ERROR'>ERROR</option>
-                    <option value='WAITING'>WAITING</option>
-                    <option value='FINISHED'>FINISHED</option>
-                    <option value='PAUSED'>PAUSED</option>
-                </select></div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='Div2'>Affinity
-                <input type='edit' id='filterJobsAffinity' onchange='javascript:reloadJobs ()'/>
+			<div class="flex-column">
+                <div id="maintitle" class="flex-row">
+                    <a href="https://github.com/MercenariesEngineering/coalition/" target="_blank">Coalition</a>
                 </div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='Div3'>Title
-                <input type='edit' id='filterJobsTitle' onchange='javascript:reloadJobs ()'/>
+                <div id="subtitle" class="flex-row">
+                    <p>A small but beautiful job manager by <a href="http://www.mercenaries-engineering.com" target="_blank">Mercenaries Engineering</a> - LGPL licence - <a href="https://coalition.readthedocs.io" target="_blank">Documentation</a></p>
                 </div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b01''>Select
-                <select id='selectJobs' onchange='javascript:selectJobs ()' value='CUSTOM'>
-                    <option value='NONE'>NONE</option>
-                    <option value='ALL'>ALL</option>
-                    <option value='WORKING'>WORKING</option>
-                    <option value='ERROR'>ERROR</option>
-                    <option value='WAITING'>WAITING</option>
-                    <option value='FINISHED'>FINISHED</option>
-                    <option value='PAUSED'>PAUSED</option>
-                    <option value='CUSTOM'>CUSTOM</option>
-                </select></div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b03' onclick='resetSelection()'><img src='icon_refresh.png' /> Reset</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b04' onclick='resetErrorSelection()'><img src='icon_refresh.png' /> Reset Errors</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b05' onclick='startSelection()'><img src='icon_play.png' /> Start</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b06' onclick='pauseSelection()'><img src='icon_pause.png' /> Pause</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b07' onclick='cutSelection()'><img src='icon_cut.png' /> Cut</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b11' onclick='pasteSelection()'><img src='icon_paste.png' /> Paste</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b03' onclick='removeSelection()'><img src='icon_remove.png' /> Delete</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b08' onclick='logSelection()'><img src='icon_logs.png' /> Log</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b09' onclick='jobActivity()'><img src='icon_activity.png' /> Activity</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b10' onclick='exportCSV()'><img src='icon_tabler.png' /> CSV</div>
-        </div>
-        <div id="parents">
-        </div>
-        <div id="jobs">
-        </div>
 
-        <table id="toolstable">
-        <tr>
-        <td class="ttr1">title:</td><td class="ttr2"><input type='edit' class="ttedit" id='title' name='title' value='Job' onchange='onchangejobprop ("title")'></td>
-        <td class="ttr3">priority:</td><td class="ttr4"><input type='edit' class="ttedit" id='priority' name='priority' value='127' onchange='onchangejobprop ("priority")'></td>
-        <td rowspan=4 id="toolbuttons">
-            <div>
-                <input type='button' class='toolbutton' name='updatejobsButton' value='Update' onclick='updatejobs()' />
-                <input type='button' class='toolbutton' name='addjobButton' value='Add job' onclick='addjob()' />
-            </div>
-        </td></tr>
-        <tr>
-        <td class="ttr1">command:</td><td><input type='edit' class="ttedit" id='cmd' name='cmd' value='' onchange='onchangejobprop ("cmd")'></td>
-        <td class="ttr3">timeout:</td><td><input type='edit' class="ttedit" id='timeout' name='timeout' value='0' onchange='onchangejobprop ("timeout")'></td>
-        <tr>
-        <td class="ttr1">dir:</td><td><input type='edit' class="ttedit" id='dir' name='dir' value='.' onchange='onchangejobprop ("dir")'></td>
-        <td class="ttr3">affinity:</td><td><input type='edit' class="ttedit" id='affinity' name='affinity' value='' onchange='onchangejobprop ("affinity")'></td>
-        </tr>
-        <tr>
-        <td class="ttr1">dependencies:</td><td><input type='edit' class="ttedit" id='dependencies' name='dependencies' value='' onchange='onchangejobprop ("dependencies")'></td>
-        <td class="ttr3">user:</td><td><input type='edit' class="ttedit" id='user' name='user' value='' onchange='onchangejobprop ("user")'></td>
-        </tr>
-        <tr>
-        <td class="ttr1">url:</td><td><input type='edit' class="ttedit" id='url' name='url' value='' onchange='onchangejobprop ("url")'></td>
-        <td class="ttr3"></td>
-        </tr>
-        <tr>
-        <td class="ttr1">environment:</td><td><input type='edit' class="ttedit" id='env' name='env' value='' onchange='onchangejobprop ("env")'></td>
-        </tr>
-        </table>
-    </div>
-    <div id="workersTab">
-        <div id="workertools">
-            <div class='button' id='b06' onclick='selectAll (true)'><img src='icon_select.png' /> Select All</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b07' onclick='selectAll (false)'><img src='icon_none.png' /> Select None</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b09' onclick='startWorkers ()'><img src='icon_play.png' /> Start</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b10' onclick='stopWorkers ()'><img src='icon_pause.png' /> Stop</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b08' onclick='clearWorkers ()'><img src='icon_remove.png' /> Delete</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b11' onclick='workerActivity ()'><img src='icon_activity.png' /> Activity</div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='b13' onclick='terminateWorkers ()'><img src='icon_terminate.png' /> Terminate</div>
-        </div>
-        <div id="workers">
-        </div>
+			</div>
 
-        <table id="workertoolstable">
-        <tr>
-        <td class="ttr3">affinity:</td><td><textarea type='edit' class="ttedit" id='waffinity' name='waffinity' value='' onchange='onchangeworkerprop ("waffinity")'></textarea></td>
-        <td rowspan=4>
-            <div>
-                <input type='button' class='toolbutton' name='updatejobsButton' value='Update' onclick='updateworkers()' />
-            </div>
-        </td></tr>
-        </table>
-    </div>
-    <div id="logsTab">
-        <div id="logtools">
-            <div class='button' id='b12' onclick='clearLog()'><img src='icon_remove.png' /> Clear</div>
-        </div>
-        <div id="logs">
-        </div>
-    </div>
-    <div id="activitiesTab">
-        <div id="activitiestools">
-            <div class='button' id='Div2'>Job filter
-                <input id='activityJob' onchange='javascript:reloadActivities()'>
-                </input></div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='Div3'>Worker filter
-                <input id='activityWorker' onchange='javascript:reloadActivities()'>
-                </input></div>
-            <div class='buttonSep'>|</div>
-            <div class='button' id='Div4'>How long
-                <select id='howlong' onchange='javascript:reloadActivities()'>
-                    <option value='60'>Last minute</option>
-                    <option value='600'>Last 10 minutes</option>
-                    <option value='3600'>Last hour</option>
-                    <option value='28800'>Last 8 hours</option>
-                    <option value='86400'>Last day</option>
-                    <option value='604800'>Last week</option>
-                    <option value='2592000'>Last month</option>
-                    <option value='15552000'>Last 6 monthes</option>
-                    <option value='100000000000'>All</option>
-                </select>
-            </div>
-        </div>
-        <div id="activities">
-        </div>
-    </div>
-    <div id="affinitiesTab">
-        <div id="affinities">
-        </div>
-        <table id="affinitytoolstable">
-        <tr>
-        <td rowspan=4>
-            <div>
-                <input type='button' class='toolbutton' name='updateaffinitiesButton' value='Update' onclick='sendAffinities()' />
-            </div>
-        </td>
-        </tr>
-        </table>
-    </div>
-</div>
+			<div id="tabs" class="flex-column flex-grow">
+				<div class="flex-row">
+                    <button type="button" id="jobtab" class="button" onclick="showPage('jobs')">Jobs</button>
+                    <button type="button" id="workertab" class="button" onclick="showPage('workers')">Workers</button>
+                    <button type="button" id="activitytab" class="button" onclick="showPage('activities')">Activities</button>
+                    <button type="button" id="logtab" class="button" onclick="showPage('logs')">Log</button>
+                    <button type="button" id="affinitytab" class="button" onclick="showPage('affinities')">Affinities</button>
+				</div>
+			</div>
 
-</body>
+			<div id="refreshtools" class="flex-column">
+                <div class="flex-row">
+                    <div class="flex-column">
+                        <input id="autorefresh" class="auto" type="checkbox">
+                        <label>auto</label>
+                    </div>
+                    <div class="flex-column">
+                        <button type="button" id="refreshbutton" class="button" onclick="refresh()">Refresh</button>
+                    </div>
+                </div>
+			</div>
+
+		</div>
+
+		<div id="main" class="flex-row flex-grow">
+
+			<div id="jobsTab" class="tab-content flex-column">
+				<form id="job-sql-search"></form>
+				<div id="jobtools" class="flex-row">
+					<button type="button" class="button" onclick="configJobsTable();">Configure table</button>
+					<button type="reset" class="button" onclick="resetSqlFilter();$('#job-sql-search').submit();">Reset filters</button>
+                    <div class="flex-column">
+                        <div class="button" id="b01">
+							<label>Selection</label>
+                            <select id="selectJobs" onchange="selectJobs()" value="CUSTOM">
+                                <option value="NONE">NONE</option>
+                                <option value="ALL">ALL</option>
+                                <option value="WORKING">WORKING</option>
+                                <option value="ERROR">ERROR</option>
+                                <option value="WAITING">WAITING</option>
+                                <option value="FINISHED">FINISHED</option>
+                                <option value="PAUSED">PAUSED</option>
+                                <option value="CUSTOM">CUSTOM</option>
+                            </select>
+                        </div>
+                    </div>
+					<button type="button" class="button" id="b03" onclick="resetSelection()"><img src="img/icon_refresh.png">Reset</button>
+					<button type="button" class="button" id="b04" onclick="resetErrorSelection()"><img src="img/icon_refresh.png">Reset errors</button>
+					<button type="button" class="button" id="b05" onclick="startSelection()"><img src="img/icon_play.png">Start</button>
+					<button type="button" class="button" id="b06" onclick="pauseSelection()"><img src="img/icon_pause.png">Pause</button>
+					<button type="button" class="button" id="b07" onclick="cutSelection()"><img src="img/icon_cut.png">Cut</button>
+					<button type="button" class="button" id="b11" onclick="pasteSelection()"><img src="img/icon_paste.png">Paste</button>
+					<button type="button" class="button" id="b03" onclick="removeSelection()"><img src="img/icon_remove.png">Delete</button>
+					<button type="button" class="button" id="b08" onclick="logSelection()"><img src="img/icon_logs.png">Log</button>
+					<button type="button" class="button" id="b09" onclick="jobActivity()"><img src="img/icon_activity.png">Activity</button>
+					<button type="button" class="button" id="b10" onclick="exportCSV()"><img src="img/icon_tabler.png">CSV</button>
+				</div>
+
+				<div id="parents" class="flex-row">
+				</div>
+
+				<div id="jobs" class="flex-row">
+				</div>
+
+				<div id="toolstable" class="flex-row flex-wrap">
+					<div class="flex-column">
+                        <label class="flex-row"><span class="flex-column">Title:</span><input type="edit" class="flex-column ttedit" id="title" name="title" value="Job" onchange="onchangejobprop('title')"></label>
+                        <label class="flex-row"><span>Priority:</span><input type="edit" class="ttedit" id="priority" name="priority" value="127" onchange="onchangejobprop('priority')"></label>
+                        <label class="flex-row"><span>Command:</span><input type="edit" class="ttedit" id="cmd" name="cmd" value="" onchange="onchangejobprop('cmd')"></label>
+					</div>
+					<div class="flex-column">
+                        <label class="flex-row"><span>Timeout:</span><input type="edit" class="ttedit" id="timeout" name="timeout" value="0" onchange="onchangejobprop('timeout')"></label>
+                        <label class="flex-row"><span>Directory:</span><input type="edit" class="ttedit" id="dir" name="dir" value="." onchange="onchangejobprop('dir')"></label>
+                        <label class="flex-row"><span>Affinity:</span><input type="edit" class="ttedit" id="affinity" name="affinity" value="" onchange="onchangejobprop('affinity')"></label>
+					</div>
+					<div class="flex-column">
+                        <label class="flex-row"><span>Dependencies:</span><input type="edit" class="ttedit" id="dependencies" name="dependencies" value="" onchange="onchangejobprop('dependencies')"></label>
+                        <label class="flex-row"><span>User:</span><input type="edit" class="ttedit" id="user" name="user" value="" onchange="onchangejobprop('user')"></label>
+                        <label class="flex-row"><span>URL:</span><input type="edit" class="ttedit" id="url" name="url" value="" onchange="onchangejobprop('url')"></label>
+                        <label class="flex-row"><span>Environment:</span><input type="edit" class="ttedit" id="env" name="env" value="" onchange="onchangejobprop('env')"></label>
+					</div>
+					<div class="flex-column">
+						<button type="button" class="button" name="updatejobsButton" onclick="updatejobs()">Update</button>
+						<button type="button" class="button" name="addjobButton" onclick="addjob()">Add job</button>
+					</div>
+				</div>
+			</div>
+
+			<div id="workersTab" class="tab-content flex-column">
+				<div id="workertools" class="flex-row">
+					<button class="button" id="b06" onclick="selectAll(true)"><img src="img/icon_select.png">Select all</button>
+					<button class="button" id="b07" onclick="selectAll(false)"><img src="img/icon_none.png">Select none</button>
+					<button class="button" id="b09" onclick="startWorkers()"><img src="img/icon_play.png">Start</button>
+					<button class="button" id="b10" onclick="stopWorkers()"><img src="img/icon_pause.png">Stop</button>
+					<button class="button" id="b08" onclick="clearWorkers()"><img src="img/icon_remove.png">Delete</button>
+					<button class="button" id="b11" onclick="workerActivity()"><img src="img/icon_activity.png">Activity</button>
+					<button class="button" id="b13" onclick="terminateWorkers()"><img src="img/icon_terminate.png">Terminate</button>
+				</div>
+
+				<div id="workers">
+				</div>
+
+				<div id="workertoolstable" class="flex-row">
+					<div class="flex-column">
+						<form>
+							<label>Affinity:<textarea type="edit" class="ttedit" id="waffinity" name="waffinity" value="" onchange="onchangeworkerprop('waffinity')"></textarea>
+							</label>
+						</form>
+					</div>
+					<div class="flex-column">
+							<button type="button" class="button" name="updatejobsButton" value="Update" onclick="updateworkers()">Update</button>
+					</div>
+				</div>
+			</div>
+
+			<div id="logsTab" class="tab-content flex-column">
+				<div id="logtools" class="flex-row">
+					<button class="button" id="b12" onclick="clearLog()"><img src="img/icon_remove.png">Clear</button>
+				</div>
+				<div id="logs" class="flex-row">
+				</div>
+			</div>
+
+			<div id="activitiesTab" class="tab-content flex-column">
+				<div id="activitiestools" class="flex-row">
+					<label id="Div2">Job filter
+						<input id="activityJob" onchange="reloadActivities()">
+					</label>
+					<label id="Div3">Worker filter
+						<input id="activityWorker" onchange="reloadActivities()">
+					</label>
+					<label id="Div4">How long
+						<select id="howlong" onchange="reloadActivities()">
+							<option value="60">Last minute</option>
+							<option value="600">Last 10 minutes</option>
+							<option value="3600">Last hour</option>
+							<option value="28800">Last 8 hours</option>
+							<option value="86400">Last day</option>
+							<option value="604800">Last week</option>
+							<option value="2592000">Last month</option>
+							<option value="15552000">Last 6 monthes</option>
+							<option value="100000000000">All</option>
+						</select>
+					</label>
+				</div>
+				<div id="activities">
+				</div>
+			</div>
+
+			<div id="affinitiesTab" class="tab-content flex-column">
+				<div id="affinities" class="flex-row">
+				</div>
+				<div id="affinitytoolstable" class="flex-row">
+					<button type="button" class="button" name="updateaffinitiesButton" onclick="sendAffinities()">Update</button>
+				</div>
+			</div>
+
+		</div>
+
+		<div id="footer" class="flex-row">
+		</div>
+
+	</body>
 </html>
 

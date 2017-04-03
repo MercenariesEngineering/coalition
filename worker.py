@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Coalition worker.
+"""
+
 import socket, time, subprocess, thread, getopt, sys, os, base64, signal, string, re, platform, ConfigParser, httplib, urllib, datetime, threading
 import random
 from sys import modules
@@ -545,3 +552,6 @@ def main ():
 
 if not service:
 	main()
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
+
