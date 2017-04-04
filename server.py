@@ -141,7 +141,9 @@ def notifyFirstFinished (job):
 def _interactiveConfirmation(confirmation_sentence="Yes I know what I'm doing."):
 	"""Ask the user for confirmation."""
 	text = "Please write this sentence then press enter to confirm:\n"+confirmation_sentence+'\n'
-	answer = raw_input(text)
+	print (text)
+	sys.stdout.flush()
+	answer = raw_input()
 	if answer == confirmation_sentence:
 		return True
 	return False
@@ -783,9 +785,7 @@ if initdb:
 		exit(1)
 
 if not len(db._getDatabaseTables()):
-	vprint(dedent("""
-	The database is empty. It should be initialized first using 'python server.py --verbose --init'."""))
-	exit(1)
+	db.initDatabase ()
 
 with db:
 	requires_migration = db.requiresMigration()
