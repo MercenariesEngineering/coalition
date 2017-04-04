@@ -30,10 +30,10 @@ class DBSQL(DB):
 
 		tables = self._getDatabaseTables()
 
-		if ("Workers",) in tables:
+		if (("Workers",) in tables) or (("workers",) in tables):
 			self._populateWorkersCache()
 
-		if ("Affinities",) in tables:
+		if (("Affinities",) in tables) or (("affinities",) in tables):
 			self._populateAffinitiesTable()
 
 	def __enter__(self):
@@ -480,7 +480,7 @@ class DBSQL(DB):
 		"""Return database version."""
 		cur = self.Conn.cursor()
 		tables = self._getDatabaseTables()
-		if not ("Migrations",) in tables:
+		if (not ("Migrations",) in tables) and (not ("migrations",) in tables):
 			current_version = [("0000",)]
 		else:
 			req = "SELECT database_version FROM Migrations;"
