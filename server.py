@@ -646,7 +646,7 @@ port = cfgInt ('port', 19211)
 
 timeout = cfgInt ('timeout', 60)
 verbose = cfgBool ('verbose', False)
-service = cfgBool ('service', True)
+service = cfgBool ('service', False)
 notifyafter = cfgInt ('notifyafter', 10)
 decreasepriorityafter = cfgInt ('decreasepriorityafter', 10)
 smtpsender = cfgStr ('smtpsender', "")
