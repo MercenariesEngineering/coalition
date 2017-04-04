@@ -59,16 +59,6 @@ You may want to fine tune the installation using:
  - a `systemd service definition file <https://wiki.archlinux.org/index.php/Systemd>`_;
  - any system service monitoring daemon.
 
-Windows
--------
-Get the source code::
-
-  git clone https://github.com/MercenariesEngineering/coalition.git
-
-From the coalition directory, run::
-
-  build_win32_installer.bat
-
 coalition.ini configuration file
 --------------------------------
 This configuration file contains two sections: **[server]** that will be used in server mode, and **[worker]** that will be used while running in worker mode.
