@@ -2,8 +2,18 @@ language: python
 cache: pip
 python:
 - "2.7"
+services:
+  - mysql
 before_install:
 - sudo apt-get update -qq
 - sudo apt-get install -qq python-sqlite
+- mysql -e 'CREATE DATABASE base;'
 install: "pip install -r requirements.txt"
-script: tests/main_test.py
+script:
+- echo [server] > coalition.ini
+- echo db_type=sqlite >> coalition.ini
+- tests/main_test.py
+- echo [server] > coalition.ini
+- echo db_type=mysql >> coalition.ini
+- echo db_mysql_user=travis >> coalition.ini
+- tests/main_test.py
