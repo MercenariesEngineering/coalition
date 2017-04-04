@@ -637,6 +637,8 @@ config = ConfigParser.SafeConfigParser()
 config.read ("coalition.ini")
 
 # Default config file values
+if not config.has_section('server'):
+	config.add_section("server")
 if not config.has_option("server", "db_type"):
 	config.set ("server", "db_type", "sqlite")
 
