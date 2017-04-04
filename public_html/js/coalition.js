@@ -725,14 +725,14 @@ function checkSelectionProperties (list, props, selectedList, idName)
     else if (values[i] == null)
     {
       // default value
-      $('#'+props[i][1]).css("background-color", "white");
+      $('#'+props[i][1]).css("background-color", "");
       $('#'+props[i][1]).attr("value", props[i][2]);
       $('#'+props[i][1]).val(props[i][2]);
     }
     else
     {
       // unique values
-      $('#'+props[i][1]).css("background-color", "white");
+      $('#'+props[i][1]).css("background-color", "");
       $('#'+props[i][1]).attr("value", values[i]);
       $('#'+props[i][1]).val(values[i]);
     }
