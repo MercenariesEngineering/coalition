@@ -110,7 +110,12 @@ class ServerPythonApiTestCase(unittest.TestCase):
 		self.assertEqual(secondSleepJob.priority, 128)
 
 	def test_getWorkers(self):
-		workers = self.conn.getWorkers()
+		for k in range(1,10):
+			workers = self.conn.getWorkers()
+			if len(workers) >= 2:
+				break
+			time.sleep (1)
+
 		self.assertEqual(len(workers), 2)
 
 	def test_editWorkers(self):
