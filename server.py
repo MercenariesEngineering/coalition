@@ -636,6 +636,10 @@ except OSError:
 config = ConfigParser.SafeConfigParser()
 config.read ("coalition.ini")
 
+# Default config file values
+if not config.has_option("server", "db_type"):
+	config.set ("server", "db_type", "sqlite")
+
 port = cfgInt ('port', 19211)
 
 timeout = cfgInt ('timeout', 60)
