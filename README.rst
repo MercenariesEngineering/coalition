@@ -10,7 +10,7 @@
 .. |badge-coverage| image:: https://coveralls.io/repos/github/MercenariesEngineering/coalition/badge.svg?branch=development
    :target: https://coveralls.io/github/MercenariesEngineering/coalition?branch=development
 
-.. |badge-tests| image:: https://travis-ci.org/MercenariesEngineering/coalition.svg?branch=development
+.. |badge-tests| image:: https://travis-ci.org/MercenariesEngineering/coalition.svg?branch=master
 
 |badge-doc| |badge-size| |badge-version| |badge-coverage| |badge-tests|
 
