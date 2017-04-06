@@ -8,5 +8,5 @@ class DBMySQL(DBSQL):
 		self.cloudconfig = kwargs["cloudconfig"]
 		self.Conn = MySQLdb.connect(host, user, password, database)
 		self.Conn.ping(True)
+		# super is called *after* because DBSQL inits stuffs in the DB
 		super(DBMySQL, self).__init__()
-
