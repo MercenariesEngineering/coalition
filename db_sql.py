@@ -249,10 +249,11 @@ class DBSQL(DB):
 			"FROM Jobs "
 			"WHERE id = {parent} {ldap_perm}".format(parent=parent, ldap_perm=ldap_perm))
 		data = cur.fetchone()
+		paused = 0
 		if state == "PAUSED":
-			paused = True;
+			paused = 1;
 		if data is None:
-			data = [-1, 0, 0, False, '']
+			data = [-1, 0, 0, 0, '']
 		if data[4] != '':
 			print("Error: can't add job, parent {parent} is not a group".format(parent=parent))
 			return None
