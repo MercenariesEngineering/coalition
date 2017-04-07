@@ -904,7 +904,7 @@ function renderWorkers ()
       for (j=0; j < workerload.length; ++j)
       {
         //load += "<div class='loadbar' style='width:" + workerload[j] + "%;height:" + 16/workerload.length + "' />";
-        load += "<div class='loadbar' style='width:" + workerload[j] + "%></div>";
+        load += "<div class='loadbar' style='width:" + workerload[j] + "%'></div>";
         loadValue += workerload[j];
       }
       Math.floor(loadValue/workerload.length);
