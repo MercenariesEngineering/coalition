@@ -945,7 +945,10 @@ class DBSQL(DB):
 
 			job = cur.fetchone ()
 
-			if job is None: # Finally, return nothing if there is no job.
+			# Finally, return nothing if there is no job.
+			if job is None:
+				# Update worker state
+				self._execute (cur, "UPDATE Workers SET state = 'WAITING' WHERE name = '{}'".format(hostname))
 				return -1, "", "", "", None
 
 		# update the job and worker
