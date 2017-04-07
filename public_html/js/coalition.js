@@ -266,7 +266,7 @@ function timerCB ()
 
 function refresh ()
 {
-  document.getElementById("refreshbutton").className = "refreshing";
+  document.getElementById("refreshbutton").className = "refreshing button";
 	if (page == "jobs")
 		reloadJobs ();
 	else if (page == "workers") 
@@ -1116,9 +1116,7 @@ function updateAffinities ()
         var def = affinities[i];
         if (def)
           $("#affinity"+i).attr("value", def);
-        $("#affinity"+i).css("background-color", "white");
       }
-      //document.getElementById("refreshbutton").className = "refreshbutton";
     }
   });
 }
