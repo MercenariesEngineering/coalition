@@ -21,7 +21,7 @@ body {
 
 input, select, textarea {
     width: 100%;
-    border: 1px solid #000;
+    border: 0;
     font-size: 0.7rem;
     background-color: #555;
     color: ghostwhite;
@@ -366,7 +366,6 @@ tbody td {
     font-size: 0.9rem;
     text-align: center;
     color: #FFFFFF;
-    border-right:1px solid black;
 }
 
 .entry, .entry0, .entry1, .title, .entry0Selected, .entry1Selected
