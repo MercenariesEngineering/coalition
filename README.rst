@@ -2,15 +2,16 @@
    :target: http://coalition.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
 
-.. |badge-size| image:: https://reposs.herokuapp.com/?path=https://github.com/MercenariesEngineering/coalition
+.. |badge-tests| image:: https://travis-ci.org/MercenariesEngineering/coalition.svg?branch=master
 
 .. |badge-version| image:: https://badge.fury.io/gh/MercenariesEngineering%2Fcoalition.svg
    :target: https://badge.fury.io/gh/MercenariesEngineering%2Fcoalition
 
+.. |badge-size| image:: https://reposs.herokuapp.com/?path=https://github.com/MercenariesEngineering/coalition
+
 .. |badge-coverage| image:: https://coveralls.io/repos/github/MercenariesEngineering/coalition/badge.svg?branch=development
    :target: https://coveralls.io/github/MercenariesEngineering/coalition?branch=development
 
-.. |badge-tests| image:: https://travis-ci.org/MercenariesEngineering/coalition.svg?branch=master
 
 |badge-doc| |badge-size| |badge-version| |badge-coverage| |badge-tests|
 
@@ -40,9 +41,6 @@ The server waits for incoming workers connections. Workers ask the server for a 
 - **Unittests** of critical code parts;
 - **Source code** and **documentation** on `the development platform <https://github.com/MercenariesEngineering/coalition>`_.
 
-The current stable version are 3.8 and 3.10.
+The stable versions are 3.8 and 3.10. The current version is referenced in  the file *version*, wich says:
 
-The development version is |current-version|.
-
-.. |current-version| include:: version
-
+.. literalinclude:: ../../version
