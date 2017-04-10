@@ -204,19 +204,27 @@ def authenticate(request, ldap_permissions):
 		return False, {}
 	return True, ldap_permissions
 
-def grantAddJob(user, cmd):
-	"""Check if the logged in user can add this command."""
+def grantAddJob(username, cmd, user):
+	"""Check if the jobs user attribute is not blacklisted and if the logged in
+	username can add this command."""
+
 	def checkWhiteList(wl):
 		for pattern in wl:
 			if (re.match (pattern, cmd)):
 				return True
 		else:
-			vprint("[LDAP] Not authorized. User {} is not allowed to add the command {}".format(user, cmd))
+			vprint("[LDAP] Not authorized. User {} is not allowed to add the command {}".format(username, cmd))
 		return False
 
-	# Is user defined white list ?		
-	if user in UserCmdWhiteList:
-		wl = UserCmdWhiteList[user]
+	# Is job user attribute blacklisted?
+	if config.has_option("server", "jobuserblacklist"):
+		if user in config.get("server", "jobuserblacklist").split('\n'):
+			vprint('[Blacklisted] Cannot add/edit job since user "{}" is blacklisted'.format(user))
+			return False
+
+	# Is user defined white list?		
+	if username in UserCmdWhiteList:
+		wl = UserCmdWhiteList[username]
 		if checkWhiteList(wl):
 			return True
 		# If in the global command white list
@@ -377,7 +385,7 @@ class Master(xmlrpc.XMLRPC):
 					if self.user != "":
 						user = self.user
 
-					if grantAddJob(self.user, cmd):
+					if grantAddJob(self.user, cmd, user):
 						vprint ("Add job: {}".format(cmd))
 						# try as an int
 						parent = int(parent)
@@ -425,7 +433,7 @@ class Master(xmlrpc.XMLRPC):
 							# REST PUT API
 							if request.method == "PUT":
 								if request.path == "/api/jobs":
-									if grantAddJob(self.user, getArg("command","")):
+									if grantAddJob(self.user, getArg("command",""), getArg("user", "")):
 										job = db.newJob ((getArg("parent",0)),
 														 (getArg("title","")),
 														 (getArg("command","")),
