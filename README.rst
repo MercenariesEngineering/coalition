@@ -15,7 +15,7 @@
 
 |badge-doc| |badge-size| |badge-version| |badge-coverage| |badge-tests|
 
-`Full online documentation is availlble on ReadTheDocs <http://coalition.readthedocs.io/en/latest/>`_.
+`Full online documentation is available on ReadTheDocs <http://coalition.readthedocs.io/en/latest/>`_.
 
 Coalition
 =========
@@ -41,6 +41,6 @@ The server waits for incoming workers connections. Workers ask the server for a 
 - **Unittests** of critical code parts;
 - **Source code** and **documentation** on `the development platform <https://github.com/MercenariesEngineering/coalition>`_.
 
-The stable versions are 3.8 and 3.10. The current version is referenced in  the file *version*, wich says:
+The stable versions are 3.8 and 3.10. The current version is referenced in  the file *version*, that is:
 
 .. literalinclude:: ../../version
