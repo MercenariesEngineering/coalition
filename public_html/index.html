@@ -21,7 +21,6 @@
                 <div id="subtitle" class="flex-row">
                     <p>A small but beautiful job manager by <a href="http://www.mercenaries-engineering.com" target="_blank">Mercenaries Engineering</a> - LGPL licence - <a href="https://coalition.readthedocs.io" target="_blank">Documentation</a></p>
                 </div>
-
 			</div>
 
 			<div id="tabs" class="flex-column flex-grow">
@@ -93,7 +92,7 @@
 
 				<div id="toolstable" class="flex-row flex-wrap">
 					<div class="flex-column">
-                        <label class="flex-row"><span class="flex-column">Title:</span><input type="edit" class="flex-column ttedit" id="title" name="title" value="Job" onchange="onchangejobprop('title')"></label>
+                        <label class="flex-row"><span>Title:</span><input type="edit" class="ttedit" id="title" name="title" value="Job" onchange="onchangejobprop('title')"></label>
                         <label class="flex-row"><span>Priority:</span><input type="edit" class="ttedit" id="priority" name="priority" value="127" onchange="onchangejobprop('priority')"></label>
                         <label class="flex-row"><span>Command:</span><input type="edit" class="ttedit" id="cmd" name="cmd" value="" onchange="onchangejobprop('cmd')"></label>
 					</div>
@@ -132,12 +131,14 @@
 				<div id="workertoolstable" class="flex-row">
 					<div class="flex-column">
 						<form>
-							<label>Affinity:<textarea type="edit" class="ttedit" id="waffinity" name="waffinity" value="" onchange="onchangeworkerprop('waffinity')"></textarea>
+                            <label class="flex-row">
+                                <span class="flex-column">Affinity:</span>
+                                <textarea type="edit" class="ttedit flex-column" id="waffinity" name="waffinity" value="" onchange="onchangeworkerprop('waffinity')"></textarea>
 							</label>
 						</form>
 					</div>
 					<div class="flex-column">
-							<button type="button" class="button" name="updatejobsButton" value="Update" onclick="updateworkers()">Update</button>
+                        <button type="button" class="button" name="updatejobsButton" value="Update" onclick="updateworkers()">Update</button>
 					</div>
 				</div>
 			</div>
@@ -152,25 +153,34 @@
 
 			<div id="activitiesTab" class="tab-content flex-column">
 				<div id="activitiestools" class="flex-row">
-					<label id="Div2">Job filter
-						<input id="activityJob" onchange="reloadActivities()">
-					</label>
-					<label id="Div3">Worker filter
-						<input id="activityWorker" onchange="reloadActivities()">
-					</label>
-					<label id="Div4">How long
-						<select id="howlong" onchange="reloadActivities()">
-							<option value="60">Last minute</option>
-							<option value="600">Last 10 minutes</option>
-							<option value="3600">Last hour</option>
-							<option value="28800">Last 8 hours</option>
-							<option value="86400">Last day</option>
-							<option value="604800">Last week</option>
-							<option value="2592000">Last month</option>
-							<option value="15552000">Last 6 monthes</option>
-							<option value="100000000000">All</option>
-						</select>
-					</label>
+                    <div class="flex-column">
+                        <label id="Div2" class="flex-row">
+                            <span class="flex-column">Job&nbsp;filter:</span>
+                            <input id="activityJob" class="flex-column" onchange="reloadActivities()">
+                        </label>
+                    </div>
+                    <div class="flex-column">
+                        <label id="Div3" class="flex-row">
+                            <span class="flex-column">Worker&nbsp;filter:</span>
+                            <input id="activityWorker" class="flex-column" onchange="reloadActivities()">
+                        </label>
+                    </div>
+                    <div class="flex-column">
+                        <label id="Div4" class="flex-row">
+                            <span class="flex-column">Since:</span>
+                            <select id="howlong" class="flex-column" onchange="reloadActivities()">
+                                <option value="60">Last minute</option>
+                                <option value="600">Last 10 minutes</option>
+                                <option value="3600">Last hour</option>
+                                <option value="28800">Last 8 hours</option>
+                                <option value="86400">Last day</option>
+                                <option value="604800">Last week</option>
+                                <option value="2592000">Last month</option>
+                                <option value="15552000">Last 6 monthes</option>
+                                <option value="100000000000">All</option>
+                            </select>
+                        </label>
+                    </div>
 				</div>
 				<div id="activities">
 				</div>

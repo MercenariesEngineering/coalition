@@ -299,7 +299,7 @@ function addSumEmpty (str)
   if (str == undefined)
     return "<td></td>";
   else
-    return "<td class='headerCell'>" + str + "</td>";
+    return "<td>" + str + "</td>";
 }
 
 // Returns the HTML code for a job title column
@@ -311,7 +311,7 @@ function addSum (inputs, attribute)
     var job = inputs[i];
     sum += job[attribute];
   }
-  return "<td class='headerCell'>" + sum + "</td>";
+  return "<td>" + sum + "</td>";
 }
 
 // Returns the HTML code for a job title column
@@ -324,7 +324,7 @@ function addSumFinished (inputs, attribute)
     if (job[attribute] == "FINISHED")
       sum ++;
   }
-  return "<td class='headerCell'>" + sum + " FINISHED</td>";
+  return "<td>" + sum + " FINISHED</td>";
 }
 
 // Average
@@ -339,15 +339,15 @@ function addSumAvgDuration (inputs, attribute)
     count++;
   }
   if (count > 0)
-    return "<td class='headerCell'>Avg " + formatDuration (sum/count) + "</td>";
+    return "<td>Avg " + formatDuration (sum/count) + "</td>";
   else
-    return "<td class='headerCell'></td>";
+    return "<td></td>";
 }
 
 // Returns the HTML code for a job title column
 function addSumSimple (inputs)
 {
-  return "<td class='headerCell'>" + inputs.length + " jobs</td>";
+  return "<td>" + inputs.length + " jobs</td>";
 }
 
 function renderParents ()
@@ -388,7 +388,7 @@ function renderJobs (jobsCurrent=[]) {
 
   // Returns the HTML code for a job title column
   function addTitleHTMLEx (attribute, alias, input, min, max) {
-    table += '<th class="headerCell" data-key=\''+attribute+'\'>';
+    table += '<th data-key=\''+attribute+'\'>';
     table += '<div class="flex-column">';
     table += '<div class="flex-row">';
     table += '<label onclick="setJobKey(\''+attribute+'\')">';
@@ -406,7 +406,7 @@ function renderJobs (jobsCurrent=[]) {
       table += alias+"</label></div>";
     }
     if (input) {
-      var nodeSelector = '.headerCell[data-key=\''+attribute+'\']>div.flex-column';
+      var nodeSelector = 'th[data-key=\''+attribute+'\']>div.flex-column';
       switch (input) {
         case "search":
           table += buildInputForField(nodeSelector, "job-sql-search", attribute, input);
@@ -436,8 +436,7 @@ function renderJobs (jobsCurrent=[]) {
   }
 
   table += "<thead>";
-  table += "<tr class='title'>";
-  //addTitleHTML ("Order");
+  table += "<tr>";
   addTitleHTML ("id", "id", "search");
   addTitleHTML ("title", "title", "search");
   addTitleHTML ("url", "url");
@@ -524,13 +523,13 @@ function renderJobs (jobsCurrent=[]) {
     addTD (job.dir);
     addTD (job.dependencies);
 
-    table += "</td></tr>\n";
+    table += "</td></tr>";
   }
   table += "</tbody>";
 
   // Footer
   table += "<tfoot>";
-  table += '<tr class="title">';
+  table += '<tr>';
   table += addSumEmpty ();
   table += addSumSimple (jobs);
   table += addSumEmpty ();
@@ -719,21 +718,21 @@ function checkSelectionProperties (list, props, selectedList, idName)
     if (values[i] == MultipleSelection)
     {
       // different values
-      $('#'+props[i][1]).css("background-color", "orange");
+      $('#'+props[i][1]).addClass("value-different");
       $('#'+props[i][1]).attr("value", "");
       $('#'+props[i][1]).val("");
     }
     else if (values[i] == null)
     {
       // default value
-      $('#'+props[i][1]).css("background-color", "");
+      $('#'+props[i][1]).removeClass("value-modified value-different");
       $('#'+props[i][1]).attr("value", props[i][2]);
       $('#'+props[i][1]).val(props[i][2]);
     }
     else
     {
       // unique values
-      $('#'+props[i][1]).css("background-color", "");
+      $('#'+props[i][1]).removeClass("value-modified value-different");
       $('#'+props[i][1]).attr("value", values[i]);
       $('#'+props[i][1]).val(values[i]);
     }
@@ -747,7 +746,7 @@ function updateSelectionProp (values, props, prop)
     if (props[i][1] == prop)
     {
       values[i] = true;
-      $('#'+props[i][1]).css("background-color", "greenyellow");
+      $('#'+props[i][1]).addClass("value-modified");
       break;
     }
 }
@@ -767,7 +766,6 @@ function sendSelectionPropChanges (list, idName, values, props, objects, selecte
       for (i = 0; i < props.length; ++i)
         if (values[i] == true) {
           var prop = props[i][0];
-          // var value = $('#'+props[i][1]).attr("value");
           var value = $('#'+props[i][1]).val();
           if (prop == "dependencies")
             value = value.split(",");
@@ -838,14 +836,14 @@ function renderWorkers ()
 
   var table = "<table id='workersTable'>";
 	table += "<thead>";
-  table += "<tr class='title'>\n";
+  table += "<tr>";
 
   // Returns the HTML code for a worker title column
   function addTitleHTML (attribute)
   {
-    table += '<th class="headerCell">';	
-		table += '<div class="flex-column">';
-		table += '<div class="flex-row">';
+    table += '<th>';	
+    table += '<div class="flex-column">';
+    table += '<div class="flex-row">';
     table += '<label onclick="setWorkerKey(\''+attribute+'\')">';
     var value = workers[0];
     if (value && value[attribute] != null)
@@ -873,7 +871,6 @@ function renderWorkers ()
   addTitleHTML ("finished");
   addTitleHTML ("error");
   addTitleHTML ("ip");
-
   table += "</tr>";
   table += "</thead>";
   table += "<tbody>";
@@ -949,7 +946,7 @@ function renderWorkers ()
       "<td onMouseDown='onClickList(event,"+i+")'>"+worker.finished+"</td>"+
       "<td onMouseDown='onClickList(event,"+i+")'>"+worker.error+"</td>"+
       "<td>"+worker.ip+"</td>"+
-      "</tr>\n";
+      "</tr>";
   }
   table += "</tbody>";
   table += "</table>";
@@ -971,7 +968,6 @@ function reloadActivities ()
     {
       activities = data;
       renderActivities ();
-      //document.getElementById("refreshbutton").className = "refreshbutton";
     }
   });
 }
@@ -981,12 +977,12 @@ function renderActivities ()
   $("#activities").empty ();
 
   var table = "<table id='activitiesTable'>";
-  table += "<tr class='title'>\n";
+  table += "<thead>";
 
   // Returns the HTML code for a worker title column
   function addTitleHTML (attribute)
   {
-    table += "<th class='headerCell' onclick='"+"setActivityKey(\""+attribute+"\")'>";	
+    table += "<th onclick='"+"setActivityKey(\""+attribute+"\")'>";	
     var value = activities[0];
     if (value && value[attribute] != null)
     {
@@ -1008,7 +1004,7 @@ function renderActivities ()
   addTitleHTML ("worker");
   addTitleHTML ("duration");
 
-  table += "</tr>\n";
+  table += "</thead>";
 
   function _sort (a,b)
   {
@@ -1037,18 +1033,18 @@ function renderActivities ()
       "<td class='"+activity.state+"'>"+activity.state+"</td>"+
       "<td>"+activity.worker+"</td>"+
       "<td>"+dura+"</td>"+
-      "</tr>\n";
+      "</tr>";
   }
 
   // Footer
-  table += "<tr class='title'>";
+  table += "<tfoot>";
   table += addSumEmpty ();
   table += addSumSimple (activities);
   table += addSumEmpty ();
   table += addSumFinished (activities, "state");
   table += addSumEmpty ();
   table += addSumAvgDuration (activities, "duration");
-  table += "</tr>\n";
+  table += "</tfoot>";
 
   table += "</table>";
   $("#activities").append(table);
@@ -1060,12 +1056,12 @@ function renderAffinities ()
   $("#affinities").empty ();
 
   var table = "<table id='affinitiesTable'>";
-	table += "<thead>";
-  table += "<tr class='title'>";
+  table += "<thead>";
+  table += "<tr>";
 
   function addTitleHTML (attribute)
   {
-    table += "<th class='headerCell' onclick='"+"setActivityKey(\""+attribute+"\")'>";	
+    table += "<th onclick='"+"setActivityKey(\""+attribute+"\")'>";	
     var value = activities[0];
     if (value && value[attribute] != null)
     {
@@ -1083,14 +1079,13 @@ function renderAffinities ()
   addTitleHTML ("id");
   addTitleHTML ("name");
 
-  table += "</tr>\n";
-	table += "</thead><tbody>";
+  table += "</tr></thead><tbody>";
 
   for (i = 1; i <= 63; ++i)
   {
     table += "<tr>";
     table += "<td>"+i+"</td><td><input type='edit' class='ttedit' id='affinity"+i+"' name='affinity' value='' onchange='onchangeaffinityprop ("+i+")'></td>"
-    table += "</tr>\n";
+    table += "</tr>";
   }
 
   updateAffinities ();
@@ -1102,7 +1097,7 @@ function renderAffinities ()
 
 function onchangeaffinityprop (affinity)
 {
-  $('#affinity'+affinity).css("background-color", "greenyellow");
+  $('#affinity'+affinity).addClass("value-modified");
 }
 
 function updateAffinities ()
