@@ -10,6 +10,7 @@ html, body {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 *, *:before, *:after {
@@ -24,6 +25,10 @@ body {
     background-color: #b0b0b0;
 }
 
+#content {
+  width: inherit;
+}
+
 #main {
     width: 100%;
     background-color: #444444;
@@ -34,7 +39,6 @@ table {
     height: 100%;
     display: flex;
     flex-direction: column;
-    width:100%;
     border-collapse: collapse;
     text-align: left;
 }
@@ -52,6 +56,14 @@ thead, tfoot {
 
 thead label {
     cursor: pointer;
+}
+
+thead>tr {
+  min-height: inherit;
+}
+
+tr>th {
+  min-height: inherit;
 }
 
 tbody {
@@ -72,6 +84,36 @@ th, td {
 
 td a:link {
     color: #DDDDDD;
+}
+
+.resizable {
+  width: 1rem;
+  background: orange;*/
+  cursor: col-resize;
+}
+
+.resizable:hover {
+  background: gray;
+}
+
+.flex-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.flex-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.flex-grow {
+    flex-grow: 1;
+}
+
+.flex-wrap {
+    flex-wrap: wrap;
 }
 
 .entry, .entry0, .entry1, .title, .entry0Selected, .entry1Selected {
@@ -132,106 +174,133 @@ td a:link {
     background-color: #900000;
 }
 
+#dragged {
+  opacity: 0.2;
+}
+
+.draggable {
+  height: 2rem;
+  flex-grow: 1;
+  background: yellow;
+}
+
+.dropzones {
+  position: absolute;
+  width: inherit;
+  min-height: inherit;
+}
+
+.half {
+  width: 50%;
+}
+
+.dropzone-hover {
+  background: orange;
+}
+
+.not-displayed {
+  display: none;
+}
+
 /*** jobs table proportions ***/
 /* id */
 #jobsTable th:nth-child(1), #jobsTable td:nth-child(1) {
-    width: 2%;
+    width: 10rem;
 }
 
 /* title */
 #jobsTable th:nth-child(2), #jobsTable td:nth-child(2) {
-    width: 10%;
+    width: 50rem;
 }
 
 /* url */
 #jobsTable th:nth-child(3), #jobsTable td:nth-child(3) {
-    width: 4%;
+    width: 5rem;
 }
 
 /* user */
 #jobsTable th:nth-child(4), #jobsTable td:nth-child(4) {
-    width: 5%;
+    width: 12rem;
 }
 
 /* state */
-
 #jobsTable th:nth-child(5), #jobsTable td:nth-child(5) {
-    width: 6%;
+    width: 8rem;
 }
 
 /* priority */
 #jobsTable th:nth-child(6), #jobsTable td:nth-child(6) {
-    width: 4%;
+    width: 5rem;
 }
 
 /* ok */
 #jobsTable th:nth-child(7), #jobsTable td:nth-child(7) {
-    width: 2%;
+    width: 4rem;
 }
 
 /* wkr */
 #jobsTable th:nth-child(8), #jobsTable td:nth-child(8) {
-    width: 2%;
+    width: 4rem;
 }
 
 /* err */
 #jobsTable th:nth-child(9), #jobsTable td:nth-child(9) {
-    width: 3%;
+    width: 4rem;
 }
 
 /* total */
 #jobsTable th:nth-child(10), #jobsTable td:nth-child(10) {
-    width: 3%;
+    width: 4rem;
 }
 
 /* progress */
 #jobsTable th:nth-child(11), #jobsTable td:nth-child(11) {
-    width: 5%;
+    width: 12rem;
 }
 
 /* affinity */
 #jobsTable th:nth-child(12), #jobsTable td:nth-child(12) {
-    width: 6%;
+    width: 12rem;
 }
 
 /* timeout */
 #jobsTable th:nth-child(13), #jobsTable td:nth-child(13) {
-    width: 4%;
+    width: 3rem;
 }
 
 /* worker */
 #jobsTable th:nth-child(14), #jobsTable td:nth-child(14) {
-    width: 7%;
+    width: 12rem;
 }
 
 /* start_time */
 #jobsTable th:nth-child(15), #jobsTable td:nth-child(15) {
-    width: 6%;
+    width: 5rem;
 }
 
 /* duration */
 #jobsTable th:nth-child(16), #jobsTable td:nth-child(16) {
-    width: 5%;
+    width: 12rem;
 }
 
 /* run */
 #jobsTable th:nth-child(17), #jobsTable td:nth-child(17) {
-    width: 2%;
+    width: 4rem;
 }
 
 /* command */
 #jobsTable th:nth-child(18), #jobsTable td:nth-child(18) {
-    width: 13%;
+    width: 30rem;
 }
 
 /* dir */
 #jobsTable th:nth-child(19), #jobsTable td:nth-child(19) {
-    width: 3%;
+    width: 12rem;
 }
 
 /* dependencies */
 #jobsTable th:nth-child(20), #jobsTable td:nth-child(20) {
-    width: 8%;
+    width: 12rem;
 }
 
 /*** workers table proportions ***/
@@ -333,6 +402,10 @@ td a:link {
 }
 
 /*** title **/
+#header {
+  justify-content: space-between;
+}
+
 #maintitle {
     justify-content: flex-start;
     text-transform: lowercase;
@@ -359,6 +432,63 @@ td a:link {
 
 #subtitle p {
     margin: 0.1rem;
+}
+
+#refreshtools input {
+  width: auto;
+}
+
+
+/*** menu ***/
+.gradient-menu {
+  padding-left: 2rem;
+  position: relative;
+  height: 2rem;
+  margin: 0.5rem;
+}
+
+.gradient-menu:before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2rem;
+  background: linear-gradient(
+    to bottom, 
+    black, black 20%, 
+    transparent 20%, transparent 40%, 
+    black 40%, black 60%, 
+    transparent 60%, transparent 80%, 
+    black 80%, black 100%
+  );
+}
+
+.gradient-menu:hover {
+  cursor: pointer;
+  background: lightgray;
+}
+
+#content.width-80 {
+  width: 80%;
+}
+
+#menu {
+  width: 20%;
+  display: flex;
+  flex-direction: column;
+}
+
+#menu input {
+  width: auto;
+}
+
+#menu form fieldset {
+  display: flex;
+}
+
+#menu form label {
+  text-align: end;
 }
 
 /*** tools bar ***/
@@ -428,20 +558,6 @@ td a:link {
     background-color: #444;
 }
 
-#refreshtools {
-    position: absolute;
-    right: 0;
-    top: 0;
-}
-
-#refreshtools label {
-    color: #444;
-}
-
-.refreshing {
-    background-color: #00F000;
-}
-
 #jobs,
 #workers,
 #activities,
@@ -450,11 +566,19 @@ td a:link {
     display: flex;
     flex-grow: 1;
     height: 1rem;
+    overflow: scroll;
 }
 
 /*** table configurator ***/
 #config-jobs-table {
     display: flex;
+    flex-direction: column;
+    position: absolute;
+    right: 0;
+    top: 0;
+    background: white;
+    color: black;
+    opacity: 0.8;
 }
 
 /*** jobs table ***/
@@ -653,26 +777,6 @@ label span {
 
 .worker_affinities {
     white-space: pre;
-}
-
-.flex-column {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-}
-
-.flex-row {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-}
-
-.flex-grow {
-    flex-grow: 1;
-}
-
-.flex-wrap {
-    flex-wrap: wrap;
 }
 
 .tab-content {

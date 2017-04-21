@@ -165,12 +165,14 @@ function showTab (tab)
     if (tabdef[0] == tab)
     {
       $(tabdef[1]).show ();
+      $(tabdef[1]).addClass("active-tab-content");
       $("#"+tabdef[2]).addClass("activetab");
       $("#"+tabdef[2]).removeClass("unactivetab");
     }
     else
     {
       $(tabdef[1]).hide ();
+      $(tabdef[1]).removeClass("active-tab-content");
       $("#"+tabdef[2]).addClass("unactivetab");
       $("#"+tabdef[2]).removeClass("activetab");
     }
@@ -259,7 +261,6 @@ function timerCB ()
 {
   if (document.getElementById("autorefresh").checked)
     refresh ();
-
   // Fire a new time event
   timer=setTimeout(timerCB,4000);
 }
@@ -267,16 +268,19 @@ function timerCB ()
 function refresh ()
 {
   document.getElementById("refreshbutton").className = "refreshing button";
-	if (page == "jobs")
+	if (page == "jobs") {
+		jobsTheadBuilt=false;
+		buildSelectForField('th[data-key="user"]>div.flex-column:first', "job-sql-search", "user", user);
 		reloadJobs ();
-	else if (page == "workers") 
+	} else if (page == "workers") {
 		reloadWorkers ();
-	else if (page == "activities") 
+	} else if (page == "activities") {
 		reloadActivities ();
-	else if (page == "logs") 
+	} else if (page == "logs") {
 		renderLog (logId);
-	else if (page == "affinities") 
+	} else if (page == "affinities") {
 		renderAffinities ();
+	}
 }
 
 function compareStrings (a,b,toupper)
@@ -387,83 +391,99 @@ function renderJobs (jobsCurrent=[]) {
   if (jobs.length) jobs.sort (_sort);
 
   // Returns the HTML code for a job title column
-  function addTitleHTMLEx (attribute, alias, input, min, max) {
-    table += '<th data-key=\''+attribute+'\'>';
-    table += '<div class="flex-column">';
-    table += '<div class="flex-row">';
-    table += '<label onclick="setJobKey(\''+attribute+'\')">';
+  function addTitleHTML ({attribute="", alias=null, order=0, input=null, min=0, max=100}={}) {
+		if (alias == null) var alias = attribute;
+    table += '\
+<th data-key="'+attribute+'" style="order: '+order+';">\
+	<div class="flex-column">\
+		<div class="flex-row">\
+			<label onclick="setJobKey(\''+attribute+'\')">';
+
     var value = jobs[0];
     if (value) {
       table += alias+'</label>';
       if (attribute == jobsSortKey && jobsSortKeyToUpper) {
-        table += '<div class="sort-arrow">&#8595;</div></div>';
+        table += '<div class="sort-arrow">&#8595;</div>';
       } else if (attribute == jobsSortKey && !jobsSortKeyToUpper) {
-        table += '<div class="sort-arrow">&#8593;</div></div>';
-      } else {
-        table += '</div>'
+        table += '<div class="sort-arrow">&#8593;</div>';
       }
     } else {
-      table += alias+"</label></div>";
+      table += alias+"</label>";
     }
+		table += "</div>";
     if (input) {
-      var nodeSelector = 'th[data-key=\''+attribute+'\']>div.flex-column';
+      var nodeSelector = 'th[data-key=\''+attribute+'\']>div.flex-column:first';
       switch (input) {
         case "search":
           table += buildInputForField(nodeSelector, "job-sql-search", attribute, input);
           break;
-        case "checkbox":
-          var select = buildSelectForField(nodeSelector, "job-sql-search", attribute, input);
-          if (select) {
-            table += select; // otherwise it's filled by ajax
-          }
+        case "select":
+					table += buildSelectForField(nodeSelector, "job-sql-search", attribute, input);
           break;
         case "datetime-local":
-          buildDatetimeForField(nodeSelector, "job-sql-search", attribute, input);
+          table += buildDatetimeForField(nodeSelector, "job-sql-search", attribute, input);
           break;
         case "range":
-          buildRangeForField(nodeSelector, "jobs-sql-search", attribute, input);
+          table += buildRangeForField(nodeSelector, "jobs-sql-search", attribute, input);
           attachRangeEventForField(nodeSelector, attribute, min, max);
           break;
         default:
           break;
       }
     }
-    table += "</th>";
-  }
-
-  function addTitleHTML (attribute, alias, input=null, min=0, max=0) {
-    addTitleHTMLEx (attribute, alias, input, min, max)
+    table += '</div></th>';
   }
 
   table += "<thead>";
   table += "<tr>";
-  addTitleHTML ("id", "id", "search");
-  addTitleHTML ("title", "title", "search");
-  addTitleHTML ("url", "url");
-  addTitleHTML ("user", "user", "checkbox");
-  addTitleHTML ("state", "state", "checkbox");
-  addTitleHTML ("priority", "priority", "search");
-  addTitleHTMLEx ("total_finished", "ok");
-  addTitleHTMLEx ("total_working", "wrk");
-  addTitleHTMLEx ("total_errors", "err");
-  addTitleHTML ("total", "total");
-  addTitleHTML ("progress", "progress", "range", "0", "100");
-  addTitleHTML ("affinity", "affinity", "search");
-  addTitleHTML ("timeout", "timeout");
-  addTitleHTML ("worker", "worker", "search");
-  addTitleHTML ("start_time", "start time", "datetime-local");
-  addTitleHTML ("duration", "duration");
-  addTitleHTML ("run", "run");
-  addTitleHTML ("command", "command", "search");
-  addTitleHTML ("dir", "dir");
-  addTitleHTML ("dependencies", "dependencies", "search");
+  addTitleHTML ({"attribute": "id", "order":0, "input": "search"});
+  addTitleHTML ({"attribute": "title", "order": 1, "input": "search"});
+  addTitleHTML ({"attribute": "url", "order": 2});
+  addTitleHTML ({"attribute": "user", "order": 3, "input": "select"});
+  addTitleHTML ({"attribute": "state", "order": 4, "input": "select"});
+  addTitleHTML ({"attribute": "priority", "order": 5, "input": "search"});
+  addTitleHTML ({"attribute": "total_finished", "alias": "ok", "order": 6});
+  addTitleHTML ({"attribute": "total_working", "alias": "wrk", "order": 7});
+  addTitleHTML ({"attribute": "total_errors", "alias": "err", "order": 8});
+  addTitleHTML ({"attribute": "total", "order": 9});
+  addTitleHTML ({"attribute": "progress", "order": 10, "input": "range", "min": 0, "max": 100});
+  addTitleHTML ({"attribute": "affinity", "order": 11, "input": "search"});
+  addTitleHTML ({"attribute": "timeout", "order": 12});
+  addTitleHTML ({"attribute": "worker", "order": 13, "input": "search"});
+  addTitleHTML ({"attribute": "start_time", "order": 14, "input": "datetime-local"});
+  addTitleHTML ({"attribute": "duration", "order": 15});
+  addTitleHTML ({"attribute": "run", "order": 16});
+  addTitleHTML ({"attribute": "command", "order": 17, "input": "search"});
+  addTitleHTML ({"attribute": "dir", "order": 18});
+  addTitleHTML ({"attribute": "dependencies", "order": 19, "input": "search"});
+  table += "</tr>";
+  table += '<tr>';
+  table += addSumEmpty ();
+  table += addSumSimple (jobs);
+  table += addSumEmpty ();
+  table += addSumEmpty ();
+  table += addSumFinished (jobs, "state");
+  table += addSumEmpty ();
+  table += addSum (jobs, "total_finished");
+  table += addSum (jobs, "total_working");
+  table += addSum (jobs, "total_errors");
+  table += addSum (jobs, "total");
+  table += addSumEmpty ();
+  table += addSumEmpty ();
+  table += addSumEmpty ();
+  table += addSumEmpty ();
+  table += addSumEmpty ();
+  table += addSumAvgDuration (jobs, "duration");
+  table += addSumEmpty ();
+  table += addSumEmpty ();
+  table += addSumEmpty ();
+  table += addSumEmpty ();
   table += "</tr>";
   table += "</thead>";
 
   table += "<tbody>";
   for (i=0; i < jobs.length; i++) {
     var job = jobs[i];
-
     var mouseDownEvent = 'onMouseDown="onClickList(event,'+i+')" onDblClick="onDblClickList(event,'+i+')"';
 
     table += '<tr id="jobtable'+i+'" '+mouseDownEvent+' class="entry'+(i%2)+(selectedJobs[job.id]?'Selected':'')+'">';
@@ -529,28 +549,6 @@ function renderJobs (jobsCurrent=[]) {
 
   // Footer
   table += "<tfoot>";
-  table += '<tr>';
-  table += addSumEmpty ();
-  table += addSumSimple (jobs);
-  table += addSumEmpty ();
-  table += addSumEmpty ();
-  table += addSumFinished (jobs, "state");
-  table += addSumEmpty ();
-  table += addSum (jobs, "total_finished");
-  table += addSum (jobs, "total_working");
-  table += addSum (jobs, "total_errors");
-  table += addSum (jobs, "total");
-  table += addSumEmpty ();
-  table += addSumEmpty ();
-  table += addSumEmpty ();
-  table += addSumEmpty ();
-  table += addSumEmpty ();
-  table += addSumAvgDuration (jobs, "duration");
-  table += addSumEmpty ();
-  table += addSumEmpty ();
-  table += addSumEmpty ();
-  table += addSumEmpty ();
-  table += "</tr>";
   table += "</tfoot>";
   table += "</table>";
 
@@ -1546,38 +1544,36 @@ function buildInputForField(nodeSelector, form, field, type, min, max) {
   return '<div class="job-sql-search-field">'+content+'</div>';
 }
 
-function buildSelectForField(nodeSelector, form, field, type) {
-  // Prevent ajax if head has been previously built
+function buildSelectForField(nodeSelector, form, field, type=null) {
+  // Prevent ajax request if table head has been previously built
   if (jobsTheadBuilt) {
-    return '<div class="job-sql-search-field">'+$(nodeSelector+" .job-sql-search-field").html()+'</div>';
+		return;
   }
 
   var items;
   switch (field) {
     case "user":
-      ajax = getAjaxJobsUsers();
+      var ajax = getAjaxJobsUsers();
       break;
     case "state":
-      //ajax = getAjaxJobsStates();
-      //break;
       content = getSelectForFieldStatesStatic(form, field);
-      return '<div class="job-sql-search-field">'+content+'</div>';
+      return('<div class="job-sql-search-field">'+content+'</div>');
   }
+
   ajax.done(function(items) {
-    var content = '<select form="'+form+'" class="sql-input" id="job-filter-'+field+'"';
-    content += ' form="sql-select" multiple';
-    content += ' onclick="checkJobSqlInputChange(\''+field+'\', event)"';
-    content += ' onkeydown="checkJobSqlInputChange(\''+field+'\', event)"';
-    content += ' onkeyup="checkJobSqlInputChange(\''+field+'\', event)">';
+    var content = '<select form="'+form+'" class="sql-input" id="job-filter-'+field+'"\
+ form="sql-select" multiple\
+ onclick="checkJobSqlInputChange("'+field+'", event)"\
+ onkeydown="checkJobSqlInputChange("'+field+'", event)"\
+ onkeyup="checkJobSqlInputChange("'+field+'", event)">';
     for (i=0; i < items.length; i++) {
       var item = items[i][field];
       content += '<option value="'+item+'">'+item+'</option>';
     }   
     content += '</select>';
-    //$(nodeSelector).append('<div class="job-sql-search-field" onmouseenter="toggleSearchField(this)" onmouseleave="toggleSearchField(this)">'+content+'</div>');
     $(nodeSelector).append('<div class="job-sql-search-field">'+content+'</div>');
   });
-  return false;
+	return "";
 }
 
 function buildDatetimeForField(nodeSelector, form, field, type) {
@@ -1586,9 +1582,17 @@ function buildDatetimeForField(nodeSelector, form, field, type) {
 }
 
 function buildRangeForField(nodeSelector, form, field, type, min, max) {
-  content = '<input form="'+form+'" id="job-filter-'+field+'" type="'+type+'">';
+  content = '<input form="'+form+'" id="job-filter-'+field+'" type="'+type+'" oninput="onInputRange(this.value)" onchange="onChangeRange(this.value)">';
   content += '<div id="job-filter-'+field+'-values"></div>';
   return '<div class="job-sql-search-field">'+content+'</div>';
+}
+
+function onInputRange(v) {
+	//console.log(v);
+}
+
+function onChangeRange(v) {
+	console.log(v);
 }
 
 function attachRangeEventForField(nodeSelector, field, min, max) {
@@ -1694,6 +1698,7 @@ function getAjaxSqlWhereJobs(data) {
 }
 
 function getSqlWhereJobs() {
+
   if (jobsTheadBuilt) configSave();
   else configLoad();
   // Limit search to children of viewJob
@@ -1740,8 +1745,9 @@ function getSqlWhereJobs() {
         }
         sql += ")"+sql_exclude_paused;
         break;
-      case "progress":
-        values = data[i].value;
+      case "progressFIXME":
+				if (values[0] == 0) sql += " and (progress is null or progress = 0)";
+				else sql += " and (progress > "+100/Number(values[0])+")"; 
         break;
       case "affinity":
       case "title":
@@ -1875,39 +1881,3 @@ function resetSqlFilter() {
   configSave();
 } 
 
-function configJobsTable() {
-  if ($("#config-jobs-table").length != 0) return
-  var config_menu =  '\
-    <div id="config-jobs-table"><form id="config-jobs-table-form">\
-        <input id="column-id-visibility" form="config-jobs-table-form" type="checkbox" checked="checked">\
-        <label for="config-jobs-table">Id column visibility</label>\
-        <input id="column-id-ratio" form="config-jobs-table-form" type="range">\
-        <label for="column-id-ratio">% width</label>\
-        <button id="column-preview" form="config-jobs-table-form" type="submit" value="preview">Preview</button>\
-        <button id="column-save" form="config-jobs-table-form" type="submit" value="save">Save</button>\
-        <button id="column-cancel" form="config-jobs-table-form" type="submit" value="reset">Cancel</button>\
-    </form></div>'
-  $(config_menu).insertBefore("#jobs");
-  $("#config-jobs-table").submit(function(e) {
-    e.preventDefault();
-    var action = $(document.activeElement)[0].value;
-    switch (action) {
-      case "preview":
-        configJobsTablePreview();
-        break;
-      case "reset":
-        $("#config-jobs-table").remove();
-      case "save":
-        configJobsTableSave();
-        break;
-    }
-  });
-}
-
-function configJobsTablePreview() {
-    console.log("preview");
-}
-
-function configJobsTableSave() {
-    console.log("save");
-}
