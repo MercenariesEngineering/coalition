@@ -36,14 +36,13 @@ body {
 
 /*** tables ***/
 table {
-    height: 100%;
     display: flex;
     flex-direction: column;
     border-collapse: collapse;
     text-align: left;
 }
 
-th, tr {
+tr {
     display: flex;
     flex-direction: row;
 }
@@ -63,7 +62,14 @@ thead>tr {
 }
 
 tr>th {
+  display: flex;
+  flex-direction: column;
   min-height: inherit;
+  padding: 0;
+}
+
+tr>th .flex-row {
+    flex-wrap: nowrap;
 }
 
 tbody {
@@ -87,9 +93,10 @@ td a:link {
 }
 
 .resizable {
-  width: 1rem;
-  background: orange;*/
+  width: 5px;
+  flex-shrink: 0;
   cursor: col-resize;
+  z-index: 1;
 }
 
 .resizable:hover {
@@ -175,23 +182,27 @@ td a:link {
 }
 
 #dragged {
-  opacity: 0.2;
 }
 
-.draggable {
-  height: 2rem;
+tr>th .flex-row.draggable {
   flex-grow: 1;
-  background: yellow;
+  overflow: hidden;
 }
 
-.dropzones {
-  position: absolute;
-  width: inherit;
-  min-height: inherit;
+.dropzone {
 }
 
-.half {
-  width: 50%;
+.side-right,
+.side-left {
+    width:  50%;
+}
+
+table .dropzone.side-left {
+    align-items: center;
+}
+
+table .dropzone.side-right {
+    justify-content: flex-end;
 }
 
 .dropzone-hover {
@@ -210,7 +221,7 @@ td a:link {
 
 /* title */
 #jobsTable th:nth-child(2), #jobsTable td:nth-child(2) {
-    width: 50rem;
+    width: 20rem;
 }
 
 /* url */
@@ -306,57 +317,57 @@ td a:link {
 /*** workers table proportions ***/
 /* name */
 #workersTable th:nth-child(1), #workersTable td:nth-child(1) {
-    width: 20%;
+    width: 20rem;
 }
 
 /* active */
 #workersTable th:nth-child(2), #workersTable td:nth-child(2) {
-    width: 4%;
+    width: 4rem;
 }
 
 /* state */
 #workersTable th:nth-child(3), #workersTable td:nth-child(3) {
-    width: 8%;
+    width: 8rem;
 }
 
 /* affinity */
 #workersTable th:nth-child(4), #workersTable td:nth-child(4) {
-    width: 10%;
+    width: 10rem;
 }
 
 /* ping_time */
 #workersTable th:nth-child(5), #workersTable td:nth-child(5) {
-    width: 10%;
+    width: 10rem;
 }
 
 /* cpu */
 #workersTable th:nth-child(6), #workersTable td:nth-child(6) {
-    width: 11%;
+    width: 11rem;
 }
 
 /* memory */
 #workersTable th:nth-child(7), #workersTable td:nth-child(7) {
-    width: 11%;
+    width: 11rem;
 }
 
 /* last_jobs */
 #workersTable th:nth-child(8), #workersTable td:nth-child(8) {
-    width: 5%;
+    width: 5rem;
 }
 
 /* finished */
 #workersTable th:nth-child(9), #workersTable td:nth-child(9) {
-    width: 5%;
+    width: 5rem;
 }
 
 /* error */
 #workersTable th:nth-child(10), #workersTable td:nth-child(10) {
-    width: 5%;
+    width: 5rem;
 }
 
 /* ip */
 #workersTable th:nth-child(11), #workersTable td:nth-child(11) {
-    width: 11%;
+    width: 11rem;
 }
 
 /*** activities table proportions ***/
@@ -434,39 +445,20 @@ td a:link {
     margin: 0.1rem;
 }
 
-#refreshtools input {
-  width: auto;
-}
-
-
 /*** menu ***/
-.gradient-menu {
-  padding-left: 2rem;
-  position: relative;
-  height: 2rem;
-  margin: 0.5rem;
+#menu-button {
+  padding: 0.5rem;
+  font-size: 2rem;
+  color: black;
 }
 
-.gradient-menu:before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2rem;
-  background: linear-gradient(
-    to bottom, 
-    black, black 20%, 
-    transparent 20%, transparent 40%, 
-    black 40%, black 60%, 
-    transparent 60%, transparent 80%, 
-    black 80%, black 100%
-  );
-}
-
-.gradient-menu:hover {
+#menu-button:hover {
   cursor: pointer;
-  background: lightgray;
+  color: lightgray;
+}
+
+#menu-content {
+    text-align: right;
 }
 
 #content.width-80 {
@@ -477,18 +469,12 @@ td a:link {
   width: 20%;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  background: #666666;
 }
 
 #menu input {
   width: auto;
-}
-
-#menu form fieldset {
-  display: flex;
-}
-
-#menu form label {
-  text-align: end;
 }
 
 /*** tools bar ***/
@@ -565,8 +551,7 @@ td a:link {
 #affinities {
     display: flex;
     flex-grow: 1;
-    height: 1rem;
-    overflow: scroll;
+    overflow-x: scroll;
 }
 
 /*** table configurator ***/
@@ -583,7 +568,6 @@ td a:link {
 
 /*** jobs table ***/
 #jobsTable thead {
-    min-height: 3rem;
     overflow-y: scroll;
     margin-right: 0;
 }
@@ -783,7 +767,7 @@ label span {
     width: inherit;
 }
 
-.job-sql-search-field {
+.sql-search-field {
     display: flex;
     flex-direction: row;
 }

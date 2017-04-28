@@ -41,6 +41,7 @@ var updatedJobProps = {}
 var WorkerProps = [ [ "affinity", "waffinity", "" ], ];
 var updatedWorkerProps = {}
 var jobsTheadBuilt = false;
+var configTableSet = false;
 
 /* On document ready */
 $(document).ready(function() {
@@ -51,61 +52,77 @@ $(document).ready(function() {
   timer=setTimeout(timerCB,4000);
   renderLogoutButton();
   // prevent page reload during ajax request
-  $("#job-sql-search").on("submit", function(e) {
+  $("table .sql-search-form").on("submit", function(e) {
     e.preventDefault();
     getSqlWhereJobs($(this));
   });
 });
 
-function setJobKey (id)
-{
-  // Same key ?
-  if (jobsSortKey == id)
-    jobsSortKeyToUpper = !jobsSortKeyToUpper;
-  else
-  {
-    jobsSortKey = id;
-    jobsSortKeyToUpper = true;
+function setSortKey(id) {
+  var table = configTableGetActiveTable();
+  var key = configTableGetSortKey(table);
+  if (key["sortKey"] == id) {
+    var direction = key["sortKeyToUpper"];
+    if (direction == "up") direction = "down";
+    else direction = "up";
+  } else {
+    key["sortkey"] = id;
+    direction = "up";
   }
-  configSave("job-sort-key");
-  renderJobs (jobs);
+  var config = configTableSetConfig(table, window[key["sortKey"]], "sortkey", direction);
+  configTableApplyConfig(config);
+  //document.getElementById("sql-search-form").submit();
 }
 
-function setWorkerKey (id)
-{
-  // Same key ?
-  if (workersSortKey == id)
-    workersSortKeyToUpper = !workersSortKeyToUpper;
-  else
-  {
-    workersSortKey = id;
-    workersSortKeyToUpper = true;
-  }
-  renderWorkers ();
-}
+//function setJobKey (id)
+//{
+  //// Same key ?
+  //if (jobsSortKey == id)
+    //jobsSortKeyToUpper = !jobsSortKeyToUpper;
+  //else
+  //{
+    //jobsSortKey = id;
+    //jobsSortKeyToUpper = true;
+  //}
+  ////configSave();
+  //renderJobs (jobs);
+//}
 
-function setActivityKey (id)
-{
-  // Same key ?
-  if (activitiesSortKey == id)
-    activitiesSortKeyToUpper = !activitiesSortKeyToUpper;
-  else
-  {
-    activitiesSortKey = id;
-    activitiesSortKeyToUpper = true;
-  }
-  renderActivities ();
-}
+//function setWorkerKey (id)
+//{
+  //// Same key ?
+  //if (workersSortKey == id)
+    //workersSortKeyToUpper = !workersSortKeyToUpper;
+  //else
+  //{
+    //workersSortKey = id;
+    //workersSortKeyToUpper = true;
+  //}
+  //renderWorkers ();
+//}
 
-function get_cookie ( cookie_name )
-{
-  var results = document.cookie.match ( '(^|;) ?' + cookie_name + '=([^;]*)(;|$)' );
+//function setActivityKey (id)
+//{
+  //// Same key ?
+  //if (activitiesSortKey == id)
+    //activitiesSortKeyToUpper = !activitiesSortKeyToUpper;
+  //else
+  //{
+    //activitiesSortKey = id;
+    //activitiesSortKeyToUpper = true;
+  //}
+  //renderActivities ();
+//}
 
-  if ( results )
-    return ( unescape ( results[2] ) );
-  else
-    return "";
-}
+//function get_cookie ( cookie_name )
+//{
+  //var results = document.cookie.match ( '(^|;) ?' + cookie_name + '=([^;]*)(;|$)' );
+
+  //if ( results )
+    //return ( unescape ( results[2] ) );
+  //else
+    //return "";
+//}
 
 function showHideTools ()
 {
@@ -270,7 +287,7 @@ function refresh ()
   document.getElementById("refreshbutton").className = "refreshing button";
 	if (page == "jobs") {
 		jobsTheadBuilt=false;
-		buildSelectForField('th[data-key="user"]>div.flex-column:first', "job-sql-search", "user", user);
+		buildSelectForField('th[data-key="user"]>div.flex-column:first', "sql-search-form", "user", user);
 		reloadJobs ();
 	} else if (page == "workers") {
 		reloadWorkers ();
@@ -366,10 +383,10 @@ function renderParents ()
 
 // Render the current jobs
 function renderJobs (jobsCurrent=[]) {
-  configLoad("job-sort-key");
+  //configLoad("job-sort-key");
   if (jobsCurrent.length) jobs = jobsCurrent;
   
-  var table = '<table id="jobsTable">';
+  var table = '<table id="jobsTable"><form class="sql-search-form"></form>';
 
   function _sort (a,b) {
     if (jobsSortKey == "Progress")
@@ -391,41 +408,54 @@ function renderJobs (jobsCurrent=[]) {
   if (jobs.length) jobs.sort (_sort);
 
   // Returns the HTML code for a job title column
-  function addTitleHTML ({attribute="", alias=null, order=0, input=null, min=0, max=100}={}) {
-		if (alias == null) var alias = attribute;
+  function addTitleHTML ({attribute="", alias=null, order=0, input=null, min=0, max=100, defaultValue=0}={}) {
+    if (alias == null) var alias = attribute;
     table += '\
 <th data-key="'+attribute+'" style="order: '+order+';">\
-	<div class="flex-column">\
-		<div class="flex-row">\
-			<label onclick="setJobKey(\''+attribute+'\')">';
-
+  <div class="flex-row draggable" draggable="true" ondragstart="columnDragStart(event)">\
+      <div class="flex-row flex-grow dropzone side-left"\
+        ondrop="columnDrop(event, \'left\')"\
+        ondragover="columnDragOver(event)"\
+        ondragleave="columnDragLeave(event)">\
+        <label class="dropzone" onclick="setSortKey(\''+attribute+'\')">';
     var value = jobs[0];
     if (value) {
       table += alias+'</label>';
       if (attribute == jobsSortKey && jobsSortKeyToUpper) {
-        table += '<div class="sort-arrow">&#8595;</div>';
+        table += '<div class="sort-arrow sort-arrow-up dropzone">&#8595;</div>';
       } else if (attribute == jobsSortKey && !jobsSortKeyToUpper) {
-        table += '<div class="sort-arrow">&#8593;</div>';
+        table += '<div class="sort-arrow sort-arrow-down dropzone">&#8593;</div>';
       }
     } else {
       table += alias+"</label>";
     }
-		table += "</div>";
+
+		table += '\
+      </div>\
+      <div class="flex-row flex-grow dropzone side-right"\
+        ondrop="columnDrop(event, \'right\')"\
+        ondragover="columnDragOver(event)"\
+        ondragleave="columnDragLeave(event)">\
+        <div class="flex-column resizable"\
+          onmousedown="columnResizeStart(event)">\
+        </div>\
+      </div>\
+  </div>';
+
     if (input) {
       var nodeSelector = 'th[data-key=\''+attribute+'\']>div.flex-column:first';
       switch (input) {
         case "search":
-          table += buildInputForField(nodeSelector, "job-sql-search", attribute, input);
+          table += buildInputForField(nodeSelector, "sql-search-form", attribute, input);
           break;
         case "select":
-					table += buildSelectForField(nodeSelector, "job-sql-search", attribute, input);
+					table += buildSelectForField(nodeSelector, "sql-search-form", attribute, input);
           break;
         case "datetime-local":
-          table += buildDatetimeForField(nodeSelector, "job-sql-search", attribute, input);
+          table += buildDatetimeForField(nodeSelector, "sql-search-form", attribute, input);
           break;
         case "range":
-          table += buildRangeForField(nodeSelector, "jobs-sql-search", attribute, input);
-          attachRangeEventForField(nodeSelector, attribute, min, max);
+          table += buildRangeForField(nodeSelector, "sql-search-form", attribute, input, min, max, defaultValue);
           break;
         default:
           break;
@@ -446,7 +476,7 @@ function renderJobs (jobsCurrent=[]) {
   addTitleHTML ({"attribute": "total_working", "alias": "wrk", "order": 7});
   addTitleHTML ({"attribute": "total_errors", "alias": "err", "order": 8});
   addTitleHTML ({"attribute": "total", "order": 9});
-  addTitleHTML ({"attribute": "progress", "order": 10, "input": "range", "min": 0, "max": 100});
+  addTitleHTML ({"attribute": "progress", "alias": "progress &ge; 0%", "order": 10, "input": "range", "min": 0, "max": 100, "defaultValue": 0});
   addTitleHTML ({"attribute": "affinity", "order": 11, "input": "search"});
   addTitleHTML ({"attribute": "timeout", "order": 12});
   addTitleHTML ({"attribute": "worker", "order": 13, "input": "search"});
@@ -553,7 +583,7 @@ function renderJobs (jobsCurrent=[]) {
   table += "</table>";
 
   $.when($("#jobs").html(table)).then(function () {
-    configLoad("job-filter");
+    //configLoad("job-filter");
     jobsTheadBuilt = true;
   });
 }
@@ -848,9 +878,9 @@ function renderWorkers ()
     {
       table += attribute+"</label>";
       if (attribute == workersSortKey && workersSortKeyToUpper)
-        table += '<div class="sort-arrow">&#8595;</div></div>';
+        table += '<div class="sort-arrow sort-arrow-up">&#8595;</div></div>';
       if (attribute == workersSortKey && !workersSortKeyToUpper)
-        table += '<div class="sort-arrow">&#8593;</div></div>';
+        table += '<div class="sort-arrow sort-arrow-down">&#8593;</div></div>';
     }
     else
       table += attribute+"</label>";
@@ -1541,7 +1571,7 @@ function buildInputForField(nodeSelector, form, field, type, min, max) {
       //var content = '<input form="'+form+'" class="sql-input" id="job-filter-'+field+'" type="'+type+'" value="'+values+'" onKeyDown="checkJobSqlInputChange(\''+field+'\', event)">';
       var content = '<input form="'+form+'" class="sql-input" id="job-filter-'+field+'" type="'+type+'" onKeyDown="checkJobSqlInputChange(\''+field+'\', event)">';
   }
-  return '<div class="job-sql-search-field">'+content+'</div>';
+  return '<div class="sql-search-field">'+content+'</div>';
 }
 
 function buildSelectForField(nodeSelector, form, field, type=null) {
@@ -1557,7 +1587,7 @@ function buildSelectForField(nodeSelector, form, field, type=null) {
       break;
     case "state":
       content = getSelectForFieldStatesStatic(form, field);
-      return('<div class="job-sql-search-field">'+content+'</div>');
+      return('<div class="sql-search-field">'+content+'</div>');
   }
 
   ajax.done(function(items) {
@@ -1571,44 +1601,35 @@ function buildSelectForField(nodeSelector, form, field, type=null) {
       content += '<option value="'+item+'">'+item+'</option>';
     }   
     content += '</select>';
-    $(nodeSelector).append('<div class="job-sql-search-field">'+content+'</div>');
+    $(nodeSelector).append('<div class="sql-search-field">'+content+'</div>');
   });
 	return "";
 }
 
 function buildDatetimeForField(nodeSelector, form, field, type) {
   content = "";
-  return '<div class="job-sql-search-field">'+content+'</div>';
+  return '<div class="sql-search-field">'+content+'</div>';
 }
 
-function buildRangeForField(nodeSelector, form, field, type, min, max) {
-  content = '<input form="'+form+'" id="job-filter-'+field+'" type="'+type+'" oninput="onInputRange(this.value)" onchange="onChangeRange(this.value)">';
+function buildRangeForField(nodeSelector, form, field, type, min, max, defaultValue) {
+  content = '<input form="'+form+'" id="job-filter-'+field+'" type="'+type+'" data-defaultvalue="'+defaultValue+'" min="'+min+'" max="'+max+'" oninput="onRangeInput(event)" onchange="checkJobSqlInputChange(\''+field+'\', event)">';
   content += '<div id="job-filter-'+field+'-values"></div>';
-  return '<div class="job-sql-search-field">'+content+'</div>';
+  return '<div class="sql-search-field">'+content+'</div>';
 }
 
-function onInputRange(v) {
-	//console.log(v);
+function onRangeInput(event) {
+  var value = event.target.value;
+  var label = event.target.parentNode.parentNode.querySelector("label");
+  label.innerHTML = label.innerHTML.replace(/\d+/, value);
 }
 
-function onChangeRange(v) {
-	console.log(v);
-}
-
-function attachRangeEventForField(nodeSelector, field, min, max) {
-  $(nodeSelector).slider({
-    range: true,
-    min: min,
-    max: max,
-    values: [min, max],
-    slide: function(event, ui) {
-      $('job-filter-'+field+'-values').val($(nodeSelector).slider("values", 0)+'-'+$(nodeSelector).slider("values", 1));
-    }
-  });
+function onRangeChange(event, field) {
+	console.log(event);
+  checkJobSqlInputChange(field, event);
 }
 
 function toggleSearchField(node) {
-  var node = $(node).children(".job-sql-search-field");
+  var node = $(node).children(".sql-search-field");
   if (node.css("visibility") == "hidden") {
     node.css("visibility", "visible");
     node.children("select, input").focus();
@@ -1619,17 +1640,18 @@ function toggleSearchField(node) {
 }
 
 function checkJobSqlInputChange(field, event) {
+  var table = configTableGetActiveTable();
   var keyCodeEnter = 13;
   var keyCodeControl = 17;
   switch (event.type) {
     case "click":
       if (!controlKeyPressed) // single selection
-        $("#job-sql-search").submit();
+        table.querySelector(".sql-search-form").submit();
       break;
     case "keydown":
       switch (event.keyCode) {
         case keyCodeEnter:
-          $("#job-sql-search").submit();
+          table.querySelector(".sql-search-form").submit();
           break;
         case keyCodeControl:
           controlKeyPressed = true;
@@ -1643,8 +1665,10 @@ function checkJobSqlInputChange(field, event) {
       var itemName = "#job-filter-"+field;
       var values = $(itemName).val();
       if (values != configGet(itemName)) // the selection changed
-        $("#job-sql-search").submit();
+        table.querySelector(".sql-search-form").submit();
       break;
+    case "change":
+      table.querySelector(".sql-search-form").submit();
   }
 }
 
@@ -1700,7 +1724,7 @@ function getAjaxSqlWhereJobs(data) {
 function getSqlWhereJobs() {
 
   if (jobsTheadBuilt) configSave();
-  else configLoad();
+  //else configLoad();
   // Limit search to children of viewJob
   var sql = "(parent = "+viewJob+")";
 
@@ -1745,8 +1769,8 @@ function getSqlWhereJobs() {
         }
         sql += ")"+sql_exclude_paused;
         break;
-      case "progressFIXME":
-				if (values[0] == 0) sql += " and (progress is null or progress = 0)";
+      case "progress":
+				if (values[0] == 0) sql += " and (progress is null or progress >= 0)";
 				else sql += " and (progress > "+100/Number(values[0])+")"; 
         break;
       case "affinity":
@@ -1798,35 +1822,16 @@ function getSqlWhereJobs() {
   })
 }
 
-
 /* localstorage functions */
-function configSave(category="job-filter") {
-  // Save configuration in browser local storage
-  switch (category) {
-    case "job-filter":
-      configJobFilter = [];
-      for (i in configJobSqlFilterParameters) {
-        var param = configJobSqlFilterParameters[i];
-        var nodeId = category+'-'+param;
-        var value = $('#'+nodeId).val();
-        localStorage.setItem(nodeId, value);
-        if (value) configJobFilter.push([param, value]);
-      }
-      break;
-    case "job-sort-key":
-      localStorage.setItem("job-sort-key", jobsSortKey);
-      localStorage.setItem("job-sort-key-to-upper", jobsSortKeyToUpper);
-      break;
-  }
-}
-
 function configGet(itemName) {
   // Get stored item 
+  console.log("config get");
   config = localStorage.getItem(itemName);
   return (config != "undefined") ? config : "";
 }
 
 function configLoad(category="job-filter") {
+  console.log("config load");
   switch (category) {
     case "job-filter":
       configJobFilter = [];
@@ -1848,36 +1853,4 @@ function configLoad(category="job-filter") {
   }
   return false;
 }
-
-function configDefinedFor(category="job-filter") {
-  // return true if the configuration is not empty for the provided category
-  switch (category) {
-    case "job-filter":
-      for (i in configJobSqlFilterParameters) {
-        var param = configJobSqlFilterParameters[i];
-        var value = configGet(category+'-'+param);
-        if (value) {
-          return true;
-        }
-      }
-      break;
-  }
-  return false;
-}
-
-function configReset() {
-  localStorage.clear();
-}
-
-function resetSqlFilter() {
-  // Empty form filter data and save configuration
-  jobsTheadBuilt = false;
-  configJobFilter = false;
-  form = $("#job-sql-search")[0];
-  form.reset();
-  for (i = 0; i < form.length; i++) {
-    form[i].value = null;
-  }
-  configSave();
-} 
 

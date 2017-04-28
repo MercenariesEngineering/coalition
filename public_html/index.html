@@ -33,9 +33,10 @@
 						<button type="button" id="affinitytab" class="button" onclick="showPage('affinities')">Affinities</button>
 					</div>
 				</div>
-
-				<div id="refreshtools" class="flex-row">
-					<div>
+                
+				<div class="flex-column">
+					<div class="flex-row">
+                        <button id="copy-url-button" class="button" type="submit" value="copy-url" onclick="configTableCopyUrl()">Copy this view url to clipboard</button>
 						<button type="button" id="refreshbutton" class="button" onclick="refresh()">Refresh</button>
 						<label>auto<input id="autorefresh" class="auto" type="checkbox"></label>
 					</div>
@@ -45,15 +46,13 @@
 					<div id="logout-button"></div>
 				</div>
 
-				<div id="menu-button" class="gradient-menu" onclick="configTableInit();">
-				</div>
+				<div id="menu-button" class="menu-button" onclick="configTableMenuToggle();">&equiv;</div>
 			</div>
 
 			<div id="main" class="flex-row flex-grow">
 				<div id="jobsTab" class="tab-content flex-column">
-					<form id="job-sql-search"></form>
 					<div id="jobtools" class="flex-row">
-						<button type="reset" class="button" onclick="resetSqlFilter();$('#job-sql-search').submit();">Reset filters</button>
+						<button type="reset" class="button" onclick="configTableReset();">Reset table setup</button>
 						<div class="flex-column">
 							<div class="button" id="b01">
 								<label>Selection</label>
