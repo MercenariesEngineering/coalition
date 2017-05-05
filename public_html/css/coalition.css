@@ -17,11 +17,11 @@ html, body {
     box-sizing: inherit;
 }
 
-body { 
-    text-decoration: none; 
+body {
+    text-decoration: none;
     color: ghostwhite;
     font-family: Arial, Helvetica, sans-serif;
-    font-weight: normal; 
+    font-weight: normal;
     background-color: #b0b0b0;
 }
 
@@ -30,8 +30,9 @@ body {
 }
 
 #main {
-    width: 100%;
-    background-color: #444444;
+  height: 100%;
+  width: 100%;
+  background-color: #444444;
 }
 
 /*** tables ***/
@@ -568,7 +569,7 @@ table .dropzone.side-right {
 
 /*** jobs table ***/
 #jobsTable thead {
-    overflow-y: scroll;
+    /*overflow-y: scroll;*/
     margin-right: 0;
 }
 
@@ -633,7 +634,7 @@ table .dropzone.side-right {
     border-right: 1px solid #222222;
     border-bottom: 1px solid #222222;
     border-left: 1px solid #777777;
-    box-shadow: 1px 1px 1px #333; 
+    box-shadow: 1px 1px 1px #333;
 }
 
 .button img {

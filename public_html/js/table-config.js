@@ -2,6 +2,7 @@
 /*** Config table main functions ***/
 function configTableGetActiveTable() {
   var active_tab = document.getElementById("tabs").querySelector(".activetab");
+  if (active_tab === null) return null;
   var table = "";
   switch (active_tab.id) {
     case "jobtab":
@@ -22,6 +23,14 @@ function configTableGetActiveTable() {
   return document.getElementById(table);
 }
 
+function configTableGetFormForTable(table) {
+  switch (table.id) {
+    case "jobsTable":
+      var form = document.getElementById("sql-search-job");
+  }
+  return form;
+}
+
 function configTableGetSortKey(table) {
   var sortKey = "";
   var sortKeyToUpper = "";
@@ -40,12 +49,14 @@ function configTableGetSortKey(table) {
       break;
   }
   return ({sortKey: sortKey, sortKeyToUpper: sortKeyToUpper});
-} 
+}
 
 function configTableGetConfig(table) {
+  // Get config from document state
   var config = Object();
-  var tableConfig = Object();
-  for (th of table.getElementsByTagName("th")) {
+  var ths = table.getElementsByTagName("th");
+  for (let i = 0; i < ths.length; i++) {
+    let th = ths[i];
     var key = th.dataset.key;
     var order = th.style.order;
     var width = th.style.width;
@@ -56,27 +67,62 @@ function configTableGetConfig(table) {
     var sql = (sql_input == null) ? "" : sql_input.value;
     config[key] = [order, width, visibility, sort, sql];
   }
-  tableConfig[table.id] = config;
-  return tableConfig;
+  return config;
 }
 
-function configTableSetInitialConfig(table) {
-  // Add order style attribute t o each data cell
-  for (tr of table.querySelectorAll("tr")) {
-    if (tr.children[0].tagName == "TH") continue;
-    tds = tr.children;
-    for (i=0; i < tds.length; i++) {
-      var td = tds[i];
-      td.style.order = i;
-    }
-  }
+function configTableGetConfigFromStorage() {
+  // Get config from localstorage
+  var config = JSON.parse(localStorage.getItem("config-table"));
+  if (config !== null && Object.keys(config).length === 0) return null;
+  return config;
+}
+
+function configTableSetInitialConfig() {
+  console.log("set initial config");
+  // Inform the session that the table configuration is done
   configTableSet = true;
+  var configTables = Object();
+  configTableSet = true;
+  var tables = document.querySelectorAll("table");
+  for (var t = 0; t< tables.length; t++) {
+    let table = tables[t];
+    // Restore document to default values
+    var ths = table.querySelectorAll("th");
+    for (let i = 0; i < ths.length; i++) {
+      ths[i].style.removeProperty("order");
+    }
+    var form = configTableGetFormForTable(table);
+    if (form !== undefined) {
+      form.reset();
+      // Set default values to form inputs if available
+      for (let i = 0; i < form.length; i++) {
+        var value = (form[i].dataset.defaultvalue) ? form[i].dataset.defaultvalue : null;
+        form[i].value = value;
+      }
+    }
+
+    // Add style attribute to each data cell except already managed th
+    var trs = table.querySelectorAll("tr");
+    for (let i = 0; i < trs.length; i++) {
+      var tr = trs[i];
+      //if (tr.children[0].tagName == "TH") continue;
+      var tds = tr.children;
+      for (let i = 0; i < tds.length; i++) {
+        var td = tds[i];
+        td.style.order = i;
+      }
+    }
+
+    // Set localstorage data from the renewed document state
+    var configTable = configTableGetConfig(table);
+    configTables[table.id] = configTable;
+  }
+  window.localStorage.setItem("config-table", JSON.stringify(configTables));
 }
 
-function configTableSetConfig(table, column, action, value) {
-  var configTable = configTableGetConfig(table); 
-  var config = configTable[table.id];
-  switch (action) {
+function configTableSetConfig(table, column, key, value) {
+  var config = configTableGetConfig(table);
+  switch (key) {
     case "resize":
       config[column][1] = value;
       break;
@@ -86,92 +132,119 @@ function configTableSetConfig(table, column, action, value) {
     case "sortkey":
       config[column][3] = value;
       break;
+    case "sql":
+      config[column][4] = value;
   }
-  configTable[table.id] = config;
-  return configTable;
+  return config;
+}
+
+function configTableSetConfigToStorage(table, newConfig) {
+  let config = configTableGetConfigFromStorage();
+  config[table.id] = newConfig
+  window.localStorage.setItem("config-table", JSON.stringify(config));
 }
 
 function configTableReset() {
   console.log("reset table setup");
   var table = configTableGetActiveTable();
-  jobsTheadBuilt = false;
-  configJobFilter = false;
-  var form = table.querySelector("sql-search-form");
-  if (form != null) {
-    form.reset();
-    for (i = 0; i < form.length; i++) {
-      var value = (form[i].dataset.defaultvalue) ? form[i].dataset.defaultvalue : null;
-      form[i].value = value;
-    }
-  }
-  localStorage.setItem("table-config-"+table.id, JSON.stringify(configTableGetConfig(table)));
-  config = configTableGetConfig(table);
-  configTableApplyConfig(config);
-} 
+  configTableSetConfigToStorage(table, Object());
+  configTableSetInitialConfig();
+  window.location.reload();
+}
 
-function configTableApplyConfig(tableConfig) {
-  var configDiff = Object();
-  var requireSqlRefresh = false;
-  // Get only the differences from current setup
+function configTableApplyConfig(tableConfig, force=false, sqlRefresh=false) {
+  // Apply the provided tableConfig object to the document
+  // By default, change as few attributes as possible, except when force=true
+  // where all the configuration values are applied
+  // sql request is done when sql_refresh=true
+  console.log("apply config", tableConfig);
+  if (!configTableSet) configTableSetInitialConfig();
+  //var requireSqlRefresh = false;
   for (var table_id in tableConfig) {
+    var configDiff = Object();
     var table = document.getElementById(table_id);
     var configNew = tableConfig[table_id];
-    var configCur = configTableGetConfig(table)[table_id];
-    for (var header in configCur) {
+    var configCur = Object();
+    if (force === true) {
+      for (header in configNew) {
+        configCur[header] = "";
+      }
+    } else {
+      var configTable = configTableGetConfigFromStorage(table);
+      if (configTable !== null && configTable[table_id] !== undefined) {
+        configCur = configTable[table_id];
+      } else {
+        for (header in configNew) {
+          configCur[header] = "";
+        }
+      }
+    }
+    for (var header in configNew) {
       if (configCur[header].toString() == configNew[header].toString()) continue;
       else {
         configDiff[header] = configNew[header];
         // sql or sortkey changed
-        if (configCur[header][3] != configNew[header][3] || configCur[header][4] != configNew[header][4]) requireSqlRefresh = true;
+        //if (sql_refresh && (configCur[header][3] != configNew[header][3] || configCur[header][4] != configNew[header][4])) requireSqlRefresh = true;
       }
     }
     for (var header in configDiff) {
+      if (header === "undefined") debugger;
+      if (table === null) debugger;
       var target_header = table.querySelector("th[data-key="+header+"]");
       var target_cells = Array();
-      for (var cell of table.querySelectorAll("td")) {
+      var cells = table.querySelectorAll("td");
+      for (let i = 0; i < cells.length; i++) {
+        let cell = cells[i];
         if (cell.style.order == target_header.style.order) target_cells.push(cell);
       }
       configDiff[header][5] = target_header;
       configDiff[header][6] = target_cells;
     }
-  }
-  // Apply modifications
-  for (var header in configDiff) {
-    var order = configDiff[header][0];
-  //if (form != null) form.submit();
-    var width = configDiff[header][1];
-    var visible = configDiff[header][2];
-    var sort = configDiff[header][3];
-    var sql = configDiff[header][4];
-    // Apply on header
-    target_header = configDiff[header][5];
-    target_header.style.order = order;
-    target_header.style.width = width;
-    if (visible) target_header.classList.remove("not-displayed");
-    else target_header.classList.add("not-displayed");
-    switch (sort) {
-      case null: 
-        break;
-      case "up":
-        var key = configTableGetSortKey(table);
-        window[key["sortKey"]] = header;
-        window[key["sortKeyToUpper"]] = true;
-        break;
-      case "down":
-        var key = configTableGetSortKey(table);
-        window[key["sortKey"]] = header;
-        window[key["sortKeyToUpper"]] = false;
-        break;
+    // Apply modifications
+    for (var header in configDiff) {
+      var order = configDiff[header][0];
+      //if (form != null) form.submit();
+      var width = configDiff[header][1];
+      var visible = configDiff[header][2];
+      var sort = configDiff[header][3];
+      var sql = configDiff[header][4];
+      // Apply on header
+      target_header = configDiff[header][5];
+      target_header.style.order = order;
+      target_header.style.width = width;
+      if (visible) target_header.classList.remove("not-displayed");
+      else target_header.classList.add("not-displayed");
+      switch (sort) {
+        case null:
+          break;
+        case "up":
+          var key = configTableGetSortKey(table);
+          window[key["sortKey"]] = header;
+          window[key["sortKeyToUpper"]] = true;
+          break;
+        case "down":
+          var key = configTableGetSortKey(table);
+          window[key["sortKey"]] = header;
+          window[key["sortKeyToUpper"]] = false;
+          break;
+      }
+      if (sql) {
+        var input = target_header.querySelector(".sql-input");
+        input.value = sql;
+        if (input.type === "range") {
+          var label = target_header.querySelector("label");
+          label.innerHTML = label.innerHTML.replace(/\d+/, sql);
+        }
+      }
+      // Apply on data cells
+      for (var cell of configDiff[header][6]) {
+        cell.style.order = order;
+        cell.style.width = width;
+        if (visible) cell.classList.remove("not-displayed");
+        else cell.classList.add("not-displayed");
+      }
     }
-    if (sql) target_header.querySelector(".sql-input").value = sql;
-    // Apply on data cells
-    for (var cell of configDiff[header][6]) {
-      cell.style.order = order;
-      cell.style.width = width;
-      if (visible) cell.classList.remove("not-displayed");
-      else cell.classList.add("not-displayed");
-    }
-    if (requireSqlRefresh) table.querySelector(".sql-search-form").submit();
+    if (sqlRefresh && table.id === configTableGetActiveTable().id) document.getElementById("submit-sql-search-"+table.id).click();
   }
 }
 
@@ -189,7 +262,7 @@ function configTableMenuToggle() {
   }
 
   var table = configTableGetActiveTable();
-  if (!configTableSet) configTableSetInitialConfig(table);
+  //if (!configTableSet) configTableSetInitialConfig(table);
 
   var menu_inner = '\
   <div id="menu-content" class="flex-column">\
@@ -223,15 +296,17 @@ function columnDisplayToggle(key) {
 
 /*** Resizing ***/
 function columnResizeStart(event) {
+  console.log("resize start");
   event.preventDefault();
   var table = configTableGetActiveTable();
-  if (!configTableSet) configTableSetInitialConfig(table);
+  //if (!configTableSet) configTableSetInitialConfig(table);
   document.addEventListener("mousemove", columnResizeMove, false);
   document.addEventListener("mouseup", columnResizeEnd, false);
   event.target.parentNode.parentNode.parentNode.setAttribute("id", "resized");
 }
 
 function columnResizeMove(event) {
+  console.log("resize move");
   var table = configTableGetActiveTable();
   var table_offset = Number(table.parentElement.scrollLeft);
   var header = document.getElementById("resized");
@@ -253,15 +328,40 @@ function columnResizeEnd(event) {
 
 /*** Dragging ***/
 function columnDragStart(event) {
-  var table = configTableGetActiveTable();
-  if (!configTableSet) configTableSetInitialConfig(table);
-  //event.preventDefault();
-  //event.stopPropagation();
+  console.log("drag start");
+  event.dataTransfer.setData('text', null);
+  //event.dataTransfer.effectAllowed = "move";
   event.dataTransfer.dropEffect = "move";
   event.currentTarget.parentNode.setAttribute("id", "dragged");
 }
 
+function columnDrag(event) {
+  console.log("dragging");
+}
+
+function columnDragOver(event) {
+  console.log("ondragover");
+  event.preventDefault();
+  var node = event.target;
+  var classes = node.classList;
+  if (classes.contains("dropzone")) {
+    node.classList.add("dropzone-hover");
+  }
+}
+
+function columnDragLeave(event) {
+  console.log("on drag leave");
+  event.preventDefault();
+  var node = event.target;
+  if (node.classList === undefined) {
+    console.log(node);
+    return;
+  }
+  node.classList.remove("dropzone-hover");
+}
+
 function columnDrop(event, side) {
+  console.log("drop");
   event.preventDefault();
   var table = configTableGetActiveTable();
   var configTable = configTableGetConfig(table);
@@ -285,6 +385,7 @@ function columnDrop(event, side) {
         columnSetOrder(i, i - 1);
       }
       config[o_key][0] = t_order - 1;
+  configTableSetConfigToStorage(table, config);
     } else {
       for (let i = o_order + 1; i <= t_order; i++) {
         columnSetOrder(i, i - 1);
@@ -320,25 +421,10 @@ function columnDrop(event, side) {
 
   function clean() {
     document.getElementById("dragged").removeAttribute("id");
-    for (let hovered of document.querySelectorAll(".dropzone-hover")) { 
-      hovered.classList.remove("dropzone-hover");
+    let dropzones = document.querySelectorAll(".dropzone-hover");
+    for (let i = 0; i < dropzones.length; i++) {
+      dropzones[i].classList.remove("dropzone-hover");
     }
   }
 }
-
-function columnDragOver(event) {
-  event.preventDefault();
-  var node = event.target;
-  var classes = node.classList;
-  if (classes.contains("dropzone")) {
-    node.classList.add("dropzone-hover");
-  }
-}
-
-function columnDragLeave(event) {
-  event.preventDefault();
-  var node = event.target;
-  node.classList.remove("dropzone-hover");
-}
-
 

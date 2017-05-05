@@ -13,7 +13,6 @@ var workers = [];
 var parents = [];
 var activities = [];
 var affinities = [];
-var configJobFilter = [];
 var configJobSqlFilterParameters = ["id", "title", "user", "state", "priority", "progress", "affinity", "worker", "start_time", "command", "dependencies"];
 var jobsSortKey = "id";
 var jobsSortKeyToUpper = false;
@@ -40,7 +39,6 @@ var JobProps =
 var updatedJobProps = {}
 var WorkerProps = [ [ "affinity", "waffinity", "" ], ];
 var updatedWorkerProps = {}
-var jobsTheadBuilt = false;
 var configTableSet = false;
 
 /* On document ready */
@@ -49,13 +47,8 @@ $(document).ready(function() {
   reloadWorkers ();
   reloadActivities ();
   showPage ("jobs");
-  timer=setTimeout(timerCB,4000);
+  //timer=setTimeout(timerCB,4000);
   renderLogoutButton();
-  // prevent page reload during ajax request
-  $("table .sql-search-form").on("submit", function(e) {
-    e.preventDefault();
-    getSqlWhereJobs($(this));
-  });
 });
 
 function setSortKey(id) {
@@ -70,7 +63,8 @@ function setSortKey(id) {
     direction = "up";
   }
   var config = configTableSetConfig(table, window[key["sortKey"]], "sortkey", direction);
-  configTableApplyConfig(config);
+  configTableSetConfigToStorage(table, config);
+  configTableApplyConfig(configTableGetConfigFromStorage());
   //document.getElementById("sql-search-form").submit();
 }
 
@@ -212,8 +206,8 @@ function renderLog (jobId)
 {
     showPage ("logs");
 	logId = jobId;
-    $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+jobId+"/log", dataType: "json", success: 
-        function (data) 
+    $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+jobId+"/log", dataType: "json", success:
+        function (data)
         {
 	        $("#logs").empty();
 	        $("#logs").append("<pre class='logs'><h2>Logs for job "+jobId+":</h2>"+data+"</pre>");
@@ -241,8 +235,8 @@ function clearWorkers ()
 {
 	if (confirm("Do you really want to delete the selected workers?"))
 	{
-        $.ajax({ type: "DELETE", url: "/api/webfrontend/workers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
-            function () 
+        $.ajax({ type: "DELETE", url: "/api/webfrontend/workers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success:
+            function ()
             {
     	        selectedWorkers = {}
 	            reloadWorkers ();
@@ -264,11 +258,11 @@ function formatDuration (secondes)
   var hours = Math.floor ((secondes-days*60*60*24) / (60*60));
   var minutes = Math.floor ((secondes-days*60*60*24-hours*60*60) / 60);
   var secondes = Math.floor (secondes-days*60*60*24-hours*60*60-minutes*60);
-  if (days > 0)	
+  if (days > 0)
     return days + " d " + hours + " h " + minutes + " m " + secondes + " s";
-  if (hours > 0)	
+  if (hours > 0)
     return hours + " h " + minutes + " m " + secondes + " s";
-  if (minutes > 0)	
+  if (minutes > 0)
     return minutes + " m " + secondes + " s";
   return secondes + " s";
 }
@@ -286,8 +280,6 @@ function refresh ()
 {
   document.getElementById("refreshbutton").className = "refreshing button";
 	if (page == "jobs") {
-		jobsTheadBuilt=false;
-		buildSelectForField('th[data-key="user"]>div.flex-column:first', "sql-search-form", "user", user);
 		reloadJobs ();
 	} else if (page == "workers") {
 		reloadWorkers ();
@@ -383,12 +375,10 @@ function renderParents ()
 
 // Render the current jobs
 function renderJobs (jobsCurrent=[]) {
-  //configLoad("job-sort-key");
+  console.log("render jobs");
   if (jobsCurrent.length) jobs = jobsCurrent;
-  
-  var table = '<table id="jobsTable"><form class="sql-search-form"></form>';
 
-  function _sort (a,b) {
+   function _sort (a,b) {
     if (jobsSortKey == "Progress")
     {
       var progressA = a.progress;
@@ -409,15 +399,16 @@ function renderJobs (jobsCurrent=[]) {
 
   // Returns the HTML code for a job title column
   function addTitleHTML ({attribute="", alias=null, order=0, input=null, min=0, max=100, defaultValue=0}={}) {
+    //if (attribute === "user") debugger;
     if (alias == null) var alias = attribute;
     table += '\
-<th data-key="'+attribute+'" style="order: '+order+';">\
-  <div class="flex-row draggable" draggable="true" ondragstart="columnDragStart(event)">\
-      <div class="flex-row flex-grow dropzone side-left"\
-        ondrop="columnDrop(event, \'left\')"\
-        ondragover="columnDragOver(event)"\
-        ondragleave="columnDragLeave(event)">\
-        <label class="dropzone" onclick="setSortKey(\''+attribute+'\')">';
+             <th data-key="'+attribute+'" style="order: '+order+';">\
+             <div class="flex-row" draggable="true" ondragstart="columnDragStart(event)" ondrag="columnDrag(event)">\
+             <div class="flex-row flex-grow dropzone side-left"\
+             ondrop="columnDrop(event, \'left\')"\
+             ondragover="columnDragOver(event)"\
+             ondragleave="columnDragLeave(event)">\
+             <label class="dropzone" onclick="setSortKey(\''+attribute+'\')">';
     var value = jobs[0];
     if (value) {
       table += alias+'</label>';
@@ -430,32 +421,32 @@ function renderJobs (jobsCurrent=[]) {
       table += alias+"</label>";
     }
 
-		table += '\
-      </div>\
-      <div class="flex-row flex-grow dropzone side-right"\
-        ondrop="columnDrop(event, \'right\')"\
-        ondragover="columnDragOver(event)"\
-        ondragleave="columnDragLeave(event)">\
-        <div class="flex-column resizable"\
-          onmousedown="columnResizeStart(event)">\
-        </div>\
-      </div>\
-  </div>';
+    table += '\
+             </div>\
+             <div class="flex-row flex-grow dropzone side-right"\
+             ondrop="columnDrop(event, \'right\')"\
+             ondragover="columnDragOver(event)"\
+             ondragleave="columnDragLeave(event)">\
+             <div class="flex-column resizable"\
+             onmousedown="columnResizeStart(event)">\
+             </div>\
+             </div>\
+             </div>';
 
     if (input) {
-      var nodeSelector = 'th[data-key=\''+attribute+'\']>div.flex-column:first';
+      var nodeSelector = 'th[data-key=\''+attribute+'\']';
       switch (input) {
         case "search":
-          table += buildInputForField(nodeSelector, "sql-search-form", attribute, input);
+          table += buildInputForField(nodeSelector, "sql-search-job", attribute, input);
           break;
         case "select":
-					table += buildSelectForField(nodeSelector, "sql-search-form", attribute, input);
+					table += buildSelectForField(nodeSelector, "sql-search-job", attribute, input);
           break;
         case "datetime-local":
-          table += buildDatetimeForField(nodeSelector, "sql-search-form", attribute, input);
+          table += buildDatetimeForField(nodeSelector, "sql-search-job", attribute, input);
           break;
         case "range":
-          table += buildRangeForField(nodeSelector, "sql-search-form", attribute, input, min, max, defaultValue);
+          table += buildRangeForField(nodeSelector, "sql-search-job", attribute, input, min, max, defaultValue);
           break;
         default:
           break;
@@ -464,6 +455,7 @@ function renderJobs (jobsCurrent=[]) {
     table += '</div></th>';
   }
 
+  var table = '<table id="jobsTable">';
   table += "<thead>";
   table += "<tr>";
   addTitleHTML ({"attribute": "id", "order":0, "input": "search"});
@@ -583,8 +575,7 @@ function renderJobs (jobsCurrent=[]) {
   table += "</table>";
 
   $.when($("#jobs").html(table)).then(function () {
-    //configLoad("job-filter");
-    jobsTheadBuilt = true;
+    configTableApplyConfig(configTableGetConfigFromStorage(), force=true, sql_refresh=false);
   });
 }
 
@@ -605,9 +596,10 @@ function reloadJobs () {
   switch (viewJob) {
     case 0: // Root job
       jobs = getSqlWhereJobs();
+      //renderJobs(jobs);
       break;
-    default: // Show viewJob children 
-      $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+viewJob+"/children", dataType: "json", success: 
+    default: // Show viewJob children
+      $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+viewJob+"/children", dataType: "json", success:
         function(jobs) {
           jobs = jobs;
           var	idtojob = {}
@@ -616,7 +608,7 @@ function reloadJobs () {
             idtojob[job.id] = job;
             job.dependencies = [];
           }
-          $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+viewJob+"/childrendependencies", dataType: "json", success: 
+          $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+viewJob+"/childrendependencies", dataType: "json", success:
             function(data) {
               for (var i=0; i<data.length; ++i) {
                 var	job = idtojob[data[i].id];
@@ -640,9 +632,9 @@ function reloadJobs () {
       parents.unshift({id:0,title:"Root"});
       renderParents();
     } else {
-      $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+id, dataType: "json", success: 
-        function(data) 
-        { 
+      $.ajax({ type: "GET", url: "/api/webfrontend/jobs/"+id, dataType: "json", success:
+        function(data)
+        {
           parents.unshift(data);
           getParent(data.parent);
         }
@@ -654,8 +646,8 @@ function reloadJobs () {
 
 function startWorkers ()
 {
-  $.ajax({ type: "POST", url: "/api/webfrontend/startworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
-    function () 
+  $.ajax({ type: "POST", url: "/api/webfrontend/startworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success:
+    function ()
     {
       reloadWorkers ();
     }
@@ -664,8 +656,8 @@ function startWorkers ()
 
 function stopWorkers ()
 {
-  $.ajax({ type: "POST", url: "/api/webfrontend/stopworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
-    function () 
+  $.ajax({ type: "POST", url: "/api/webfrontend/stopworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success:
+    function ()
     {
       reloadWorkers ();
     }
@@ -694,8 +686,8 @@ function terminateWorkers ()
 {
   if (confirm("Do you really want to terminate the selected worker instances?"))
   {
-    $.ajax({ type: "POST", url: "/api/webfrontend/terminateworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success: 
-      function () 
+    $.ajax({ type: "POST", url: "/api/webfrontend/terminateworkers", data: JSON.stringify(getSelectedWorkers ()), dataType: "json", success:
+      function ()
       {
         reloadWorkers ();
       }
@@ -848,8 +840,8 @@ function updateworkers ()
 
 function reloadWorkers ()
 {
-  $.ajax({ type: "GET", url: "/api/webfrontend/workers", dataType: "json", success: 
-    function (data) 
+  $.ajax({ type: "GET", url: "/api/webfrontend/workers", dataType: "json", success:
+    function (data)
     {
       workers = data;
       renderWorkers ();
@@ -869,7 +861,7 @@ function renderWorkers ()
   // Returns the HTML code for a worker title column
   function addTitleHTML (attribute)
   {
-    table += '<th>';	
+    table += '<th data-key="'+attribute+'">';
     table += '<div class="flex-column">';
     table += '<div class="flex-row">';
     table += '<label onclick="setWorkerKey(\''+attribute+'\')">';
@@ -899,6 +891,7 @@ function renderWorkers ()
   addTitleHTML ("finished");
   addTitleHTML ("error");
   addTitleHTML ("ip");
+    // Build key value array
   table += "</tr>";
   table += "</thead>";
   table += "<tbody>";
@@ -918,7 +911,7 @@ function renderWorkers ()
   {
     var worker = workers[i];
 
-    // *** Build the load tab for this worker		
+    // *** Build the load tab for this worker
     // A global div
     var load = "<div class='load'>";
     // Add each cpu load
@@ -942,7 +935,7 @@ function renderWorkers ()
     load += "<div class='loadlabel'>" + loadValue + "%</div>";
     load += "</div>";
 
-    // *** Build the memory tab for this worker		
+    // *** Build the memory tab for this worker
     var memory = "<div class='mem'>";
     memory += "<div class='membar' style='width:" + 100*(worker.total_memory-worker.free_memory)/worker.total_memory + "%' />";
 
@@ -991,8 +984,8 @@ function reloadActivities ()
   if (worker != "")
     data.worker = worker
   data.howlong = $('#howlong').prop("value")
-  $.ajax({ type: "GET", url: "/api/webfrontend/events", data: data, dataType: "json", success: 
-    function (data) 
+  $.ajax({ type: "GET", url: "/api/webfrontend/events", data: data, dataType: "json", success:
+    function (data)
     {
       activities = data;
       renderActivities ();
@@ -1010,7 +1003,7 @@ function renderActivities ()
   // Returns the HTML code for a worker title column
   function addTitleHTML (attribute)
   {
-    table += "<th onclick='"+"setActivityKey(\""+attribute+"\")'>";	
+    table += "<th data-key='"+attribute+"' onclick='"+"setActivityKey(\""+attribute+"\")'>";
     var value = activities[0];
     if (value && value[attribute] != null)
     {
@@ -1089,7 +1082,7 @@ function renderAffinities ()
 
   function addTitleHTML (attribute)
   {
-    table += "<th onclick='"+"setActivityKey(\""+attribute+"\")'>";	
+    table += "<th onclick='"+"setActivityKey(\""+attribute+"\")'>";
     var value = activities[0];
     if (value && value[attribute] != null)
     {
@@ -1130,8 +1123,8 @@ function onchangeaffinityprop (affinity)
 
 function updateAffinities ()
 {
-  $.ajax({ type: "GET", url: "/api/webfrontend/affinities", dataType: "json", success: 
-    function (data) 
+  $.ajax({ type: "GET", url: "/api/webfrontend/affinities", dataType: "json", success:
+    function (data)
     {
       affinities = data;
       for (i = 1; i <= 63; ++i)
@@ -1155,8 +1148,8 @@ function sendAffinities ()
   }
 
   var data = JSON.stringify(affinities)
-  $.ajax({ type: "POST", url: "/api/webfrontend/affinities", data: data, dataType: "json", success: 
-    function (data) 
+  $.ajax({ type: "POST", url: "/api/webfrontend/affinities", data: data, dataType: "json", success:
+    function (data)
     {
       updateAffinities ();
     }
@@ -1187,9 +1180,9 @@ function addjob ()
   var data = {
     title:$('#title')[0].value,
     command:$('#cmd')[0].value,
-    dir:$('#dir')[0].value, 
-    env:$('#env')[0].value, 
-    priority:$('#priority')[0].value, 
+    dir:$('#dir')[0].value,
+    env:$('#env')[0].value,
+    priority:$('#priority')[0].value,
     timeout:$('#timeout')[0].value,
     affinity:$('#affinity')[0].value,
     dependencies:$("#dependencies")[0].value,
@@ -1197,8 +1190,8 @@ function addjob ()
     url:$('#url')[0].value,
     parent:viewJob
   };
-  $.ajax({ type: "PUT", url: "/api/webfrontend/jobs", data: JSON.stringify(data), dataType: "json", success: 
-    function () 
+  $.ajax({ type: "PUT", url: "/api/webfrontend/jobs", data: JSON.stringify(data), dataType: "json", success:
+    function ()
     {
       setSelectionDefaultProperties (JobProps);
       reloadJobs ();
@@ -1338,11 +1331,11 @@ function selectAll (state, filter)
 
   if (!state)
   {
-    for (j=0; j < thelist.length; j++) 
+    for (j=0; j < thelist.length; j++)
       document.getElementById(tableId+j).className = "entry"+(j%2);
   }
   else
-  {        
+  {
     for (j=0; j < thelist.length; j++)
     {
       var item = thelist[j];
@@ -1377,8 +1370,8 @@ function removeSelection ()
       if (selectedJobs[job.id])
         data.push (job.id);
     }
-    $.ajax({ type: "DELETE", url: "/api/webfrontend/jobs", data: JSON.stringify(data), dataType: "json", success: 
-      function () 
+    $.ajax({ type: "DELETE", url: "/api/webfrontend/jobs", data: JSON.stringify(data), dataType: "json", success:
+      function ()
       {
         selectedJobs = {};
         reloadJobs ();
@@ -1397,8 +1390,8 @@ function startSelection ()
     if (selectedJobs[job.id])
       data.push (job.id);
   }
-  $.ajax({ type: "POST", url: "/api/webfrontend/startjobs", data: JSON.stringify(data), dataType: "json", success: 
-    function () 
+  $.ajax({ type: "POST", url: "/api/webfrontend/startjobs", data: JSON.stringify(data), dataType: "json", success:
+    function ()
     {
       reloadJobs ();
     }
@@ -1426,8 +1419,8 @@ function resetSelection ()
       if (selectedJobs[job.id])
         data.push (job.id);
     }
-    $.ajax({ type: "POST", url: "/api/webfrontend/resetjobs", data: JSON.stringify(data), dataType: "json", success: 
-      function () 
+    $.ajax({ type: "POST", url: "/api/webfrontend/resetjobs", data: JSON.stringify(data), dataType: "json", success:
+      function ()
       {
         reloadJobs ();
       }
@@ -1446,8 +1439,8 @@ function resetErrorSelection ()
       if (selectedJobs[job.id])
         data.push (job.id);
     }
-    $.ajax({ type: "POST", url: "/api/webfrontend/reseterrorjobs", data: JSON.stringify(data), dataType: "json", success: 
-      function () 
+    $.ajax({ type: "POST", url: "/api/webfrontend/reseterrorjobs", data: JSON.stringify(data), dataType: "json", success:
+      function ()
       {
         reloadJobs ();
       }
@@ -1464,8 +1457,8 @@ function pauseSelection ()
     if (selectedJobs[job.id])
       data.push (job.id);
   }
-  $.ajax({ type: "POST", url: "/api/webfrontend/pausejobs", data: JSON.stringify(data), dataType: "json", success: 
-    function () 
+  $.ajax({ type: "POST", url: "/api/webfrontend/pausejobs", data: JSON.stringify(data), dataType: "json", success:
+    function ()
     {
       reloadJobs ();
     }
@@ -1502,8 +1495,8 @@ function pasteSelection ()
   var data = {}
   for (var id in cutJobs)
     data[id] = {parent:viewJob}
-  $.ajax({ type: "POST", url: "/api/webfrontend/jobs", data: JSON.stringify(data), dataType: "json", success: 
-    function () 
+  $.ajax({ type: "POST", url: "/api/webfrontend/jobs", data: JSON.stringify(data), dataType: "json", success:
+    function ()
     {
       reloadJobs ();
     }
@@ -1575,11 +1568,6 @@ function buildInputForField(nodeSelector, form, field, type, min, max) {
 }
 
 function buildSelectForField(nodeSelector, form, field, type=null) {
-  // Prevent ajax request if table head has been previously built
-  if (jobsTheadBuilt) {
-		return;
-  }
-
   var items;
   switch (field) {
     case "user":
@@ -1593,13 +1581,13 @@ function buildSelectForField(nodeSelector, form, field, type=null) {
   ajax.done(function(items) {
     var content = '<select form="'+form+'" class="sql-input" id="job-filter-'+field+'"\
  form="sql-select" multiple\
- onclick="checkJobSqlInputChange("'+field+'", event)"\
- onkeydown="checkJobSqlInputChange("'+field+'", event)"\
- onkeyup="checkJobSqlInputChange("'+field+'", event)">';
+ onclick="checkJobSqlInputChange(\''+field+'\', event)"\
+ onkeydown="checkJobSqlInputChange(\''+field+'\', event)"\
+ onkeyup="checkJobSqlInputChange(\''+field+'\', event)">';
     for (i=0; i < items.length; i++) {
       var item = items[i][field];
       content += '<option value="'+item+'">'+item+'</option>';
-    }   
+    }
     content += '</select>';
     $(nodeSelector).append('<div class="sql-search-field">'+content+'</div>');
   });
@@ -1612,7 +1600,7 @@ function buildDatetimeForField(nodeSelector, form, field, type) {
 }
 
 function buildRangeForField(nodeSelector, form, field, type, min, max, defaultValue) {
-  content = '<input form="'+form+'" id="job-filter-'+field+'" type="'+type+'" data-defaultvalue="'+defaultValue+'" min="'+min+'" max="'+max+'" oninput="onRangeInput(event)" onchange="checkJobSqlInputChange(\''+field+'\', event)">';
+  content = '<input form="'+form+'" id="job-filter-'+field+'" class="sql-input" type="'+type+'" data-defaultvalue="'+defaultValue+'" min="'+min+'" max="'+max+'" oninput="onRangeInput(event)" onchange="checkJobSqlInputChange(\''+field+'\', event)">';
   content += '<div id="job-filter-'+field+'-values"></div>';
   return '<div class="sql-search-field">'+content+'</div>';
 }
@@ -1621,11 +1609,6 @@ function onRangeInput(event) {
   var value = event.target.value;
   var label = event.target.parentNode.parentNode.querySelector("label");
   label.innerHTML = label.innerHTML.replace(/\d+/, value);
-}
-
-function onRangeChange(event, field) {
-	console.log(event);
-  checkJobSqlInputChange(field, event);
 }
 
 function toggleSearchField(node) {
@@ -1639,19 +1622,24 @@ function toggleSearchField(node) {
   }
 }
 
-function checkJobSqlInputChange(field, event) {
+function checkJobSqlInputChange(column, event) {
+  console.log("check sql input change");
   var table = configTableGetActiveTable();
   var keyCodeEnter = 13;
   var keyCodeControl = 17;
   switch (event.type) {
     case "click":
-      if (!controlKeyPressed) // single selection
-        table.querySelector(".sql-search-form").submit();
+      if (!controlKeyPressed)
+        var config = configTableSetConfig(table, column, "sql", event.target.value);
+        configTableSetConfigToStorage(table, config);
+        configTableApplyConfig(configTableGetConfigFromStorage(), sqlRefresh=true);
       break;
     case "keydown":
       switch (event.keyCode) {
         case keyCodeEnter:
-          table.querySelector(".sql-search-form").submit();
+          var config = configTableSetConfig(table, column, "sql", event.target.value);
+          configTableSetConfigToStorage(table, config);
+          configTableApplyConfig(configTableGetConfigFromStorage(), sqlRefresh=true);
           break;
         case keyCodeControl:
           controlKeyPressed = true;
@@ -1659,16 +1647,16 @@ function checkJobSqlInputChange(field, event) {
       }
       break;
     case "keyup":
-      // multiple selection
-      if (event.keyCode != keyCodeControl) break; // not <control>
+      if (event.keyCode != keyCodeControl) break;
       controlKeyPressed = false;
-      var itemName = "#job-filter-"+field;
-      var values = $(itemName).val();
-      if (values != configGet(itemName)) // the selection changed
-        table.querySelector(".sql-search-form").submit();
+      var config = configTableSetConfig(table, column, "sql", event.target.value);
+      configTableSetConfigToStorage(table, config);
+      configTableApplyConfig(configTableGetConfigFromStorage(), sqlRefresh=true);
       break;
     case "change":
-      table.querySelector(".sql-search-form").submit();
+      var config = configTableSetConfig(table, column, "sql", event.target.value);
+      configTableSetConfigToStorage(table, config);
+      configTableApplyConfig(configTableGetConfigFromStorage(), force=true, sqlRefresh=true);
   }
 }
 
@@ -1698,7 +1686,7 @@ function getSelectForFieldStatesStatic(form, field) {
     for (i=0; i < items.length; i++) {
       var item = items[i];
       content += '<option value="'+item+'">'+item+'</option>';
-    }   
+    }
     content += '</select>';
   return content;
 }
@@ -1721,17 +1709,35 @@ function getAjaxSqlWhereJobs(data) {
   })
 }
 
-function getSqlWhereJobs() {
+function onSqlSearchFormSubmit(event) {
+  console.log("form submitted");
+  event.preventDefault();
+  table = configTableGetActiveTable();
+  switch (table.id) {
+    case "jobsTable":
+      jobs = getSqlWhereJobs();
+      break;
+  }
+};
 
-  if (jobsTheadBuilt) configSave();
-  //else configLoad();
+function getSqlWhereJobs() {
   // Limit search to children of viewJob
   var sql = "(parent = "+viewJob+")";
-
-  for (i in configJobFilter) {
-    key = configJobFilter[i][0];
-    values = configJobFilter[i][1];
-    if (typeof(values) == "string") values = [values]
+  var form = document.getElementById("sql-search-job");
+  var data = Object();
+  var elements = form.elements;
+  for (var i = 0; i < elements.length; i++) {
+    var key = elements[i].id.replace("job-filter-", "");
+    var values = elements[i].value;
+    if (values.length !== 0) {
+      if (typeof(values) == "string") values = [values]
+      data[key] = values;
+    }
+  }
+  for (var element in data) {
+    //Build sql clause
+    var key = element;
+    var values = data[key];
     // build sql clause
     originalKey = key;
     switch (key) {
@@ -1771,7 +1777,7 @@ function getSqlWhereJobs() {
         break;
       case "progress":
 				if (values[0] == 0) sql += " and (progress is null or progress >= 0)";
-				else sql += " and (progress > "+100/Number(values[0])+")"; 
+				else sql += " and (progress > "+Number(values[0])/100+")";
         break;
       case "affinity":
       case "title":
@@ -1820,37 +1826,5 @@ function getSqlWhereJobs() {
       renderJobs(jobs);
     }
   })
-}
-
-/* localstorage functions */
-function configGet(itemName) {
-  // Get stored item 
-  console.log("config get");
-  config = localStorage.getItem(itemName);
-  return (config != "undefined") ? config : "";
-}
-
-function configLoad(category="job-filter") {
-  console.log("config load");
-  switch (category) {
-    case "job-filter":
-      configJobFilter = [];
-      for (i in configJobSqlFilterParameters) {
-        var param = configJobSqlFilterParameters[i];
-        var value = configGet(category+'-'+param);
-        if (value) {
-          value = value.split(",");
-          var nodeId = category+'-'+param;
-          $('#'+nodeId).val(value);
-          configJobFilter.push([param, value]);
-        }
-      }
-      break;
-    case "job-sort-key":
-      jobsSortKey = configGet("job-sort-key");
-      jobsSortKeyToUpper = (configGet("job-sort-key-to-upper") === "true");
-      break;
-  }
-  return false;
 }
 

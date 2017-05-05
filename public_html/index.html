@@ -1,12 +1,12 @@
 <!doctype html>
 
-<html lang="en">	
+<html lang="en">
 	<head>
 		<meta charset="utf-8">
 		<title>Coalition Server</title>
 		<link href="css/coalition.css" rel="stylesheet" type="text/css"></link>
-		<script src="js/jquery.min.js"></script>
-		<script src="js/jquery-ui.min.js"></script>
+		<!--script src="js/jquery.min.js"></script-->
+		<script src="js/jquery-3.2.1.js"></script>
 		<script src="js/coalition.js"></script>
 		<script src="js/table-config.js"></script>
 	</head>
@@ -33,7 +33,7 @@
 						<button type="button" id="affinitytab" class="button" onclick="showPage('affinities')">Affinities</button>
 					</div>
 				</div>
-                
+
 				<div class="flex-column">
 					<div class="flex-row">
                         <button id="copy-url-button" class="button" type="submit" value="copy-url" onclick="configTableCopyUrl()">Copy this view url to clipboard</button>
@@ -78,6 +78,9 @@
 						<button type="button" class="button" id="b08" onclick="logSelection()"><img src="img/icon_logs.png">Log</button>
 						<button type="button" class="button" id="b09" onclick="jobActivity()"><img src="img/icon_activity.png">Activity</button>
 						<button type="button" class="button" id="b10" onclick="exportCSV()"><img src="img/icon_tabler.png">CSV</button>
+                        <form id="sql-search-job" class="sql-search-form" onsubmit="onSqlSearchFormSubmit(event)">
+                            <input id="submit-sql-search-jobsTable" type="submit" class="not-displayed">
+                        </form>
 					</div>
 
 					<div id="parents" class="flex-row">
