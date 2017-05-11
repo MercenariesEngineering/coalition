@@ -32,27 +32,37 @@ function configTableGetFormForTable(table) {
 }
 
 function configTableGetSortKey(table) {
+  // Get current sort  key and sort direction
   var sortKey = "";
   var sortKeyToUpper = "";
-  switch (table.id) {
-    case "jobsTable":
-      sortKey = "jobsSortKey";
-      sortKeyToUpper = "jobsSortKeyToUpper";
+  var config = configTableGetConfig(table);
+  for (var i in config) {
+    if (config[i][3] !== null) {
+      console.log("sortkey to upper in current config", config[i][3]);
+      sortKey = i;
+      sortKeyToUpper = (config[i][3] === "up") ? true : false;
       break;
-    case "workersTable":
-      sortKey = "workersSortKey";
-      sortKeyToUpper = "workersSortKeyToUpper";
+    }
+  }
+  return ({sortKey: sortKey, sortKeyToUpper: sortKeyToUpper});
+}
+
+function configTableGetSortKeyFromStorage(table) {
+  var sortKey = "";
+  var sortKeyToUpper = "";
+  var config = configTableGetConfigFromStorage()[table.id];
+  for (var i in config) {
+    if (config[i][3] !== null) {
+      sortKey = i;
+      sortKeyToUpper = (config[i][3] === "up") ? true : false;
       break;
-    case "activitiesTable":
-      sortKey = "activitiesSortKey";
-      sortKeyToUpper = "activitiesSortKeyToUpper";
-      break;
+    }
   }
   return ({sortKey: sortKey, sortKeyToUpper: sortKeyToUpper});
 }
 
 function configTableGetConfig(table) {
-  // Get config from document state
+  // Get config for table from document state
   var config = Object();
   var ths = table.getElementsByTagName("th");
   for (let i = 0; i < ths.length; i++) {
@@ -63,8 +73,21 @@ function configTableGetConfig(table) {
     var visibility = (th.classList.contains("not-displayed")) ? false : true;
     if (th.querySelector(".sort-arrow") !=  null) var sort = (th.querySelector(".sort-arrow-up") !=  null) ? "up" : "down";
     else var sort = null;
-    var sql_input = th.querySelector(".sql-input");
-    var sql = (sql_input == null) ? "" : sql_input.value;
+    var sql = Array();
+    var sqlInput = th.querySelector(".sql-input");
+    if (sqlInput) {
+      switch(sqlInput.tagName) {
+        case "INPUT":
+          var sql = sqlInput.value;
+        case "SELECT":
+          var options = sqlInput.selectedOptions;
+          if (options !== undefined) {
+            for (let i = 0; i < options.length; i++) {
+              sql.push(options[i].value);
+            }
+          }
+      }
+    }
     config[key] = [order, width, visibility, sort, sql];
   }
   return config;
@@ -82,7 +105,6 @@ function configTableSetInitialConfig() {
   // Inform the session that the table configuration is done
   configTableSet = true;
   var configTables = Object();
-  configTableSet = true;
   var tables = document.querySelectorAll("table");
   for (var t = 0; t< tables.length; t++) {
     let table = tables[t];
@@ -96,7 +118,15 @@ function configTableSetInitialConfig() {
       form.reset();
       // Set default values to form inputs if available
       for (let i = 0; i < form.length; i++) {
-        var value = (form[i].dataset.defaultvalue) ? form[i].dataset.defaultvalue : null;
+        var element = form[i];
+        switch (element.tagName) {
+          case "INPUT":
+            var value = (form[i].dataset.defaultvalue) ? form[i].dataset.defaultvalue : null;
+            break;
+          case "SELECT":
+            var value = Array("demo", "value");
+            break;
+        }
         form[i].value = value;
       }
     }
@@ -115,6 +145,7 @@ function configTableSetInitialConfig() {
 
     // Set localstorage data from the renewed document state
     var configTable = configTableGetConfig(table);
+    console.log("configtable for table", table, configTable);
     configTables[table.id] = configTable;
   }
   window.localStorage.setItem("config-table", JSON.stringify(configTables));
@@ -123,13 +154,19 @@ function configTableSetInitialConfig() {
 function configTableSetConfig(table, column, key, value) {
   var config = configTableGetConfig(table);
   switch (key) {
+    case "move":
+      config[column][0] = value;
+      break;
     case "resize":
-      config[column][1] = value;
+      config[column][1]  = value;
       break;
     case "visible":
       config[column][2] = value;
       break;
     case "sortkey":
+      for (var c in config) {
+        config[c][3] = null;
+      }
       config[column][3] = value;
       break;
     case "sql":
@@ -140,8 +177,9 @@ function configTableSetConfig(table, column, key, value) {
 
 function configTableSetConfigToStorage(table, newConfig) {
   let config = configTableGetConfigFromStorage();
-  config[table.id] = newConfig
+  config[table.id] = newConfig;
   window.localStorage.setItem("config-table", JSON.stringify(config));
+  return config;
 }
 
 function configTableReset() {
@@ -159,7 +197,6 @@ function configTableApplyConfig(tableConfig, force=false, sqlRefresh=false) {
   // sql request is done when sql_refresh=true
   console.log("apply config", tableConfig);
   if (!configTableSet) configTableSetInitialConfig();
-  //var requireSqlRefresh = false;
   for (var table_id in tableConfig) {
     var configDiff = Object();
     var table = document.getElementById(table_id);
@@ -183,13 +220,9 @@ function configTableApplyConfig(tableConfig, force=false, sqlRefresh=false) {
       if (configCur[header].toString() == configNew[header].toString()) continue;
       else {
         configDiff[header] = configNew[header];
-        // sql or sortkey changed
-        //if (sql_refresh && (configCur[header][3] != configNew[header][3] || configCur[header][4] != configNew[header][4])) requireSqlRefresh = true;
       }
     }
     for (var header in configDiff) {
-      if (header === "undefined") debugger;
-      if (table === null) debugger;
       var target_header = table.querySelector("th[data-key="+header+"]");
       var target_cells = Array();
       var cells = table.querySelectorAll("td");
@@ -203,7 +236,6 @@ function configTableApplyConfig(tableConfig, force=false, sqlRefresh=false) {
     // Apply modifications
     for (var header in configDiff) {
       var order = configDiff[header][0];
-      //if (form != null) form.submit();
       var width = configDiff[header][1];
       var visible = configDiff[header][2];
       var sort = configDiff[header][3];
@@ -214,26 +246,20 @@ function configTableApplyConfig(tableConfig, force=false, sqlRefresh=false) {
       target_header.style.width = width;
       if (visible) target_header.classList.remove("not-displayed");
       else target_header.classList.add("not-displayed");
-      switch (sort) {
-        case null:
-          break;
-        case "up":
-          var key = configTableGetSortKey(table);
-          window[key["sortKey"]] = header;
-          window[key["sortKeyToUpper"]] = true;
-          break;
-        case "down":
-          var key = configTableGetSortKey(table);
-          window[key["sortKey"]] = header;
-          window[key["sortKeyToUpper"]] = false;
-          break;
-      }
-      if (sql) {
+      if (sql !== undefined && sql !== null && sql.length) {
         var input = target_header.querySelector(".sql-input");
-        input.value = sql;
-        if (input.type === "range") {
-          var label = target_header.querySelector("label");
-          label.innerHTML = label.innerHTML.replace(/\d+/, sql);
+        switch (input.type) {
+          case "range":
+            input.value = sql;
+            var label = target_header.querySelector("label");
+            label.innerHTML = label.innerHTML.replace(/\d+/, sql);
+            break;
+          case "select-multiple":
+            var options = input.options;
+            for (let i = 0; i < options.length; i++) {
+              options[i].selected = (sql.includes(options[i].value)) ? true : false;
+            }
+            break;
         }
       }
       // Apply on data cells
@@ -336,11 +362,9 @@ function columnDragStart(event) {
 }
 
 function columnDrag(event) {
-  console.log("dragging");
 }
 
 function columnDragOver(event) {
-  console.log("ondragover");
   event.preventDefault();
   var node = event.target;
   var classes = node.classList;
@@ -350,7 +374,6 @@ function columnDragOver(event) {
 }
 
 function columnDragLeave(event) {
-  console.log("on drag leave");
   event.preventDefault();
   var node = event.target;
   if (node.classList === undefined) {
@@ -364,8 +387,7 @@ function columnDrop(event, side) {
   console.log("drop");
   event.preventDefault();
   var table = configTableGetActiveTable();
-  var configTable = configTableGetConfig(table);
-  var config = configTable[table.id];
+  var config = configTableGetConfig(table);
   var origin = document.getElementById("dragged");
   var o_key = origin.dataset.key;
   var o_order = Number(config[o_key][0]);
@@ -385,7 +407,6 @@ function columnDrop(event, side) {
         columnSetOrder(i, i - 1);
       }
       config[o_key][0] = t_order - 1;
-  configTableSetConfigToStorage(table, config);
     } else {
       for (let i = o_order + 1; i <= t_order; i++) {
         columnSetOrder(i, i - 1);
@@ -406,8 +427,10 @@ function columnDrop(event, side) {
     }
   }
 
+  var configTable = configTableGetConfigFromStorage();
   configTable[table.id] = config;
   configTableApplyConfig(configTable);
+  configTableSetConfigToStorage(table, config);
   clean();
 
   function columnSetOrder(o_order, t_order) {

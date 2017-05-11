@@ -51,21 +51,22 @@ $(document).ready(function() {
   renderLogoutButton();
 });
 
-function setSortKey(id) {
+function setSortKey(event, id) {
   var table = configTableGetActiveTable();
-  var key = configTableGetSortKey(table);
-  if (key["sortKey"] == id) {
-    var direction = key["sortKeyToUpper"];
-    if (direction == "up") direction = "down";
-    else direction = "up";
+  var configTable = configTableGetConfigFromStorage();
+  var sortKey = configTableGetSortKeyFromStorage(table);
+  var th = event.target.parentElement.parentElement.parentElement;
+  if (sortKey["sortKey"] === th.dataset.key) {
+    if (sortKey["sortKeyToUpper"]) {
+      var config = configTableSetConfig(table, th.dataset.key, "sortkey", "down");
+    } else {
+      var config = configTableSetConfig(table, th.dataset.key, "sortkey", "up");
+    }
   } else {
-    key["sortkey"] = id;
-    direction = "up";
+    var config = configTableSetConfig(table, th.dataset.key, "sortkey", "down");
   }
-  var config = configTableSetConfig(table, window[key["sortKey"]], "sortkey", direction);
   configTableSetConfigToStorage(table, config);
-  configTableApplyConfig(configTableGetConfigFromStorage());
-  //document.getElementById("sql-search-form").submit();
+  document.getElementById("submit-sql-search-"+table.id).click();
 }
 
 //function setJobKey (id)
@@ -378,28 +379,8 @@ function renderJobs (jobsCurrent=[]) {
   console.log("render jobs");
   if (jobsCurrent.length) jobs = jobsCurrent;
 
-   function _sort (a,b) {
-    if (jobsSortKey == "Progress")
-    {
-      var progressA = a.progress;
-      var progressB = b.progress;
-      return compareNumbers (progressA, progressB, jobsSortKeyToUpper);
-    }
-    else
-    {
-      var aValue = a[jobsSortKey];
-      if (typeof aValue == "string")
-        return compareStrings (aValue, b[jobsSortKey], jobsSortKeyToUpper);
-      else
-        return compareNumbers (aValue, b[jobsSortKey], jobsSortKeyToUpper);
-    }
-  }
-
-  if (jobs.length) jobs.sort (_sort);
-
   // Returns the HTML code for a job title column
   function addTitleHTML ({attribute="", alias=null, order=0, input=null, min=0, max=100, defaultValue=0}={}) {
-    //if (attribute === "user") debugger;
     if (alias == null) var alias = attribute;
     table += '\
              <th data-key="'+attribute+'" style="order: '+order+';">\
@@ -408,14 +389,19 @@ function renderJobs (jobsCurrent=[]) {
              ondrop="columnDrop(event, \'left\')"\
              ondragover="columnDragOver(event)"\
              ondragleave="columnDragLeave(event)">\
-             <label class="dropzone" onclick="setSortKey(\''+attribute+'\')">';
+             <label class="dropzone" onclick="setSortKey(event, \''+attribute+'\')">';
     var value = jobs[0];
     if (value) {
       table += alias+'</label>';
-      if (attribute == jobsSortKey && jobsSortKeyToUpper) {
-        table += '<div class="sort-arrow sort-arrow-up dropzone">&#8595;</div>';
-      } else if (attribute == jobsSortKey && !jobsSortKeyToUpper) {
-        table += '<div class="sort-arrow sort-arrow-down dropzone">&#8593;</div>';
+      var activeTable = configTableGetActiveTable();
+      if (activeTable === null) {
+        var sortKey = {sortKey: "id", sortKeyToUpper: true};
+      } else {
+        var sortKey = configTableGetSortKeyFromStorage(activeTable);
+      }
+      if (attribute === sortKey["sortKey"]) {
+        var orderHtml = (sortKey["sortKeyToUpper"]) ? '<div class="sort-arrow sort-arrow-up dropzone">&uarr;</div>' : '<div class="sort-arrow sort-arrow-down dropzone">&darr;</div>';
+        table += orderHtml;
       }
     } else {
       table += alias+"</label>";
@@ -434,7 +420,7 @@ function renderJobs (jobsCurrent=[]) {
              </div>';
 
     if (input) {
-      var nodeSelector = 'th[data-key=\''+attribute+'\']';
+      var nodeSelector = '#jobsTable th[data-key=\''+attribute+'\']';
       switch (input) {
         case "search":
           table += buildInputForField(nodeSelector, "sql-search-job", attribute, input);
@@ -1571,6 +1557,7 @@ function buildSelectForField(nodeSelector, form, field, type=null) {
   var items;
   switch (field) {
     case "user":
+      var content = String();
       var ajax = getAjaxJobsUsers();
       break;
     case "state":
@@ -1589,7 +1576,10 @@ function buildSelectForField(nodeSelector, form, field, type=null) {
       content += '<option value="'+item+'">'+item+'</option>';
     }
     content += '</select>';
-    $(nodeSelector).append('<div class="sql-search-field">'+content+'</div>');
+    var element = document.createElement('div');
+    element.innerHTML += '<div class="sql-search-field">'+content+'</div>';
+    var target = document.querySelector(nodeSelector);
+    target.appendChild(element);
   });
 	return "";
 }
@@ -1623,40 +1613,49 @@ function toggleSearchField(node) {
 }
 
 function checkJobSqlInputChange(column, event) {
-  console.log("check sql input change");
+  console.log("check sql input change", event.type);
   var table = configTableGetActiveTable();
   var keyCodeEnter = 13;
   var keyCodeControl = 17;
+  var value = event.target.value;
   switch (event.type) {
     case "click":
-      if (!controlKeyPressed)
-        var config = configTableSetConfig(table, column, "sql", event.target.value);
-        configTableSetConfigToStorage(table, config);
-        configTableApplyConfig(configTableGetConfigFromStorage(), sqlRefresh=true);
+      if (event.ctrlKey) break;
+      var oldConfig = configTableGetConfigFromStorage()[table.id];
+      var oldValues = oldConfig[column][4];
+      if (oldValues.length === 0) {
+        var newValues = Array(value);
+      } else {
+        var newValues = oldValues;
+        for (var i = 0; i < oldValues.length; i++) {
+          var oldValue = oldValues[i];
+          if (oldValue === value) {
+            newValues.splice(i, 1);
+          } else {
+            newValues.push(value);
+          }
+        }
+      }
+      var config = configTableSetConfig(table, column, "sql", newValues);
+      configTableApplyConfig(configTableSetConfigToStorage(table, config), force=true, sqlRefresh=true);
       break;
     case "keydown":
       switch (event.keyCode) {
         case keyCodeEnter:
-          var config = configTableSetConfig(table, column, "sql", event.target.value);
-          configTableSetConfigToStorage(table, config);
-          configTableApplyConfig(configTableGetConfigFromStorage(), sqlRefresh=true);
-          break;
-        case keyCodeControl:
-          controlKeyPressed = true;
+          var config = configTableSetConfig(table, column, "sql", value);
+          configTableApplyConfig(configTableSetConfigToStorage(table, config), force=false, sqlRefresh=true);
           break;
       }
       break;
     case "keyup":
-      if (event.keyCode != keyCodeControl) break;
-      controlKeyPressed = false;
-      var config = configTableSetConfig(table, column, "sql", event.target.value);
-      configTableSetConfigToStorage(table, config);
-      configTableApplyConfig(configTableGetConfigFromStorage(), sqlRefresh=true);
+      if (event.keyCode === keyCodeControl) {
+        var config = configTableSetConfig(table, column, "sql", configTableGetConfig(table)[column][4]);
+        configTableApplyConfig(configTableSetConfigToStorage(table, config), force=true, sqlRefresh=true);
+      }
       break;
     case "change":
-      var config = configTableSetConfig(table, column, "sql", event.target.value);
-      configTableSetConfigToStorage(table, config);
-      configTableApplyConfig(configTableGetConfigFromStorage(), force=true, sqlRefresh=true);
+      var config = configTableSetConfig(table, column, "sql", value);
+      configTableApplyConfig(configTableSetConfigToStorage(table, config), force=true, sqlRefresh=true);
   }
 }
 
@@ -1723,28 +1722,25 @@ function onSqlSearchFormSubmit(event) {
 function getSqlWhereJobs() {
   // Limit search to children of viewJob
   var sql = "(parent = "+viewJob+")";
-  var form = document.getElementById("sql-search-job");
   var data = Object();
-  var elements = form.elements;
-  for (var i = 0; i < elements.length; i++) {
-    var key = elements[i].id.replace("job-filter-", "");
-    var values = elements[i].value;
-    if (values.length !== 0) {
-      if (typeof(values) == "string") values = [values]
-      data[key] = values;
+  var table = configTableGetActiveTable();
+  if (table) {
+    var config = configTableGetConfigFromStorage()[table.id];
+    for (let i in config) {
+      let value = config[i][4];
+      if (value !== null && value.length) {
+        data[i] = value;
+      }
     }
   }
-  for (var element in data) {
-    //Build sql clause
-    var key = element;
+  for (let key in data) {
     var values = data[key];
-    // build sql clause
-    originalKey = key;
+    // Build sql clause
     switch (key) {
       case "id":
       case "priority":
       case "dependencies":
-        if (values[0] == "" && values.length == 1) break;
+        if (values[0] == ""  && values.length == 1) break;
         sql += " and (";
         for (j in values) {
           var value = values[j];
@@ -1755,6 +1751,15 @@ function getSqlWhereJobs() {
         sql += ")";
         break;
       case "user":
+        sql += " and (";
+        for (let i = 0; i < values.length; i++) {
+          sql += key+"='"+values[i]+"'";
+          if (Number(i) + 1 < values.length) {
+            sql += " or ";
+          }
+        }
+        sql += ")";
+        break;
       case "state":
         if (values.length == 0 || values[0] == undefined) break;
         sql += " and (";
@@ -1770,7 +1775,6 @@ function getSqlWhereJobs() {
               value = 1;
           }
           sql += key+"='"+value+"'";
-          key = originalKey;
           if (Number(j)+1<values.length) sql += " or ";
         }
         sql += ")"+sql_exclude_paused;
@@ -1783,22 +1787,33 @@ function getSqlWhereJobs() {
       case "title":
       case "worker":
       case "command":
-        if (values[0] == "" && values.length == 1) break;
-        sql += " and (";
-        for (j in values) {
-          var value = values[j].trim();
-          if (!value) continue;
-          sql += key+" like '%"+value+"%'"
-          if (j+1<values.length) sql += " or ";
-        }
-        sql += ")";
-        break;
+        //if (values[0] == "" && values.length == 1) break;
+        //sql += " and (";
+        //for (j in values) {
+          //var value = values[j].trim();
+          //if (!value) continue;
+          //sql += key+" like '%"+value+"%'"
+          //if (j+1<values.length) sql += " or ";
+        //}
+        //sql += ")";
+        //break;
       case "start_time":
-        values = data[i].value;
-        break;
+        //values = data[i].value;
+        //break;
     }
   }
+  // order by
+  if (configTableSet) {
+    var table = configTableGetActiveTable();
+    var sortBy = configTableGetSortKeyFromStorage(table);
+    if (sortBy["sortKey"] !== "") {
+      var direction = (sortBy["sortKeyToUpper"]) ? "ASC" : "DESC";
+      sql += " ORDER BY " + sortBy["sortKey"] + " " + direction;
+    }
+  }
+
   getAjaxSqlWhereCountJobs(sql).done(function(total) {
+    console.log("sql", sql, "total", total);
     if (total) {
       //if (total <= max_batch) {
       if (true) {
