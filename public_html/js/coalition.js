@@ -344,6 +344,7 @@ function renderParents ()
 
 // Render the current jobs
 function renderJobs (jobsCurrent=[]) {
+
   if (jobsCurrent.length) jobs = jobsCurrent;
 
   // Returns the HTML code for a job title column
@@ -522,6 +523,7 @@ function renderJobs (jobsCurrent=[]) {
   table += "</table>";
 
   var target = document.getElementById("jobs");
+  target.style.display = "None";
   target.innerHTML = table;
 
   // Ajax user select input
@@ -542,6 +544,7 @@ function renderJobs (jobsCurrent=[]) {
     var targetInput = target.querySelector(".sql-search-field");
     target.replaceChild(element, targetInput);
     configTableApplyConfig(configTableGetConfigFromStorage(), force=true, sqlRefresh=false);
+    document.getElementById("jobs").style.display = "unset";
   });
   getParent (viewJob);
 }
