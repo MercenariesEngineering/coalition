@@ -437,6 +437,7 @@ class DBSQL(DB):
 			affinities.append( self.getAffinityString( data[0] ) )
 
 		worker['affinity'] = "\n".join( affinities )
+		worker['start_time'] = self.getWorkerStartTime(worker['name'])
 		return worker
 
 	def getWorkerStartTime(self, name):

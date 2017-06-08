@@ -47,6 +47,7 @@ table {
 tr {
     display: flex;
     flex-direction: row;
+    line-height: 1.6rem;
 }
 
 thead, tfoot {
@@ -692,6 +693,8 @@ table .dropzone.side-right {
     border-bottom: 1px solid #222222;
     border-left: 1px solid #777777;
     box-shadow: 1px 1px 1px #333;
+    height: 1.9rem;
+    margin: 4px 6px;
 }
 
 .button img {
@@ -715,6 +718,7 @@ tbody input {
     border: 0;
     color: white;
     background-color: #222;
+    line-height: 1.6rem;
 }
 
 input:hover,
@@ -801,7 +805,7 @@ input[type="range"] {
 }
 
 .mem {
-    height: inherit;
+    height: 100%;
 }
 
 .progress {
@@ -826,6 +830,7 @@ input[type="range"] {
 
 .worker_affinities {
     white-space: pre;
+    line-height: 1.2rem;
 }
 
 .tab-content {

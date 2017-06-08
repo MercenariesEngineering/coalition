@@ -544,7 +544,7 @@ function renderJobs (jobsCurrent=[]) {
     var targetInput = target.querySelector(".sql-search-field");
     target.replaceChild(element, targetInput);
     configTableApplyConfig(configTableGetConfigFromStorage(), force=true, sqlRefresh=false);
-    document.getElementById("jobs").style.display = "unset";
+    document.getElementById("jobs").style.display = "flex";
   });
   getParent (viewJob);
 }
@@ -787,8 +787,11 @@ function sendSelectionPropChanges (list, idName, values, props, objects, selecte
           var value = $('#'+props[i][1]).val();
           if (prop === "dependencies")
             // Allows trailing spaces, several commas, etc.
-            value = value.match(/\S+/g);
-          _props[prop] = value;
+            _props[prop] = value.match(/\w+/g);
+          else if (prop === "affinity" && objects === "Workers")
+            _props[prop] = String(value.match(/\w+/g)).replace(/,/g, '\n');
+          else
+            _props[prop] = value;
         }
       data[id] = _props;
       idsN++;
@@ -907,7 +910,8 @@ function renderWorkers (workersCurrent=[])
   addTitleHTML ({"attribute": "active", "order": 1, "input": "search"});
   addTitleHTML ({"attribute": "state", "order": 2, "input": "select"});
   addTitleHTML ({"attribute": "affinity", "order": 3});
-  addTitleHTML ({"attribute": "start_time", "alias": "start date", "order": 4, "input": "datetime-local", "min":"", "max": "", "defaultValue": "2017-01-01T00:00:01"});
+  //addTitleHTML ({"attribute": "start_time", "alias": "start date", "order": 4, "input": "datetime-local", "min":"", "max": "", "defaultValue": "2017-01-01T00:00:01"});
+  addTitleHTML ({"attribute": "start_time", "alias": "start date", "order": 4});
   addTitleHTML ({"attribute": "cpu", "order": 5});
   addTitleHTML ({"attribute": "memory", "alias": "free memory", "order": 6});
   addTitleHTML ({"attribute": "last_job", "alias": "last job id", "order": 7, "input": "search"});
@@ -982,7 +986,7 @@ function renderWorkers (workersCurrent=[])
       "<td style='order: 1' class='active"+worker.active+"' onMouseDown='onClickList(event,"+i+")'>"+worker.active+"</td>"+
       "<td style='order: 2' class='"+worker.state+"' onMouseDown='onClickList(event,"+i+")'>"+worker.state+"</td>"+
       "<td style='order: 3' class='worker_affinities' onMouseDown='onClickList(event,"+i+")'>"+worker.affinity+"</td>"+
-      "<td style='order: 4' onMouseDown='onClickList(event,"+i+")'>"+worker.start_time+"</td>"+
+      "<td style='order: 4' onMouseDown='onClickList(event,"+i+")'>"+formatDate(worker.start_time)+"</td>"+
       "<td style='order: 5' onMouseDown='onClickList(event,"+i+")'>"+load+"</td>"+
       "<td style='order: 6' onMouseDown='onClickList(event,"+i+")'>"+memory+"</td>"+
       "<td style='order: 7' onMouseDown='onClickList(event,"+i+")'>"+worker.last_job+"</td>"+
