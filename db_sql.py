@@ -113,9 +113,9 @@ class DBSQL(DB):
 		if not hasattr(self, "ldap_user") or not self.ldap_user: # LDAP is not set up in configuration or ldapunsafeapi is set to True
 			return ""
 		if action == "addjob":
-			if self.permissions["ldaptemplateaddjobglobal"]:
+			if self.permissions["ldaptemplatecreatejobglobal"]:
 				return ""
-			elif self.permissions["ldaptemplateaddjob"]:
+			elif self.permissions["ldaptemplatecreatejob"]:
 				return "AND user='{user}'".format(user=self.ldap_user)
 			else:
 				raise LdapError("Action '{action}' is not permitted for user '{user}'".format(action=action, user=self.ldap_user))
