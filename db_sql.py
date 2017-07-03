@@ -113,9 +113,9 @@ class DBSQL(DB):
 		if not hasattr(self, "ldap_user") or not self.ldap_user: # LDAP is not set up in configuration or ldapunsafeapi is set to True
 			return ""
 		if action == "addjob":
-			if self.permissions["ldaptemplateaddjobglobal"]:
+			if self.permissions["ldaptemplatecreatejobglobal"]:
 				return ""
-			elif self.permissions["ldaptemplateaddjob"]:
+			elif self.permissions["ldaptemplatecreatejob"]:
 				return "AND user='{user}'".format(user=self.ldap_user)
 			else:
 				raise LdapError("Action '{action}' is not permitted for user '{user}'".format(action=action, user=self.ldap_user))
@@ -236,7 +236,7 @@ class DBSQL(DB):
 		self.AffinityBitsToName[affinity_bits] = result
 		return result
 
-	def newJob(self, parent, title, command, dir, environment, state, paused, timeout, 
+	def newJob(self, parent, title, command, dir, environment, state, paused, timeout,
 				priority, affinity, user, url, progress_pattern, dependencies = None):
 		ldap_perm = self._getLdapPermission("addjob")
 		if ldap_perm is False:
@@ -244,7 +244,7 @@ class DBSQL(DB):
 		if ldap_perm != "": # User can add job owned by himself, force user value
 			user = self.ldap_user
 		cur = self.Conn.cursor()
-		self._execute(cur, 
+		self._execute(cur,
 			"SELECT h_depth, h_affinity, h_priority, h_paused, command "
 			"FROM Jobs "
 			"WHERE id = {parent} {ldap_perm}".format(parent=parent, ldap_perm=ldap_perm))
@@ -426,10 +426,10 @@ class DBSQL(DB):
 			worker['total_memory'] = info['total_memory']
 		except:
 			pass
-		
+
 		self._execute (cur, "SELECT affinity FROM WorkerAffinities WHERE worker_name = '%s'" % ( hostname ) )
 		affinities = []
-		
+
 		data = cur.fetchone()
 
 		if data is None:

@@ -61,7 +61,7 @@ def usage():
 	print ("  --init\t\tInitialize the database")
 	print ("  --migrate\t\tMigrate the database with interactive confirmation")
 	print ("  --reset\t\tReset the database (warning: all previous data are lost)")
-	if sys.platform == "win32":	
+	if sys.platform == "win32":
 		print ("  -c, --console=\t\tRun as a windows console application")
 		print ("  -s, --service=\t\tRun as a windows service")
 	print ("\nExample : server -p 1234")
@@ -81,7 +81,7 @@ def getLogFilename (jobId):
 def getLogFilter (pattern):
 	"""Get the pattern filter from the cache or add one"""
 	global LogFilterCache
-	try:	
+	try:
 		filter = LogFilterCache[pattern]
 	except KeyError:
 		filter = LogFilter (pattern)
@@ -92,7 +92,7 @@ def getLogFilter (pattern):
 def writeJobLog (jobId, log):
 	logFile = open (getLogFilename (jobId), "a")
 	logFile.write (log)
-	logFile.close ()	
+	logFile.close ()
 
 # Notify functions
 def sendEmail (to, message) :
@@ -115,7 +115,7 @@ def sendEmail (to, message) :
 				if smtptls:
 					s.ehlo()
 					s.starttls()
-					s.ehlo() 
+					s.ehlo()
 				if smtplogin != '' or smtppasswd != '':
 					s.login(smtplogin, smtppasswd)
 				s.sendmail (smtpsender, [to], msg.as_string())
@@ -222,7 +222,7 @@ def grantAddJob(username, cmd, user):
 			vprint('[Blacklisted] Cannot add/edit job since user "{}" is blacklisted'.format(user))
 			return False
 
-	# Is user defined white list?		
+	# Is user defined white list?
 	if username in UserCmdWhiteList:
 		wl = UserCmdWhiteList[username]
 		if checkWhiteList(wl):
@@ -342,7 +342,7 @@ class Root(static.File):
 
 ### XMLRPC API classes ###
 class Master(xmlrpc.XMLRPC):
-	"""Defines XMLRPC and API for users interactions. Defines logger.""" 
+	"""Defines XMLRPC and API for users interactions. Defines logger."""
 
 	def __init__(self):
 		self.user = "" # Default value, overwritten later in case of LDAP authentication
@@ -429,7 +429,7 @@ class Master(xmlrpc.XMLRPC):
 
 						def api_rest():
 							"""REST API."""
-							
+
 							# REST PUT API
 							if request.method == "PUT":
 								if request.path == "/api/jobs":
@@ -438,12 +438,12 @@ class Master(xmlrpc.XMLRPC):
 														 (getArg("title","")),
 														 (getArg("command","")),
 														 (getArg("dir","")),
-														 (getArg("environment","")), 
+														 (getArg("environment","")),
 														 (getArg("state","WAITING")),
 														 (getArg("paused",0)),
 														 (getArg("timeout",1000)),
 														 (getArg("priority",1000)),
-														 (getArg("affinity", "")), 
+														 (getArg("affinity", "")),
 														 (getArg("user", "")),
 														 (getArg("url", "")),
 														 (getArg("progress_pattern", "")),
@@ -646,7 +646,7 @@ class Workers(xmlrpc.XMLRPC):
 					if lp != None:
 						vprint ("lp : "+ str(lp)+"\n")
 						if lp != job['progress']:
-							db.setJobProgress (int (jobId), lp)				
+							db.setJobProgress (int (jobId), lp)
 				logFile.write (log)
 				if not result:
 					logFile.write ("KillJob: server required worker to kill job.\n")
@@ -725,7 +725,7 @@ for line in _CmdWhiteList.splitlines (False):
 			UserCmdWhiteList[UserCmdWhiteListUser] = []
 	else:
 		if UserCmdWhiteListUser:
-			UserCmdWhiteList[UserCmdWhiteListUser].append (line)			
+			UserCmdWhiteList[UserCmdWhiteListUser].append (line)
 		else:
 			if not GlobalCmdWhiteList:
 				GlobalCmdWhiteList = []
