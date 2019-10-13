@@ -1,4 +1,4 @@
-FROM debian:10
+FROM python:2.7.16-slim-buster
 WORKDIR /usr/src/app
 
 RUN apt-get update && apt-get install -y python python-pip python-mysqldb libldap2-dev libsasl2-dev && rm -rf /var/lib/apt/lists/* 
