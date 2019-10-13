@@ -1,7 +1,6 @@
 httplib2
 configparser
 Twisted
-MySQL-python
 python-ldap
 Sphinx
 sphinx_rtd_theme
