@@ -6,7 +6,7 @@ Installing the server
 =====================
 .. _installing a server:
 
-The *Coalition server* can be installed on a localhost or on a remote host. Please remind that communication between server and workers is not encrypted, so if the server is installed on localhost and workers on remote machines, using a VPN or a VLAN is a good idea.
+The *Coalition server* can be installed on a localhost or on a remote host. Please remember that communication between server and workers is not encrypted, so if the server is installed on localhost and workers on remote machines, using a VPN or a VLAN is a good idea.
 
 *Coalition* works with python2.7.
 
