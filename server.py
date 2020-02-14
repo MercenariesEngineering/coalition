@@ -14,6 +14,8 @@ import smtplib
 from email.mime.text import MIMEText
 from textwrap import dedent, fill
 
+import pymysql
+pymysql.install_as_MySQLdb()
 from db_sqlite import DBSQLite
 from db_mysql import DBMySQL
 from db_sql import LdapError
