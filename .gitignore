@@ -7,3 +7,4 @@ docs/*
 _build
 _static
 _templates
+^coalition.ini$
