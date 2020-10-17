@@ -9,7 +9,8 @@ from twisted.web import xmlrpc, server, static, http
 from twisted.internet import defer, reactor
 from twisted.web.server import Session
 import cPickle, time, os, getopt, sys, base64, re, thread, ConfigParser, random, shutil
-import atexit, json
+import atexit
+import json
 import smtplib
 from email.mime.text import MIMEText
 from textwrap import dedent, fill
@@ -59,25 +60,25 @@ def cfgStr(name, defvalue):
 
 
 def usage():
-    print ("Usage: server [OPTIONS]")
-    print ("Start a Coalition server.\n")
-    print ("Options:")
-    print ("  -h, --help\t\tShow this help")
-    print ("  -p, --port=PORT\tPort used by the server (default: " + str(port) + ")")
-    print ("  -v, --verbose\t\tIncrease verbosity")
-    print ("  --init\t\tInitialize the database")
-    print ("  --migrate\t\tMigrate the database with interactive confirmation")
-    print ("  --reset\t\tReset the database (warning: all previous data are lost)")
+    print("Usage: server [OPTIONS]")
+    print("Start a Coalition server.\n")
+    print("Options:")
+    print("  -h, --help\t\tShow this help")
+    print("  -p, --port=PORT\tPort used by the server (default: " + str(port) + ")")
+    print("  -v, --verbose\t\tIncrease verbosity")
+    print("  --init\t\tInitialize the database")
+    print("  --migrate\t\tMigrate the database with interactive confirmation")
+    print("  --reset\t\tReset the database (warning: all previous data are lost)")
     if sys.platform == "win32":
-        print ("  -c, --console=\t\tRun as a windows console application")
-        print ("  -s, --service=\t\tRun as a windows service")
-    print ("\nExample : server -p 1234")
+        print("  -c, --console=\t\tRun as a windows console application")
+        print("  -s, --service=\t\tRun as a windows service")
+    print("\nExample : server -p 1234")
 
 
 # Log functions
 def vprint(str):
     if verbose:
-        print (str)
+        print(str)
         sys.stdout.flush()
 
 
@@ -97,15 +98,16 @@ def getLogFilter(pattern):
     return filter
 
 
+logger = logger_lib.get_logger("logstash")
+
+
 def writeJobLog(jobId, log):
+    print(log)
+    logger.info(log, extra={"job_id": jobId})
     logFile = open(getLogFilename(jobId), "a")
     logFile.write(log)
     logFile.close()
 
-
-host = config.get("server", "logstash_host")
-
-logger = logger_lib.get_logger(host)
 
 gateway_url = config.get("server", "theyard_gateway")
 gateway_timeout = float(config.get("server", "theyard_gateway_timeout"))
@@ -145,7 +147,11 @@ def send_notification(to, message):
     cmd = gateway_url + "/notify/send/rocket/channel/%40{0}/message/{1}".format(
         to, message.replace(" ", "%20")
     )
-    requests.post(cmd, timeout=gateway_timeout)
+    try:
+        requests.post(cmd, timeout=gateway_timeout)
+    except requests.exceptions.ConnectionError as err:
+        print("error of con as {0}".format(str(err)))
+
 
 def notifyError(job):
     if job["user"]:
@@ -153,11 +159,12 @@ def notifyError(job):
         sendEmail(
             job["user"], msg,
         )
-       send_notification(
-            job["user"], msg)
+        send_notification(job["user"], msg)
+    job["job_id"] = job["id"]
     logger.error(
         "ERRORS in job " + job["title"] + " (" + str(job["id"]) + ").", extra=job
     )
+
 
 def notifyFinished(job):
     if job["user"]:
@@ -165,8 +172,8 @@ def notifyFinished(job):
         sendEmail(
             job["user"], msg,
         )
-       send_notification(
-            job["user"], msg)
+        send_notification(job["user"], msg)
+    job["job_id"] = job["id"]
     logger.info(
         "The job " + job["title"] + " (" + str(job["id"]) + ") is FINISHED.", extra=job
     )
@@ -193,7 +200,7 @@ def _interactiveConfirmation(confirmation_sentence="Yes I know what I'm doing.")
         + confirmation_sentence
         + "\n"
     )
-    print (text)
+    print(text)
     sys.stdout.flush()
     answer = raw_input()
     if answer == confirmation_sentence:
@@ -684,18 +691,24 @@ class Master(xmlrpc.XMLRPC):
 
     def getLog(self, jobId):
         # Look for the job
+        search = {
+            "sort": [{"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}],
+            "query": {"match": {"job_id": jobId}},
+        }
+        HEADERS = {"Content-Type": "application/json"}
         log = ""
         try:
-            logFile = open(getLogFilename(jobId), "r")
-            while 1:
-                # Read some lines of logs
-                line = logFile.readline()
-                # "" means EOF
-                if line == "":
-                    break
-                log = log + line
-            logFile.close()
-        except IOError:
+            r = requests.get(
+                "http://elasticsearchlog:9200/_search",
+                data=json.dumps(search),
+                headers=HEADERS,
+            )
+            j = r.json()
+            messages = []
+            for i in j["hits"]["hits"]:
+                messages.append(i["_source"]["message"])
+            log = "\n".join(messages)
+        except:
             pass
         return log
 
@@ -751,6 +764,13 @@ class Workers(xmlrpc.XMLRPC):
         result = db.heartbeat(
             hostname, int(jobId), load, int(free_memory), int(total_memory), str(ip)
         )
+        extra = {
+            "job_id": jobId,
+            "worker": hostname,
+            "free_memory": free_memory,
+            "total_memory": total_memory,
+            "ip": ip,
+        }
         if log != "":
             try:
                 logFile = open(getLogFilename(jobId), "a")
@@ -773,8 +793,14 @@ class Workers(xmlrpc.XMLRPC):
                         if lp != job["progress"]:
                             db.setJobProgress(int(jobId), lp)
                 logFile.write(log)
+
+                logger.info(log, extra=extra)
                 if not result:
-                    logFile.write("KillJob: server required worker to kill job.\n")
+                    msg = "KillJob: server required worker to kill job.\n"
+                    logFile.write(msg)
+                    logger.error(
+                        msg, extra=extra,
+                    )
                 logFile.close()
             except IOError:
                 vprint("Error in logs")
@@ -814,12 +840,6 @@ else:
     installDir = "."
     dataDir = "."
 os.chdir(installDir)
-
-# Create the logs/ directory
-try:
-    os.mkdir(dataDir + "/logs", 0755)
-except OSError:
-    pass
 
 
 # Default config file values
@@ -906,9 +926,9 @@ try:
     if len(args) != 0:
         usage()
         sys.exit(2)
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     # print help information and exit:
-    print str(err)  # will print something like "option -a not recognized"
+    print(str(err))  # will print something like "option -a not recognized"
     usage()
     sys.exit(2)
 for o, a in opts:
@@ -945,7 +965,7 @@ if not verbose or service:
         pass
 
 vprint("[Init] --- Start ------------------------------------------------------------")
-print ("[Init] " + time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(time.time())))
+print("[Init] " + time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(time.time())))
 if service:
     vprint("[Init] Running service")
 else:
@@ -983,7 +1003,7 @@ if not len(db._getDatabaseTables()):
 with db:
     requires_migration = db.requiresMigration()
     if not migratedb and requires_migration:
-        print (
+        print(
             dedent(
                 """
         Coalition cannot start since the database schema and the source code
@@ -997,7 +1017,7 @@ with db:
         exit(1)
 
     if migratedb and not requires_migration:
-        print (
+        print(
             dedent(
                 """
         The database does not require migration, but the '--migrate' parameter was provided."""
@@ -1006,7 +1026,7 @@ with db:
         exit(1)
 
     if requires_migration and migratedb:
-        print (
+        print(
             dedent(
                 """
         Please consider doing a backup of the database first. Are you ready to proceed?"""
@@ -1015,13 +1035,13 @@ with db:
         if _interactiveConfirmation("Yes, proceed to migration!"):
             success = db.migrateDatabase()
             if success:
-                print ("Database migration was successfull.")
+                print("Database migration was successfull.")
                 exit(0)
             else:
-                print ("A problem occured during the database migration.")
+                print("A problem occured during the database migration.")
                 exit(1)
         else:
-            print ("Database migration was cancelled by user.")
+            print("Database migration was cancelled by user.")
             exit(0)
 
     if resetdb:

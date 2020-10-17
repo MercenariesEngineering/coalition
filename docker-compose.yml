@@ -8,7 +8,6 @@ services:
     - ./data:/usr/src/app/data:z
     ports:
       - "19211:19211"
-      - "5959:5959"
     restart: always
     depends_on:
       - mariadb
@@ -21,3 +20,25 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: Dx7uWTjNcV3PuTGr
       MYSQL_DATABASE: base
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
+    container_name: elasticsearchlog
+    ports:
+      - 9200:9200
+    environment: 
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    volumes:
+      - /tmp/data:/usr/share/elasticsearch/data
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.8.0
+    depends_on: 
+      - elasticsearch
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro 
+  kibanaelk:
+    image: docker.elastic.co/kibana/kibana:7.8.0
+    ports: 
+      - 5601:5601
+    depends_on:
+      - elasticsearch

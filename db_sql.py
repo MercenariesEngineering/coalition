@@ -46,8 +46,8 @@ class DBSQL(DB):
         self.HeartBeats = 0
         self.PickJobs = 0
         self.Verbose = False
-        self.NotifyFinished = True
-        self.NotifyError = True
+        self.NotifyFinished = None
+        self.NotifyError = None
         self.Workers = dict()
         self.AffinityBitsToName = dict()
 
