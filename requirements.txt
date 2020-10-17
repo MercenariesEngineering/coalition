@@ -4,3 +4,7 @@ Twisted
 python-ldap
 Sphinx
 sphinx_rtd_theme
+python-logstash
+requests
+mysqlclient
+redis==3.5.3

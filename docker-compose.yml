@@ -1,8 +1,23 @@
-coalition:
-  build: .
-  ports:
-  - 19211:19211
-  volumes:
-  - ./coalition.ini:/usr/src/app/coalition.ini:z
-  - ./data:/usr/src/app/data:z
-  restart: always
+version: "3.3"
+
+services:
+  server:
+    image: coalition:1.0.0alpha
+    volumes:
+    - ./coalition.ini:/usr/src/app/coalition.ini:z
+    - ./data:/usr/src/app/data:z
+    ports:
+      - "19211:19211"
+      - "5959:5959"
+    restart: always
+    depends_on:
+      - mariadb
+  mariadb:
+    hostname: maria
+    image: mariadb
+    restart: always
+    volumes:
+      - /tmp/mdbdata/mdb55:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: Dx7uWTjNcV3PuTGr
+      MYSQL_DATABASE: base

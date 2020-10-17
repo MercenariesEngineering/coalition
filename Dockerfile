@@ -7,5 +7,5 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-CMD [ "python", "./server.py", "--verbose" ]
+CMD [ "python", "./server.py"]
 EXPOSE 19211
