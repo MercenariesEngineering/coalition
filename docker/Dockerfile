@@ -5,7 +5,6 @@ RUN apt-get update && apt-get install -y python python-pip python-mysqldb liblda
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-CMD [ "python", "./server.py"]
 EXPOSE 19211
+COPY . .
+CMD [ "python", "./server.py", "-v"]

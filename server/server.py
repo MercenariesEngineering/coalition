@@ -773,7 +773,6 @@ class Workers(xmlrpc.XMLRPC):
         }
         if log != "":
             try:
-                logFile = open(getLogFilename(jobId), "a")
                 log = base64.decodestring(log)
 
                 # Filter the log progression message
@@ -792,16 +791,13 @@ class Workers(xmlrpc.XMLRPC):
                         vprint("lp : " + str(lp) + "\n")
                         if lp != job["progress"]:
                             db.setJobProgress(int(jobId), lp)
-                logFile.write(log)
 
                 logger.info(log, extra=extra)
                 if not result:
                     msg = "KillJob: server required worker to kill job.\n"
-                    logFile.write(msg)
                     logger.error(
                         msg, extra=extra,
                     )
-                logFile.close()
             except IOError:
                 vprint("Error in logs")
         return result and "true" or "false"

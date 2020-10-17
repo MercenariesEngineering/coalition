@@ -4,8 +4,8 @@ services:
   server:
     image: coalition:1.0.0alpha
     volumes:
-    - ./coalition.ini:/usr/src/app/coalition.ini:z
-    - ./data:/usr/src/app/data:z
+    - ../config/coalition.ini:/usr/src/app/coalition.ini:z
+    - /tmp/data_server:/usr/src/app/data:z
     ports:
       - "19211:19211"
     restart: always
