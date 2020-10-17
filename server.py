@@ -103,6 +103,13 @@ def writeJobLog(jobId, log):
     logFile.close()
 
 
+host = config.get("server", "logstash_host")
+
+logger = logger_lib.get_logger(host)
+
+gateway_url = config.get("server", "theyard_gateway")
+gateway_timeout = float(config.get("server", "theyard_gateway_timeout"))
+
 # Notify functions
 def sendEmail(to, message):
     if to != "":
@@ -134,13 +141,11 @@ def sendEmail(to, message):
                 pass
 
 
-host = config.get("server", "logstash_host")
-
-logger = logger_lib.get_logger(host)
-
-gateway_url = config.get("server", "theyard_gateway")
-gateway_timeout = float(config.get("server", "theyard_gateway_timeout"))
-
+def send_notification(to, message):
+    cmd = gateway_url + "/notify/send/rocket/channel/%40{0}/message/{1}".format(
+        to, message.replace(" ", "%20")
+    )
+    requests.post(cmd, timeout=gateway_timeout)
 
 def notifyError(job):
     if job["user"]:
@@ -148,14 +153,11 @@ def notifyError(job):
         sendEmail(
             job["user"], msg,
         )
-        cmd = gateway_url + "/notify/send/rocket/channel/%40{0}/message/{1}".format(
-            job["user"], msg.replace(" ", "%20")
-        )
-        requests.post(cmd, timeout=gateway_timeout)
+       send_notification(
+            job["user"], msg)
     logger.error(
         "ERRORS in job " + job["title"] + " (" + str(job["id"]) + ").", extra=job
     )
-
 
 def notifyFinished(job):
     if job["user"]:
@@ -163,10 +165,8 @@ def notifyFinished(job):
         sendEmail(
             job["user"], msg,
         )
-        cmd = gateway_url + "/notify/send/rocket/channel/%40{0}/message/{1}".format(
-            job["user"], msg.replace(" ", "%20")
-        )
-        requests.post(cmd, timeout=gateway_timeout)
+       send_notification(
+            job["user"], msg)
     logger.info(
         "The job " + job["title"] + " (" + str(job["id"]) + ") is FINISHED.", extra=job
     )
