@@ -104,9 +104,6 @@ logger = logger_lib.get_logger("logstash")
 def writeJobLog(jobId, log):
     print(log)
     logger.info(log, extra={"job_id": jobId})
-    logFile = open(getLogFilename(jobId), "a")
-    logFile.write(log)
-    logFile.close()
 
 
 gateway_url = config.get("server", "theyard_gateway")
