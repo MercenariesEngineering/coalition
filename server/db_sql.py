@@ -1385,6 +1385,7 @@ class DBSQL(DB):
                 )
                 oldState = cur.fetchone()
                 jobdict = self._rowAsDict(cur, oldState)
+                jobdict["duration"] = duration
                 newState = "WAITING"
                 if total_errors > 0:
                     newState = "ERROR"

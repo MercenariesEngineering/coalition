@@ -689,14 +689,27 @@ class Master(xmlrpc.XMLRPC):
     def getLog(self, jobId):
         # Look for the job
         search = {
-            "sort": [{"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}],
-            "query": {"match": {"job_id": jobId}},
+            "sort": [{"@timestamp": {"unmapped_type": "boolean", "order": "asc"}}],
+            "query": {
+                "bool": {
+                    "filter": [
+                        {
+                            "bool": {
+                                "minimum_should_match": 1,
+                                "should": [{"match": {"job_id": jobId}}],
+                            }
+                        },
+                        {"exists": {"field": "message"}},
+                    ]
+                }
+            },
+            "size": 500,
         }
         HEADERS = {"Content-Type": "application/json"}
         log = ""
         try:
             r = requests.get(
-                "http://elasticsearchlog:9200/_search",
+                "http://elasticsearchcoalition:9200/_search",
                 data=json.dumps(search),
                 headers=HEADERS,
             )
@@ -704,7 +717,7 @@ class Master(xmlrpc.XMLRPC):
             messages = []
             for i in j["hits"]["hits"]:
                 messages.append(i["_source"]["message"])
-            log = "\n".join(messages)
+            log = "".join(messages)
         except:
             pass
         return log
@@ -764,8 +777,8 @@ class Workers(xmlrpc.XMLRPC):
         extra = {
             "job_id": jobId,
             "worker": hostname,
-            "free_memory": free_memory,
-            "total_memory": total_memory,
+            "free_memory": int(free_memory),
+            "total_memory": int(total_memory),
             "ip": ip,
         }
         if log != "":
