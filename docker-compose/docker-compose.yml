@@ -2,7 +2,7 @@ version: "3.3"
 
 services:
   server:
-    image: coalition:1.0.0alpha
+    image: coalition:1.0.1alpha
     volumes:
     - ../config/coalition.ini:/usr/src/app/coalition.ini:z
     - /tmp/data_server:/usr/src/app/data:z
@@ -20,6 +20,10 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: Dx7uWTjNcV3PuTGr
       MYSQL_DATABASE: base
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
     container_name: elasticsearchcoalition

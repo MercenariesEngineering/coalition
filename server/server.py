@@ -153,9 +153,7 @@ def send_notification(to, message):
 def notifyError(job):
     if job["user"]:
         msg = "ERRORS in job " + job["title"] + " (" + str(job["id"]) + ")."
-        sendEmail(
-            job["user"], msg,
-        )
+        sendEmail(job["user"], msg)
         send_notification(job["user"], msg)
     job["job_id"] = job["id"]
     logger.error(
@@ -166,9 +164,7 @@ def notifyError(job):
 def notifyFinished(job):
     if job["user"]:
         msg = "The job " + job["title"] + " (" + str(job["id"]) + ") is FINISHED."
-        sendEmail(
-            job["user"], msg,
-        )
+        sendEmail(job["user"], msg)
         send_notification(job["user"], msg)
     job["job_id"] = job["id"]
     logger.info(
@@ -708,18 +704,26 @@ class Master(xmlrpc.XMLRPC):
         HEADERS = {"Content-Type": "application/json"}
         log = ""
         try:
-            r = requests.get(
+            response = requests.get(
                 "http://elasticsearchcoalition:9200/_search",
                 data=json.dumps(search),
                 headers=HEADERS,
             )
-            j = r.json()
-            messages = []
-            for i in j["hits"]["hits"]:
-                messages.append(i["_source"]["message"])
-            log = "".join(messages)
-        except:
-            pass
+            if response.status_code != 200:
+                log = "Failed to contact server with error code {0}".format(
+                    response.status_code
+                )
+            else:
+                log = "Status code {0}, Time {1}ms\n".format(
+                    response.status_code, response.elapsed.total_seconds() * 1000
+                )
+                j = response.json()
+                messages = []
+                for i in j["hits"]["hits"]:
+                    messages.append(i["_source"]["message"])
+                log += "".join(messages)
+        except Exception as err:
+            log = "Failed to use REST methode with error {0}".format(str(err))
         return log
 
     def deleteLog(self, jobId):
@@ -801,13 +805,12 @@ class Workers(xmlrpc.XMLRPC):
                         vprint("lp : " + str(lp) + "\n")
                         if lp != job["progress"]:
                             db.setJobProgress(int(jobId), lp)
+                            extra["progress"] = float(lp)
 
                 logger.info(log, extra=extra)
                 if not result:
                     msg = "KillJob: server required worker to kill job.\n"
-                    logger.error(
-                        msg, extra=extra,
-                    )
+                    logger.error(msg, extra=extra)
             except IOError:
                 vprint("Error in logs")
         return result and "true" or "false"
@@ -1103,4 +1106,3 @@ else:
         main()
 
 # vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
-
