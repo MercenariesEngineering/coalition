@@ -12,6 +12,12 @@ import cloud
 from cloud.common import createWorkerInstanceName
 from textwrap import dedent
 import os
+import logger_lib
+import ping_db
+import pickle
+
+red = ping_db.get_ping_db()
+logger = logger_lib.get_logger("logstash")
 
 
 def convdata(d):
@@ -48,7 +54,6 @@ class DBSQL(DB):
         self.Verbose = False
         self.NotifyFinished = None
         self.NotifyError = None
-        self.Workers = dict()
         self.AffinityBitsToName = dict()
 
         tables = self._getDatabaseTables()
@@ -104,7 +109,7 @@ class DBSQL(DB):
             info["total_memory"] = 0
             info["ip"] = ""
             info["timeout"] = False
-            self.Workers[worker[0]] = info
+            red.set(worker[0], pickle.dumps(info))
 
     def _populateAffinitiesTable(self):
         """Populate Affinities table with pre-existent data having an id < 64."""
@@ -523,13 +528,14 @@ class DBSQL(DB):
         self._execute(cur, "SELECT * FROM Workers WHERE name = '%s'" % hostname)
         worker = self._rowAsDict(cur, cur.fetchone())
         try:
-            info = self.Workers[hostname]
+            info = pickle.loads(red.get(hostname))
+            print("get info from redis", info)
             worker["ping_time"] = info["ping_time"]
             worker["cpu"] = info["cpu"]
             worker["free_memory"] = info["free_memory"]
             worker["total_memory"] = info["total_memory"]
-        except:
-            pass
+        except Exception as err:
+            print("failed to getworker with error:{0}".format(str(err)))
 
         self._execute(
             cur,
@@ -568,13 +574,13 @@ class DBSQL(DB):
         for row in cur:
             worker = self._rowAsDict(cur, row)
             try:
-                info = self.Workers[worker["name"]]
+                info = pickle.loads(red.get(worker["name"]))
                 worker["ping_time"] = info["ping_time"]
                 worker["cpu"] = info["cpu"]
                 worker["free_memory"] = info["free_memory"]
                 worker["total_memory"] = info["total_memory"]
-            except:
-                pass
+            except Exception as err:
+                logger.error("Can load worker with error:{0}".format(str(err)))
 
             req = self.Conn.cursor()
             self._execute(
@@ -1004,22 +1010,19 @@ class DBSQL(DB):
         cur = self.Conn.cursor()
         self._execute(cur, "DELETE FROM Workers WHERE name = '%s'" % name)
         try:
-            del self.Workers[name]
-        except:
-            pass
+            red.delete(name)
+        except Exception as err:
+            print("can suppres worker with error: {0}".format(str(err)))
 
     def _updateWorkerInfo(self, hostname, cpu, free_memory, total_memory, ip):
-        try:
-            info = self.Workers[hostname]
-        except:
-            info = {}
-            self.Workers[hostname] = info
+        info = {}
         info["ping_time"] = int(time.time())
         info["cpu"] = cpu
         info["free_memory"] = free_memory
         info["total_memory"] = total_memory
         info["ip"] = ip
         info["timeout"] = False
+        red.set(hostname, pickle.dumps(info))
         return info
 
     # Worker heartbeats while running a job
@@ -1524,8 +1527,8 @@ class DBSQL(DB):
                 self._setJobState(job[0], "ERROR", True)
                 self._setWorkerState(job[1], "TIMEOUT")
 
-            for worker in self.Workers:
-                info = self.Workers[worker]
+            for worker in red.keys():
+                info = pickle.loads(red.get(worker))
                 if current_time - info["ping_time"] > timeout and not info["timeout"]:
                     # worker timeout!
                     info["timeout"] = True

@@ -22,4 +22,5 @@ def get_logger(host, level="INFO", port=5959):
     else:
         raise TypeError("level value is not INFO,DEBUG, WARNING, ERROR or int")
     logger.addHandler(logstash.TCPLogstashHandler(host, port, version=1))
+    logger.addHandler(logging.StreamHandler())
     return logger

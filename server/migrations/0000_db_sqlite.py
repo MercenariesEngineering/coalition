@@ -3,17 +3,17 @@
 # Initial database setup
 
 steps = [
-"""
+    """
 CREATE TABLE IF NOT EXISTS WorkerAffinities(
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	worker_name TEXT,
 	affinity BIGINT DEFAULT 0,
 	ordering INT DEFAULT 0)
 """,
-"""
+    """
 CREATE INDEX IF NOT EXISTS worker_name_index ON WorkerAffinities(worker_name)
 """,
-"""
+    """
 CREATE TABLE IF NOT EXISTS Jobs(
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	parent INT DEFAULT 0,
@@ -47,21 +47,21 @@ CREATE TABLE IF NOT EXISTS Jobs(
 	h_paused BOOLEAN DEFAULT 0,
 	h_depth INT DEFAULT 0)
 """,
-"""
+    """
 CREATE INDEX IF NOT EXISTS Parent_index ON Jobs(parent)
 """,
-"""
+    """
 CREATE TABLE IF NOT EXISTS Dependencies(
 	job_id Int,
 	dependency INT)
 """,
-"""
+    """
 CREATE INDEX IF NOT EXISTS JobId_index ON Dependencies(job_id)
 """,
-"""
+    """
 CREATE INDEX IF NOT EXISTS Dependency_index ON Dependencies(dependency)
 """,
-"""
+    """
 CREATE TABLE IF NOT EXISTS Workers(
 	name TEXT,
 	start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -77,10 +77,10 @@ CREATE TABLE IF NOT EXISTS Workers(
 	total_memory int,
 	active BOOLEAN)
 """,
-"""
+    """
 CREATE UNIQUE INDEX IF NOT EXISTS Name_index ON Workers (name)
 """,
-"""
+    """
 CREATE TABLE IF NOT EXISTS Events(
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	worker TEXT, job_id INT,
@@ -89,21 +89,20 @@ CREATE TABLE IF NOT EXISTS Events(
 	start INT,
 	duration INT)
 """,
-"""
+    """
 CREATE INDEX IF NOT EXISTS Worker_index ON Events(worker)
 """,
-"""
+    """
 CREATE INDEX IF NOT EXISTS JobID_index ON Events(job_id)
 """,
-"""
+    """
 CREATE INDEX IF NOT EXISTS Start_index ON Events(start)
 """,
-"""
+    """
 CREATE TABLE IF NOT EXISTS Affinities(
 	id INTEGER,
 	name TEXT)
-"""
+""",
 ]
 
 # vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
-
