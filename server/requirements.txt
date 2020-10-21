@@ -3,8 +3,8 @@ configparser
 Twisted
 python-ldap
 Sphinx
-sphinx_rtd_theme
-python-logstash
-requests
+sphinx_rtd_theme==0.5.0
+python-logstash==0.4.6
+requests==2.24.0
 mysqlclient
 redis==3.5.3
