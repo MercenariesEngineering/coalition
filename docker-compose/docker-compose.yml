@@ -1,0 +1,48 @@
+version: "3.3"
+
+services:
+  server:
+    image: coalition:1.0.1alpha
+    volumes:
+    - ../config/coalition.ini:/usr/src/app/coalition.ini:z
+    - /tmp/data_server:/usr/src/app/data:z
+    ports:
+      - "19211:19211"
+    restart: always
+    depends_on:
+      - mariadb
+  mariadb:
+    hostname: maria
+    image: mariadb
+    restart: always
+    volumes:
+      - /tmp/mdbdata/mdb55:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: Dx7uWTjNcV3PuTGr
+      MYSQL_DATABASE: base
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
+    container_name: elasticsearchcoalition
+    ports:
+      - 9200:9200
+    environment: 
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    volumes:
+      - /tmp/data:/usr/share/elasticsearch/data
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.8.0
+    depends_on: 
+      - elasticsearch
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro 
+  kibanaelk:
+    image: docker.elastic.co/kibana/kibana:7.8.0
+    ports: 
+      - 5601:5601
+    depends_on:
+      - elasticsearch
