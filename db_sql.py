@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import sqlite3, MySQLdb, unittest, time, re, sys
+import unittest, time, re, sys
 from db import DB
 from importlib import import_module
 import cloud
