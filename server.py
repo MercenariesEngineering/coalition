@@ -15,7 +15,6 @@ from email.mime.text import MIMEText
 from textwrap import dedent, fill
 
 from db_sqlite import DBSQLite
-from db_mysql import DBMySQL
 from db_sql import LdapError
 
 
@@ -810,6 +809,7 @@ else:
 
 # Init the good database
 if cfgStr ('db_type', 'sqlite') == "mysql":
+	from db_mysql import DBMySQL
 	vprint ("[Init] Use mysql")
 	db = DBMySQL (cfgStr ('db_mysql_host', "127.0.0.1"), cfgStr ('db_mysql_user', ""), cfgStr ('db_mysql_password', ""), cfgStr ('db_mysql_base', "base"), config=config, cloudconfig=cloudconfig)
 else:
