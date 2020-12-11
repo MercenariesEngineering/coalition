@@ -4,6 +4,8 @@ from db_sql import DBSQL
 
 class DBMySQL(DBSQL):
 
+	# The Context class allows using context capsules for the sql transactions
+	# Note: this behaviour has disappeared from MySQLdb as of 2018
 	class Context:
 		def __init__ (self, db, conn):
 			self.DB = db
@@ -15,9 +17,13 @@ class DBMySQL(DBSQL):
 			pass
 
 		def __exit__ (self, type, value, traceback):
-			if not isinstance(value, TypeError):
+			if type is None:
 				self.Conn.commit ()
 			else:
+				if self.DB.Verbose:
+					sys.stdout.flush ()
+					sys.stdout.write ("[SQL] Warning: db context exited with an exception, rollback!\n")
+					sys.stdout.flush ()
 				self.Conn.rollback ()
 
 		def cursor (self):
