@@ -11,7 +11,13 @@ jobs:
     name: Tests Ubuntu
     # Set the type of machine to run on
     runs-on: ubuntu-latest
-
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+        - 3306:3306
     steps:
       # Checks out a copy of your repository on the ubuntu-latest machine
       - name: Checkout code
@@ -20,5 +26,18 @@ jobs:
       - name: Install Python modules
         run: pip install twisted mysqlclient
 
-      - name: Test
+      - name: Test SQLite
         run: python tests/main_test.py
+
+      - name: Verify MySQL connection from host
+        run: mysql --host 127.0.0.1 --port 3306 -uroot -proot -e "CREATE DATABASE base"
+        
+      - name: Test MySQL
+        run: |
+          echo "[server]" > coalition.ini
+          echo "db_type=mysql" >> coalition.ini
+          echo "db_mysql_host=127.0.0.1" >> coalition.ini
+          echo "db_mysql_user=root" >> coalition.ini
+          echo "db_mysql_password=root" >> coalition.ini
+          echo "db_mysql_base=base" >> coalition.ini
+          python tests/main_test.py
