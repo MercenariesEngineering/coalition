@@ -1,0 +1,8 @@
+coalition:
+  build: .
+  ports:
+  - 19211:19211
+  volumes:
+  - ./coalition.ini:/usr/src/app/coalition.ini:z
+  - ./data:/usr/src/app/data:z
+  restart: always

@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import sys,os,re
 
 if sys.platform=="win32":
@@ -99,3 +102,6 @@ class HostCPU:
 			return [0]
 			
 		return [0]
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
+
