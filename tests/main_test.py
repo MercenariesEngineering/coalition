@@ -24,7 +24,7 @@ def test_server_python_api():
 			"test_children_finish_before_parent",
 			"test_no_job_error",]
 	suite = unittest.TestSuite(map(ServerPythonApiTestCase, tests))
-	unittest.TextTestRunner(verbosity=VERBOSITY).run(suite)
+	return unittest.TextTestRunner(verbosity=VERBOSITY).run(suite)
 
 def test_server_xmlrpc():
 	tests = ['test_setJobDependencies',]
@@ -504,7 +504,10 @@ class ServerXmlrpcTestCase(unittest.TestCase):
 
 
 if __name__ == "__main__":
-	test_server_python_api()
-
+	result = test_server_python_api()
+	if result.wasSuccessful():
+		exit(0)
+	else:
+		exit(1)
 # vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 
