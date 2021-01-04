@@ -136,8 +136,8 @@ You can use control.py to add jobs to the server::
 Using a HTTP request
 --------------------
 
-To add a job using the HTTP interface, simply GET or POST the url http://host:port/json/addjob with any job attributes.
+To add a job using the HTTP interface, simply GET or POST the url http://host:port/xmlrpc/addjob with any job attributes.
 
 Example::
 
-    http://127.0.0.1:19211/json/addjob?title=job&cmd=echo toto&priority=1000&affinity=linux&retry=10
+    http://127.0.0.1:19211/xmlrpc/addjob?title=job&cmd=echo toto&priority=1000&affinity=linux&retry=10
