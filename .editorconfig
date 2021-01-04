@@ -1,0 +1,32 @@
+root = true
+
+[*]
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{js,py}]
+charset = utf-8
+
+[*.py]
+indent_style = tab
+tag_width = 4
+; max_line_length = 79
+
+[*.html]
+indent_style = space
+indent_size = 2
+
+[*.js]
+indent_style = space
+indent_size = 2
+
+[*.css]
+indent_style = space
+indent_size = 2
+
+[{.travis.yml}]
+indent_style = space
+indent_size = 2
+
+

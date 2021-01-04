@@ -1,6 +1,6 @@
 Python API
 ==========
 
-.. automodule:: coalition
+.. automodule:: api.coalition
     :members:
     :show-inheritance:
