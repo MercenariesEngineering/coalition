@@ -59,6 +59,26 @@ You may want to fine tune the installation using:
  - a `systemd service definition file <https://wiki.archlinux.org/index.php/Systemd>`_;
  - any system service monitoring daemon.
 
+Windows
+-------
+
+You need to manually install python-ldap, and pywin32 (which provides win32pdh). The easiest way to install python-ldap is from `Christoph Gohlke <https://www.lfd.uci.edu/~gohlke/pythonlibs/>`_'s prebuilt binaries. 
+
+Download **python_ldap‑3.2.0‑cp27‑cp27m‑win_amd64.whl** from https://www.lfd.uci.edu/~gohlke/pythonlibs/
+::
+  cd <download_folder>
+  pip install python_ldap-3.2.0-cp27-cp27m-win_amd64.whl
+  pip install pywin32
+
+Then install coalition's dependencies with pip
+::
+  git clone https://github.com/MercenariesEngineering/coalition.git
+  cd coalition
+  pip install -r requirements.txt
+  cp _coalition.ini coalition.ini
+
+Edit the section [server] in the file coalition.ini according to your needs.
+
 coalition.ini configuration file
 --------------------------------
 This configuration file contains two sections: **[server]** that will be used in server mode, and **[worker]** that will be used while running in worker mode.
