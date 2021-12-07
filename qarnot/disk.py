@@ -1123,3 +1123,4 @@ class UploadMode(object):
     """Launch a background thread for uploading."""
     lazy = 2
     """Actual uploading is made by the :func:`~Disk.flush` method call."""
+

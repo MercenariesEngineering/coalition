@@ -1399,3 +1399,4 @@ class PerRunningInstanceInfo(object):
             return ', '.join("{0}={1}".format(key, val) for (key, val) in self.__dict__.items())
         else:
             return ', '.join("{0}={1}".format(key, val) for (key, val) in self.__dict__.iteritems())  # pylint: disable=no-member
+

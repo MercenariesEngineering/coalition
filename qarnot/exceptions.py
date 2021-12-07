@@ -65,3 +65,4 @@ class NotEnoughCreditsException(Exception):
 class LockedDiskException(Exception):
     """Locked disk."""
     pass
+
