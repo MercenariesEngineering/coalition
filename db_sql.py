@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import unittest, time, re, sys
 from db import DB
 from importlib import import_module
@@ -939,6 +940,7 @@ class DBSQL(DB):
 		# The former case is EXPECTED, but not the latter one
 		# Therefore, we need to add a query that take the first Job that has no affinity WHEN Workers are not doing anything
 		if job is None:
+
 			self._execute(cur, dedent("""
 				SELECT id, title, command, dir, user, environment
 				FROM Jobs
@@ -1197,7 +1199,7 @@ class DBSQL(DB):
 			self.LastUpdate = current_time
 			self.RunTime = 0
 			cur = self.Conn.cursor ()
-			timeout = 60
+			timeout = self.config.get("sleep", 2) * 2
 
 			# find all working jobs that are running out of time *or*
 			# all working jobs which worker is timing out
