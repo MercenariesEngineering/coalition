@@ -71,10 +71,10 @@ class ServerPythonApiTestCase(unittest.TestCase):
 		self.firstSleepJobId = self.conn.newJob(command="sleep 2", title="First Job", state="WAITING", affinity="linux", priority=129)
 		self.secondSleepJobId = self.conn.newJob(command="sleep 2",
 			title="Second Job", state="WAITING", affinity="linux", priority=128)
-		self.windowsProjectJobId = self.conn.newJob(command="sleep 1", title="windows project", state="WAITING", affinity="windows project", priority=127)
-		self.winJobId = self.conn.newJob(command="sleep 1", title="Win", state="WAITING", affinity="win", priority=127)
-		self.dosJobId = self.conn.newJob(command="sleep 1", title="Dos", state="WAITING", affinity="dos", priority=127)
-		self.basicJobId = self.conn.newJob(command="sleep 1", title="Basic",
+		self.windowsProjectJobId = self.conn.newJob(command="sleep 2", title="windows project", state="WAITING", affinity="windows project", priority=127)
+		self.winJobId = self.conn.newJob(command="sleep 2", title="Win", state="WAITING", affinity="win", priority=127)
+		self.dosJobId = self.conn.newJob(command="sleep 2", title="Dos", state="WAITING", affinity="dos", priority=127)
+		self.basicJobId = self.conn.newJob(command="sleep 2", title="Basic",
 				state="WAITING", priority=300)
 
 	@classmethod
