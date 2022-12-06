@@ -1,7 +1,7 @@
 name: Tests Ubuntu
 
 # Run this workflow every time a new commit pushed to your repository
-on: push
+on: [push, pull_request]
 
 jobs:
   # Set the job key. The key is displayed as the job name
@@ -23,6 +23,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '2.x'
+          
       - name: Install Python modules
         run: pip install twisted mysqlclient
 
