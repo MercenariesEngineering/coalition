@@ -6,7 +6,7 @@
 steps = [
 """
 CREATE TABLE IF NOT EXISTS Migrations(
-	database_version INT)
+    database_version INT)
 """,
 """
 INSERT INTO Migrations (database_version) VALUES (1)

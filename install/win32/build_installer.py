@@ -17,80 +17,80 @@ os.system ("net stop CoalitionServer")
 # Compile the services
 # os.chdir ("../..")
 if compile:
-	os.system ("python server.py remove")
-	os.system ("python setup_py2exe.py install")
-	os.system ("python setup_py2exe.py py2exe")
+    os.system ("python server.py remove")
+    os.system ("python setup_py2exe.py install")
+    os.system ("python setup_py2exe.py py2exe")
 
 if buildNsis:
-	# Get the version number
-	f = open ("coalition.version", "r")
-	version = f.read ()
-	version = re.sub ("\n", "", version)
-	version = re.sub ("\r", "", version)
-	f.close ()
+    # Get the version number
+    f = open ("coalition.version", "r")
+    version = f.read ()
+    version = re.sub ("\n", "", version)
+    version = re.sub ("\r", "", version)
+    f.close ()
 
-	# Generates the NSIS script
-	f = open ("install/win32/coalition.nsi", "r")
-	script = f.read ()
-	f.close ()
+    # Generates the NSIS script
+    f = open ("install/win32/coalition.nsi", "r")
+    script = f.read ()
+    f.close ()
 
-	installFiles = ""
-	removeFiles = ""
-	currentDir = ""
-	currentPath = ""
+    installFiles = ""
+    removeFiles = ""
+    currentDir = ""
+    currentPath = ""
 
-	def setOutPath (path, goin):
-		global installFiles, removeFiles, currentDir, currentPath
-		currentPath = path
-		currentDir = path == "" and "$INSTDIR" or ("$INSTDIR\\" + path)
-		installFiles = installFiles + "\tSetOutPath \"" + currentDir + "\"\n"
-		if goin:
-			removeFiles = "\tRMDir \"" + currentDir + "\"\n" + removeFiles
+    def setOutPath (path, goin):
+        global installFiles, removeFiles, currentDir, currentPath
+        currentPath = path
+        currentDir = path == "" and "$INSTDIR" or ("$INSTDIR\\" + path)
+        installFiles = installFiles + "\tSetOutPath \"" + currentDir + "\"\n"
+        if goin:
+            removeFiles = "\tRMDir \"" + currentDir + "\"\n" + removeFiles
 
-	def addFile (localpath):
-		global installFiles, removeFiles, currentDir
-		currentFile = currentDir + "\\" + os.path.basename (localpath)
-		installFiles = installFiles + "\tFile \"" + localpath + "\"\n"
-		removeFiles = "\tDelete \"" + currentFile + "\"\n" + removeFiles
+    def addFile (localpath):
+        global installFiles, removeFiles, currentDir
+        currentFile = currentDir + "\\" + os.path.basename (localpath)
+        installFiles = installFiles + "\tFile \"" + localpath + "\"\n"
+        removeFiles = "\tDelete \"" + currentFile + "\"\n" + removeFiles
 
-	def addFiles (localpath, rec):
-		global currentPath
-		for file in os.listdir(localpath):
-			filename = localpath + "\\" + file
-			if os.path.isdir (filename):
-				if rec and file != ".svn":
-					oldpath = currentPath
-					setOutPath (currentPath + "\\" + file, True)
-					addFiles (filename, rec)
-					setOutPath (oldpath, False)
-			else:
-				addFile (filename)
+    def addFiles (localpath, rec):
+        global currentPath
+        for file in os.listdir(localpath):
+            filename = localpath + "\\" + file
+            if os.path.isdir (filename):
+                if rec and file != ".svn":
+                    oldpath = currentPath
+                    setOutPath (currentPath + "\\" + file, True)
+                    addFiles (filename, rec)
+                    setOutPath (oldpath, False)
+            else:
+                addFile (filename)
 
-	setOutPath ("", True)
-	addFile ("coalition.ini")
-	addFile ("images\coalition.ico")
-	addFile ("images\server_start.ico")
-	addFile ("images\server_stop.ico")
-	addFile ("images\worker_start.ico")
-	addFile ("images\worker_stop.ico")
-	addFile ("vcredist_x86.exe")
-	addFiles ("dist", True)
-	setOutPath ("public_html", True)
-	addFiles ("public_html", True)
+    setOutPath ("", True)
+    addFile ("coalition.ini")
+    addFile ("images\coalition.ico")
+    addFile ("images\server_start.ico")
+    addFile ("images\server_stop.ico")
+    addFile ("images\worker_start.ico")
+    addFile ("images\worker_stop.ico")
+    addFile ("vcredist_x86.exe")
+    addFiles ("dist", True)
+    setOutPath ("public_html", True)
+    addFiles ("public_html", True)
 
-	installFiles = re.sub ("\\\\", "\\\\\\\\", installFiles)
-	script = re.sub ("__INSTALL_FILES__", installFiles, script)
-	removeFiles = re.sub ("\\\\", "\\\\\\\\", removeFiles)
-	script = re.sub ("__REMOVE_FILES__", removeFiles, script)
-	
-	script = re.sub ("__VERSION__", version, script)
+    installFiles = re.sub ("\\\\", "\\\\\\\\", installFiles)
+    script = re.sub ("__INSTALL_FILES__", installFiles, script)
+    removeFiles = re.sub ("\\\\", "\\\\\\\\", removeFiles)
+    script = re.sub ("__REMOVE_FILES__", removeFiles, script)
 
-	f = open ("_coalition.nsi", "w")
-	f.write (script)
-	f.close ()
+    script = re.sub ("__VERSION__", version, script)
 
-	# Run NSIS
-	os.system ("\"" + NSISDir + "/makensis.exe\" _coalition.nsi")
+    f = open ("_coalition.nsi", "w")
+    f.write (script)
+    f.close ()
+
+    # Run NSIS
+    os.system ("\"" + NSISDir + "/makensis.exe\" _coalition.nsi")
 
 # vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
 
