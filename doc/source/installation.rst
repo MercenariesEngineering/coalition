@@ -45,6 +45,7 @@ Using a `python virtual environment <https://virtualenv.pypa.io/en/stable/>`_ is
 
 Logged as a priviledged user, in a shell prompt, run::
 
+  apt-get install libsasl2-dev libldap2-dev libmysqlclient-dev
   cd /usr/local/bin
   git clone https://github.com/MercenariesEngineering/coalition.git
   cd coalition

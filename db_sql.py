@@ -112,9 +112,9 @@ class DBSQL(DB):
 		if not hasattr(self, "ldap_user") or not self.ldap_user: # LDAP is not set up in configuration or ldapunsafeapi is set to True
 			return ""
 		if action == "addjob":
-			if self.permissions["ldaptemplateaddjobglobal"]:
+			if self.permissions["ldaptemplatecreatejobglobal"]:
 				return ""
-			elif self.permissions["ldaptemplateaddjob"]:
+			elif self.permissions["ldaptemplatecreatejob"]:
 				return "AND user='{user}'".format(user=self.ldap_user)
 			else:
 				raise LdapError("Action '{action}' is not permitted for user '{user}'".format(action=action, user=self.ldap_user))
@@ -206,7 +206,7 @@ class DBSQL(DB):
 		aff = self.listAffinities ()
 		mask = 0L
 		cur = self.Conn.cursor ()
-		for affinity in affinities.split (","):
+		for affinity in [a.strip() for a in affinities.split (",")]:
 			if affinity != "":
 				m = re.match(r"^#(\d+)$", affinity)
 				if m:
@@ -235,7 +235,7 @@ class DBSQL(DB):
 		self.AffinityBitsToName[affinity_bits] = result
 		return result
 
-	def newJob(self, parent, title, command, dir, environment, state, paused, timeout, 
+	def newJob(self, parent, title, command, dir, environment, state, paused, timeout,
 				priority, affinity, user, url, progress_pattern, dependencies = None):
 		ldap_perm = self._getLdapPermission("addjob")
 		if ldap_perm is False:
@@ -243,7 +243,7 @@ class DBSQL(DB):
 		if ldap_perm != "": # User can add job owned by himself, force user value
 			user = self.ldap_user
 		cur = self.Conn.cursor()
-		self._execute(cur, 
+		self._execute(cur,
 			"SELECT h_depth, h_affinity, h_priority, h_paused, command "
 			"FROM Jobs "
 			"WHERE id = {parent} {ldap_perm}".format(parent=parent, ldap_perm=ldap_perm))
@@ -353,16 +353,22 @@ class DBSQL(DB):
 		rows = cur.fetchall()
 		return [self._rowAsDict (cur, row) for row in rows]
 
-	def getCountJobsWhere(self, where_clause=''):
+	def getCountJobsWhere(self, where_clause='', inner_join_table=''):
 		"""Get the number of matching jobs."""
 		cur = self.Conn.cursor()
-		self._execute(cur, "SELECT COUNT(*) FROM Jobs WHERE {}".format(where_clause[0]))
+		if not inner_join_table:
+			self._execute(cur, "SELECT COUNT(DISTINCT Jobs.id) FROM Jobs WHERE {}".format(where_clause))
+		else:
+			self._execute(cur, "SELECT COUNT(DISTINCT Jobs.id) FROM Jobs, {} WHERE {}".format(inner_join_table, where_clause))
 		return cur.fetchone()[0]
 
-	def getJobsWhere(self, where_clause='', index_min=0, index_max=1):
+	def getJobsWhere(self, where_clause='', inner_join_table='', index_min=0, index_max=1):
 		"""Get Jobs via a readonly SQL request."""
 		cur = self.Conn.cursor()
-		self._execute(cur, "SELECT * FROM Jobs WHERE {} LIMIT {},{}".format(where_clause, index_min, index_max))
+		if not inner_join_table:
+			self._execute(cur, "SELECT DISTINCT Jobs.* FROM Jobs WHERE {} LIMIT {},{}".format(where_clause, index_min, index_max))
+		else:
+			self._execute(cur, "SELECT DISTINCT Jobs.* FROM Jobs, {} WHERE {} LIMIT {},{}".format(inner_join_table, where_clause, index_min, index_max))
 		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
 
 	def getJobsUsers(self):
@@ -395,12 +401,6 @@ class DBSQL(DB):
 		self._execute(cur, "SELECT DISTINCT affinity FROM Jobs")
 		return [self._rowAsDict (cur, row) for row in cur.fetchall()]
 
-	def getChildrenDependencyIds (self, id):
-		cur = self.Conn.cursor ()
-		self._execute (cur, "SELECT job.id AS id, dep.dependency AS dependency FROM Dependencies AS dep "
-						"INNER JOIN Jobs AS job ON job.id = dep.job_id "
-						" WHERE job.parent = %d" % id)
-
 	def getChildrenDependencyIds(self, id):
 		cur = self.Conn.cursor()
 		self._execute(cur, """
@@ -425,20 +425,18 @@ class DBSQL(DB):
 			worker['total_memory'] = info['total_memory']
 		except:
 			pass
-		
+
 		self._execute (cur, "SELECT affinity FROM WorkerAffinities WHERE worker_name = '%s'" % ( hostname ) )
 		affinities = []
-		
-		data = cur.fetchone()
-
-		if data is None:
-			worker['affinity'] = ""
-			return worker
 
 		for data in cur:
+			if data is None:
+				worker['affinity'] = ""
+				return worker
 			affinities.append( self.getAffinityString( data[0] ) )
 
 		worker['affinity'] = "\n".join( affinities )
+		worker['start_time'] = self.getWorkerStartTime(worker['name'])
 		return worker
 
 	def getWorkerStartTime(self, name):
@@ -478,6 +476,19 @@ class DBSQL(DB):
 			worker['affinity'] = "\n".join( affinities )
 			worker['start_time'] = self.getWorkerStartTime(worker['name'])
 			workers.append (worker)
+		return workers
+
+	def getWorkersWhere(self, where_clause='', inner_join_table='', index_min=0, index_max=1):
+		"""Get WOrkers via readonly SQL requests."""
+		workers = list()
+		cur = self.Conn.cursor()
+		if not inner_join_table:
+			self._execute(cur, "SELECT DISTINCT Workers.name FROM Workers WHERE {} LIMIT {},{}".format(where_clause, index_min, index_max))
+		else:
+			self._execute(cur, "SELECT DISTINCT Workers.name FROM Workers, {} WHERE {} LIMIT {},{}".format(inner_join_table, where_clause, index_min, index_max))
+
+		for name in cur.fetchall():
+			workers.append(self.getWorker(name))
 		return workers
 
 	def getEvents (self, job, worker, howlong):

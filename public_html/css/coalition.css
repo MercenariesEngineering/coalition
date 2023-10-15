@@ -1,3 +1,8 @@
+/***
+ * Main coalition stylesheet
+ **/
+
+/*** page style ***/
 html, body {
     font-size: 90%;
     height: 100%;
@@ -5,139 +10,72 @@ html, body {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 *, *:before, *:after {
     box-sizing: inherit;
 }
 
-body { 
-    text-decoration: none; 
+body {
+    text-decoration: none;
     color: ghostwhite;
     font-family: Arial, Helvetica, sans-serif;
-    font-weight: normal; 
+    font-weight: normal;
     background-color: #b0b0b0;
 }
 
-input, select, textarea {
-    width: 100%;
-    border: 0;
-    font-size: 0.7rem;
-    background-color: #555;
-    color: ghostwhite;
+#content {
+  width: inherit;
+  overflow: hidden;
 }
 
-.button select {
-    width: auto;
+#main {
+  height: 0;
+  width: 100%;
+  background-color: #444444;
 }
 
-#parents {
-    left: 1rem;
-    background-color: #b0b0b0;
-    padding: 0 1rem;
-    justify-content: flex-start;
-    color: #444;
-    font-size: 0.9rem;
-    border-top:1px solid #000000;
-    border-left:1px solid #000000;
-    border-right:1px solid #888888;
-    border-bottom:1px solid #888888;
-}
-
-#parents a:link {
-    color: #222222;
-    text-decoration: none;
-    font-weight: bold;
-    margin: 0 0.5rem;
-}
-
-#jobs, #workers, #activities, #logs, #affinities
-{
-    flex-grow: 1;
-    height: 1rem;
-    /*border-top:1px solid #888888;*/
-    /*border-left:1px solid #888888;*/
-    /*border-right:1px solid #000000;*/
-    /*border-bottom:1px solid #000000;*/
-}
-
-#workers, #logs, #activities
-{
-    /*top: 95px;*/
-    /*bottom: 58px;*/
-}
-
-#affinities
-{
-    /*position: fixed;*/
-    /*left: 10px;*/
-    /*right: 10px;*/
-    /*top: 65px;*/
-    /*bottom: 58px;*/
-    /*overflow: auto;*/
-    /*border-top:1px solid #888888;*/
-    /*border-left:1px solid #888888;*/
-    /*border-right:1px solid #000000;*/
-    /*border-bottom:1px solid #000000;*/
-}
-
-#logs {
-    color: white;
-}
-
-#jobsTable,
-#workersTable,
-#activitiesTable,
-#affinitiesTable
-{
-    width:100%;
+/*** tables ***/
+table {
+    display: flex;
+    flex-direction: column;
     border-collapse: collapse;
     text-align: left;
 }
 
-#config-jobs-table {
+tr {
     display: flex;
+    flex-direction: row;
+    line-height: 1.6rem;
 }
 
-#jobsTable td a:link, #workersTable td a:link, #activitiesTable td a:link {
-    color: #DDDDDD;
+thead, tfoot {
+    position: sticky;
+    top: 0;
+    text-align: center;
+    background-color: #666666;
+    margin-right: 1rem;
+    z-index: 1;
 }
 
-#jobsTable thead {
-    min-height: 5rem;
-}
-
-#jobsTable thead label {
+thead label {
     cursor: pointer;
 }
 
-#jobsTable thead .headerCell .flex-row {
-    justify-content: center;
+thead>tr {
+  min-height: inherit;
 }
 
-table {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+tr>th {
+  display: flex;
+  flex-direction: column;
+  min-height: inherit;
+  padding: 0;
 }
 
-th, tr {
-    display: flex;
-    flex-direction: row;
-}
-
-th {
-    border-right: 1px dotted gray;
-}
-
-thead {
-    text-align: center;
-    overflow-y: scroll;
-}
-
-tfoot {
-    overflow-y: scroll;
-    min-height: 1.5rem;
+tr>th .flex-row {
+    flex-wrap: nowrap;
 }
 
 tbody {
@@ -150,170 +88,307 @@ tbody tr {
     justify-content: flex-start;
 }
 
-tbody td {
+th, td {
     border-right: 1px dotted #444;
-    height: 1.2rem;
+    padding: 0;
     overflow: hidden;
     white-space: nowrap;
 }
 
+td a {
+  color: #DDDDDD;
+}
 
+.resizable {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.resizable:hover {
+  background: gray;
+}
+
+.flex-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.flex-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.flex-grow {
+    flex-grow: 1;
+}
+
+.flex-wrap {
+    flex-wrap: wrap;
+}
+
+.flex-nowrap {
+  flex-wrap: nowrap;
+}
+
+.entry, .entry0, .entry1, .title, .entry0Selected, .entry1Selected {
+    font-size: 0.9rem;
+    color: #DDDDDD;
+}
+
+.title a:link {
+    color: #EEEEEE;
+    text-decoration: none;
+}
+
+.entry0 { background-color: #222222;
+}
+
+.entry1 {
+    background-color: #303030;
+}
+
+.entry0Selected {
+    background-color: #444466;
+}
+
+.entry1Selected {
+    background-color: #555577;
+}
+
+.FINISHED, .PAUSED, .ERROR, .TIMEOUT, .WAITING, .WORKING, .PENDING, .STARTING, .TERMINATED, .ACTIVEtrue, .ACTIVEfalse, .ACTIVE1, .ACTIVE0 {
+    text-align: center;
+    color: White;
+}
+
+.FINISHED, .TERMINATED {
+    background-color: #009000;
+}
+
+.PAUSED {
+    background-color: #000090;
+}
+
+.PENDING, .STARTING {
+    background-color: #303060;
+}
+
+.ERROR, .TIMEOUT {
+    background-color: #900000;
+}
+
+.WORKING {
+    background-color: #009090;
+}
+
+.ACTIVEtrue, .active1 {
+    background-color: #009000;
+}
+
+.ACTIVEfalse, .active0 {
+    background-color: #900000;
+}
+
+#dragged {
+}
+
+tr>th .flex-row.draggable {
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+img,
+.dropzone {
+    -webkit-user-drag: none;
+}
+
+.side-right,
+.side-left {
+    width:  50%;
+}
+
+div[draggable]:hover {
+  background: darkslategray;
+}
+
+table .dropzone.side-left {
+    align-items: center;
+}
+
+table .dropzone.side-right {
+    justify-content: flex-end;
+}
+
+.dropzone-hover {
+  background: orange;
+}
+
+.not-displayed {
+  display: none;
+}
+
+/*** jobs table proportions ***/
 /* id */
 #jobsTable th:nth-child(1), #jobsTable td:nth-child(1) {
-    width: 2%;
+    width: 10rem;
 }
 
 /* title */
 #jobsTable th:nth-child(2), #jobsTable td:nth-child(2) {
-    width: 10%;
+    width: 20rem;
 }
 
 /* url */
 #jobsTable th:nth-child(3), #jobsTable td:nth-child(3) {
-    width: 4%;
+    width: 5rem;
 }
 
 /* user */
 #jobsTable th:nth-child(4), #jobsTable td:nth-child(4) {
-    width: 5%;
+    width: 12rem;
 }
 
 /* state */
-
 #jobsTable th:nth-child(5), #jobsTable td:nth-child(5) {
-    width: 6%;
+    width: 8rem;
 }
 
 /* priority */
 #jobsTable th:nth-child(6), #jobsTable td:nth-child(6) {
-    width: 4%;
+    width: 5rem;
 }
 
 /* ok */
 #jobsTable th:nth-child(7), #jobsTable td:nth-child(7) {
-    width: 2%;
+    width: 4rem;
 }
 
 /* wkr */
 #jobsTable th:nth-child(8), #jobsTable td:nth-child(8) {
-    width: 2%;
+    width: 4rem;
 }
 
 /* err */
 #jobsTable th:nth-child(9), #jobsTable td:nth-child(9) {
-    width: 3%;
+    width: 4rem;
 }
 
 /* total */
 #jobsTable th:nth-child(10), #jobsTable td:nth-child(10) {
-    width: 3%;
+    width: 4rem;
 }
 
 /* progress */
 #jobsTable th:nth-child(11), #jobsTable td:nth-child(11) {
-    width: 5%;
+    width: 12rem;
 }
 
 /* affinity */
 #jobsTable th:nth-child(12), #jobsTable td:nth-child(12) {
-    width: 6%;
+    width: 12rem;
 }
 
 /* timeout */
 #jobsTable th:nth-child(13), #jobsTable td:nth-child(13) {
-    width: 4%;
+    width: 3rem;
 }
 
 /* worker */
 #jobsTable th:nth-child(14), #jobsTable td:nth-child(14) {
-    width: 7%;
+    width: 12rem;
 }
 
 /* start_time */
 #jobsTable th:nth-child(15), #jobsTable td:nth-child(15) {
-    width: 6%;
+    width: 5rem;
 }
 
 /* duration */
 #jobsTable th:nth-child(16), #jobsTable td:nth-child(16) {
-    width: 5%;
+    width: 12rem;
 }
 
 /* run */
 #jobsTable th:nth-child(17), #jobsTable td:nth-child(17) {
-    width: 2%;
+    width: 4rem;
 }
 
 /* command */
 #jobsTable th:nth-child(18), #jobsTable td:nth-child(18) {
-    width: 13%;
+    width: 30rem;
 }
 
 /* dir */
 #jobsTable th:nth-child(19), #jobsTable td:nth-child(19) {
-    width: 3%;
+    width: 12rem;
 }
 
 /* dependencies */
 #jobsTable th:nth-child(20), #jobsTable td:nth-child(20) {
-    width: 8%;
+    width: 12rem;
 }
 
+/*** workers table proportions ***/
 /* name */
 #workersTable th:nth-child(1), #workersTable td:nth-child(1) {
-    width: 20%;
+    width: 20rem;
 }
 
 /* active */
 #workersTable th:nth-child(2), #workersTable td:nth-child(2) {
-    width: 4%;
+    width: 4rem;
+    text-align: center;
 }
 
 /* state */
 #workersTable th:nth-child(3), #workersTable td:nth-child(3) {
-    width: 8%;
+    width: 8rem;
 }
 
 /* affinity */
 #workersTable th:nth-child(4), #workersTable td:nth-child(4) {
-    width: 10%;
+    width: 10rem;
 }
 
 /* ping_time */
 #workersTable th:nth-child(5), #workersTable td:nth-child(5) {
-    width: 10%;
+    width: 10rem;
 }
 
 /* cpu */
 #workersTable th:nth-child(6), #workersTable td:nth-child(6) {
-    width: 11%;
+    width: 11rem;
 }
 
 /* memory */
 #workersTable th:nth-child(7), #workersTable td:nth-child(7) {
-    width: 11%;
+    width: 11rem;
 }
 
 /* last_jobs */
 #workersTable th:nth-child(8), #workersTable td:nth-child(8) {
-    width: 5%;
+    width: 5rem;
 }
 
 /* finished */
 #workersTable th:nth-child(9), #workersTable td:nth-child(9) {
-    width: 5%;
+    width: 5rem;
 }
 
 /* error */
 #workersTable th:nth-child(10), #workersTable td:nth-child(10) {
-    width: 5%;
+    width: 5rem;
 }
 
 /* ip */
 #workersTable th:nth-child(11), #workersTable td:nth-child(11) {
-    width: 11%;
+    width: 11rem;
 }
 
+/*** activities table proportions ***/
 /* start */
 #activitiesTable th:nth-child(1), #activitiesTable td:nth-child(1) {
     width: 12%;
@@ -344,6 +419,7 @@ tbody td {
     width: 12%;
 }
 
+/*** affinities table proportions ***/
 /* id */
 #affinitiesTable th:nth-child(1), #affinitiesTable td:nth-child(1) {
     width: 5%;
@@ -354,133 +430,29 @@ tbody td {
     width: 25%;
 }
 
-#affinitiesTable
-{
-    border-collapse: collapse;
-    text-align: right;
+/*** title **/
+#header {
+  justify-content: space-between;
 }
 
-#affinitiesTable td
-{
-    /*font-size: 8pt; */
-    font-size: 0.9rem;
-    text-align: center;
-    color: #FFFFFF;
+#header>.flex-row:first-child {
+  justify-content: space-between;
 }
 
-.entry, .entry0, .entry1, .title, .entry0Selected, .entry1Selected
-{
-    /*font-size: 8pt; */
-    font-size: 0.9rem;
-    color: #DDDDDD;
+#header > div:nth-child(1) > div.flex-column.flex-grow {
+  justify-content: flex-start;
 }
 
-.title
-{
-    background-color: #666666;
-    color: #EEEEEE;
-    text-transform: capitalize;
+#header > div:nth-child(1) > div.flex-column.flex-grow > div {
+	justify-content: space-between;
 }
 
-.title a:link
-{
-    color: #EEEEEE;
-    text-decoration: none;
-}
-
-.entry0
-{
-    background-color: #222222;
-}
-
-.entry1
-{
-    background-color: #303030;
-}
-
-.entry0Selected
-{
-    background-color: #444466;
-}
-
-.entry1Selected
-{
-    background-color: #555577;
-}
-
-.FINISHED, .PAUSED, .ERROR, .TIMEOUT, .WAITING, .WORKING, .PENDING, .STARTING, .TERMINATED, .ACTIVEtrue, .ACTIVEfalse, .ACTIVE1, .ACTIVE0
-{
-    text-align: center;
-    color: White;
-}
-
-.FINISHED, .TERMINATED
-{
-    background-color: #009000;
-}
-
-.PAUSED
-{
-    background-color: #000090;
-}
-
-.PENDING, .STARTING
-{
-    background-color: #303060;
-}
-
-.ERROR, .TIMEOUT
-{
-    background-color: #900000;
-}
-
-.WORKING
-{
-    background-color: #009090;
-}
-
-.ACTIVEtrue, .ACTIVE1
-{
-    background-color: #009000;
-}
-
-.ACTIVEfalse, .ACTIVE0
-{
-    background-color: #900000;
-}
-
-.logs
-{
-    font-size: 0.9rem;
-    /*font-size: 8pt; */
-}
-
-#main
-{
-    width: 100%;
-    /*overflow: auto;*/
-    /*position: fixed;*/
-    /*bottom: 5px;*/
-    /*top: 60px;*/
-    /*left: 5px;*/
-    /*right: 5px;*/
-    background-color: #444444;
-}
-
-#header > div {
-    margin: 0 1rem;
-}
-
-#maintitle
-{
-    /*display: inline;*/
-    /*font-family: Verdana;*/
+#maintitle {
+    justify-content: flex-start;
     text-transform: lowercase;
-    /*margin-left: 5px;*/
 }
 
-#maintitle a
-{
+#maintitle a {
     color: #444444;
     font-size: 2rem;
     font-weight: bolder;
@@ -503,15 +475,70 @@ tbody td {
     margin: 0.1rem;
 }
 
-#tabs
-{
+#header > div:nth-child(1) > div:nth-child(2) {
+  flex-grow: 1;
+}
+
+#header > div:nth-child(1) > div:nth-child(2) > div {
+  justify-content: flex-end;
+}
+
+/*** menu ***/
+#menu-button {
+  padding: 0.5rem;
+  font-size: 2rem;
+  color: black;
+}
+
+#menu-button:hover {
+  cursor: pointer;
+  color: lightgray;
+}
+
+#menu-content {
+    text-align: right;
+}
+
+#menu-content label {
+  display: flex;
+  justify-content: flex-end;
+}
+
+#menu {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  background: #666666;
+  border-left: 1px solid #999;
+}
+
+#menu input {
+  width: auto;
+}
+
+/*** tools bar ***/
+.button select {
+    width: auto;
+}
+
+/*** node parent row ***/
+#parents {
+    background-color: #b0b0b0;
+    justify-content: flex-start;
+    color: #444;
+    flex-shrink: 0;
+}
+
+#parents a:link {
+    color: #222222;
+    text-decoration: none;
+    font-weight: bold;
+    margin: 0 0.5rem;
+}
+
+/*** tabs ***/
+#tabs {
     justify-content: flex-end;
-    /*position: fixed;*/
-    /*top: 35;*/
-    /*height: 21;*/
-    /*display: table-row;*/
-    /*z-index: 1000;*/
-    /*border-spacing: 5;*/
 }
 
 #tabs > .flex-row {
@@ -546,298 +573,80 @@ tbody td {
     color: white;
 }
 
-
-#tabs button.activetab
-{
-    /*display: table-cell;*/
-    /*padding-left : 10;*/
-    /*padding-right : 10;*/
-    /*padding: 0.5rem 1rem;*/
+#tabs button.activetab {
     background-color: #444;
-    /*color: White;*/
-    /*height:21;*/
-    /*vertical-align: middle;*/
-    /*border-top-style: 1px solid black;*/
-    /*border-top-style: solid;*/
-    /*border-top-color: Black;*/
-    /*border-top-width: 1;*/
-    /*border-left-style: solid;*/
-    /*border-left-color: Black;*/
-    /*border-left-width: 1;*/
-    /*border-right-style: solid;*/
-    /*border-right-color: Black;*/
-    /*border-right-width: 1;*/
-    /*cursor: pointer;*/
 }
 
-#tags button.unactivetab
-{
-    background-color: #333333;
-    border-top: 1px solid black;
-    border-right: 1px solid black;
-    border-left: 1px solid black;
-}
-
-#refreshtools label
-{
-    color: #444;
-}
-
-.refreshbutton, .refreshing
-{
-    /*display: inline;*/
-    /*background-color: #DDDDDD;*/
-    /*cursor: pointer;*/
-    /*border: 1px solid black;*/
-    /*padding: 0.4rem 1rem;*/
-    /*margin: 0.2rem;*/
-    /*position: fixed;*/
-    /*width: 100;*/
-    /*right: 5px;*/
-    /*text-align: center;*/
-    /*font-weight: bold;*/
-    /*height: 50;*/
-}
-
-.refreshing
-{
-    background-color: #00F000;
-}
-
-#jobtools .button,
-#jobtools .button label,
-#jobtools .button select,
-#workertools .button,
-#logtools .button,
-#activitiestools .button,
-#affinitiestools .button
-{
-    cursor: pointer;
-}
-
-#jobtools,
-#workertools,
-#logtools,
-#activitiestools,
-#affinitiestools 
-{
-    color: #dddddd;
-    justify-content: flex-end;
-}
-
-.button
-{
-    color: ghostwhite;
-    padding: 0.1rem 1rem;
-    margin: 0.2rem 0.3rem;
-    background-color: #444;
-    cursor: pointer;
-    border-radius: 0.4rem;
-    border-top: 1px solid #777777;
-    border-right: 1px solid #222222;
-    border-bottom: 1px solid #222222;
-    border-left: 1px solid #777777;
-    box-shadow: 1px 1px 1px #333; 
-}
-
-.button img {
-    margin: 0 0.3rem;
-}
-
-button:hover
-{
-    background-color: #666;
-    color: white;
-}
-
-.buttonSep
-{
-    /*display: inline;*/
-    /*width: 10px;*/
-}
-
-/* Selection button */
-#b01 {
-    padding: 0.1rem 0.2rem 0.2rem 1rem;
-}
-
-#toolstable input,
-#workertoolstable textarea,
-tbody input {
-    color: white;
-    background-color: #222;
-}
-
-#toolstable input:hover,
-#workertoolstable textarea:hover,
-tbody input:hover {
-    background-color: #333;
-}
-
-#toolstable .flex-column {
-    align-items: flex-end;
+#jobs,
+#workers,
+#activities,
+#logs,
+#affinities {
+    display: flex;
     flex-grow: 1;
+    overflow-x: scroll;
 }
 
-#toolstable label {
-    flex-wrap: nowrap;
-    width: 100%;
+/*** table configurator ***/
+#config-jobs-table {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    right: 0;
+    top: 0;
+    background: white;
+    color: black;
+    opacity: 0.8;
 }
 
-#toolstable label span {
-    margin: 0 0.5rem;
+/*** jobs table ***/
+#jobsTable thead {
+    /*overflow-y: scroll;*/
+    margin-right: 0;
 }
 
-#workertoolstable, #affinitytoolstable {
-    justify-content: flex-end;
-}
-
-.ttr1
-{
-    width: 10%;
-    font-size: small;
-    color: White;
-    text-align: right;
-}
-.ttr2
-{
-    width: 60%;
-}
-.ttr3
-{
-    width: 10%;
-    font-size: small;
-    color: White;
-    text-align: right;
-}
-.ttr4
-{
-}
-.ttedit
-{
-}
-
-#toolbuttons
-{
-}
-
-.toolbutton
-{
-}
-
-.headerCell .flex-column {
+#jobsTable thead>tr>th>.flex-column {
     justify-content: flex-start;
     flex-grow: 1;
 }
 
-.loadbar
-{
-    background-color: #009000;
+#jobsTable thead>tr>th>.flex-column>.flex-row {
+    justify-content: flex-start;
 }
 
-.loadlabel
-{
-    /*width: 100%;*/
-    text-align: center;
-    /*position: absolute;*/
-    /*top: 1;*/
+/*** workers table ***/
+#workersTable {
+  flex-grow: 1;
 }
 
-.load
-{
-    /*width: 100%;*/
-    /*position: relative;*/
+/*** activities table ***/
+#activitiesTable {
+  flex-grow: 1;
 }
 
-.membar
-{
-    height: inherit;
-    background-color: #009000;
-}
-
-.memlabel
-{
-	height: inherit;
-    text-align: center;
-    position: relative;
-    top: -100%;
-}
-
-.mem
-{
-    height: inherit;
-}
-
-.progress
-{
-    height: inherit;
-}
-
-.lprogressbar
-{
-    height: inherit;
-    background-color: #009000;
-}
-
-.gprogressbar
-{
-    background-color: #007000;
-}
-
-.progresslabel
-{
-	height: inherit;
-    text-align: center;
-    position: relative;
-    top: -100%;
-}
-
-.worker_affinities
-{
-    white-space: pre;
-}
-
-#pagination {
-    /*display:inline;*/
-}
-
-.flex-column {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around; 
-}
-
-.flex-row {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    flex-wrap: wrap;
-}
-
-.flex-grow {
+/*** affinities ***/
+#affinitiesTable {
+    border-collapse: collapse;
+    text-align: right;
     flex-grow: 1;
 }
 
-.flex-wrap {
-    flex-wrap: wrap;
+#affinitiesTable td {
+    font-size: 0.9rem;
+    text-align: center;
+    color: #FFFFFF;
 }
 
-.tab-content {
-    width: inherit;
-}
-
-.job-sql-search-field {
-    display: flex;
-    flex-direction: row;
-}
-
-.job-sql-search-field input:hover,
-.job-sql-search-field select:hover {
-    background-color: #333;
-}
-
-#activitiestools label {
-    margin: 0 1rem;
+/*** tools ***/
+#jobtools,
+#workertools,
+#logtools,
+#activitiestools,
+#affinitiestools,
+#workertoolstable,
+#affinitytoolstable {
+    justify-content: flex-end;
+    flex-shrink: 0;
 }
 
 #logout-button {
@@ -847,4 +656,222 @@ tbody input:hover {
 
 #logout-button input {
   color: white;
+}
+
+/*** tools table ***/
+#jobtoolstable .flex-column {
+    flex-grow: 1;
+    justify-content: flex-end;
+}
+
+#jobtoolstable .flex-column:last-of-type {
+    flex-grow: 0;
+}
+
+#jobtoolstable>div:first-child {
+  justify-content: flex-end;
+}
+
+#jobtoolstable input {
+  width: 75%;
+}
+
+.width-50pc {
+  width: 50%;
+}
+
+/*** elements ***/
+.button {
+    color: ghostwhite;
+    margin: 0.1rem 0.2rem;
+    max-height: 1.7rem;
+    background-color: #444;
+    cursor: pointer;
+    white-space: nowrap;
+    border-top: 1px solid #777777;
+    border-right: 1px solid #222222;
+    border-bottom: 1px solid #222222;
+    border-left: 1px solid #777777;
+    box-shadow: 1px 1px 1px #333;
+    height: 1.9rem;
+    margin: 4px 6px;
+}
+
+.button img {
+    max-height: 1rem;
+    margin: 0 0.3rem;
+    vertical-align: middle;
+}
+
+button:hover {
+    background-color: #666;
+    color: white;
+}
+
+input,
+select,
+textarea,
+input,
+tbody input {
+    cursor: pointer;
+    width: 100%;
+    border: 0;
+    color: white;
+    background-color: #222;
+    line-height: 1.6rem;
+}
+
+input:hover,
+select:hover,
+textarea:hover,
+tbody input:hover {
+    background-color: #333;
+}
+
+.flex-row label {
+    flex-wrap: nowrap;
+    margin: 0.1rem 0.1rem;
+    justify-content: flex-end;
+    text-transform: capitalize;
+}
+
+legend {
+  font-style: oblique;
+  margin: 0 0.2rem;
+}
+
+label span {
+    margin: 0 0.5rem;
+}
+
+.value-modified {
+    background-color: greenyellow;
+    color: darkmagenta
+}
+
+.value-modified:hover{
+    background-color: yellow;
+}
+
+.value-different {
+    background-color: orange;
+    color: darkmagenta
+}
+
+.value-different:hover {
+    background-color: yellow;
+}
+
+input[type="range"] {
+  margin: 0;
+}
+
+.ttr1 {
+    width: 10%;
+    font-size: small;
+    color: White;
+    text-align: right;
+}
+
+.ttr2 {
+    width: 60%;
+}
+
+.ttr3 {
+    width: 10%;
+    font-size: small;
+    color: White;
+    text-align: right;
+}
+
+.loadbar {
+    background-color: #009000;
+}
+
+.loadlabel {
+    text-align: center;
+}
+
+.membar {
+    height: inherit;
+    background-color: #009000;
+}
+
+.memlabel {
+    height: inherit;
+    text-align: center;
+    position: relative;
+    top: -100%;
+}
+
+.mem {
+    height: 100%;
+}
+
+.progress {
+    height: inherit;
+}
+
+.lprogressbar {
+    height: inherit;
+    background-color: #009000;
+}
+
+.gprogressbar {
+    background-color: #007000;
+}
+
+.progresslabel {
+    height: inherit;
+    text-align: center;
+    position: relative;
+    top: -100%;
+}
+
+.worker_affinities {
+    white-space: pre;
+    line-height: 1.2rem;
+}
+
+.tab-content {
+    width: inherit;
+    height: 100%;
+}
+
+.tab-content>.flex-column {
+  overflow: hidden;
+}
+
+.tab-content>.flex-column:last-child {
+  justify-content: flex-start;
+  border-left: 1px solid #999;
+}
+
+.sql-search-field {
+    display: flex;
+    flex-direction: row;
+}
+
+detail {
+  flex-shrink: 0;
+  /*overflow-x: scroll;*/
+}
+
+detail .flex-row {
+  justify-content: flex-end;
+}
+
+#refreshbutton {
+  max-height: unset;
+  height: 2.5rem;
+  border: 1px solid lightgray;
+}
+
+#auto-refresh-button {
+  color: black;
+}
+
+#auto-refresh-button input {
+  width: auto;
+  vertical-align: middle;
 }
