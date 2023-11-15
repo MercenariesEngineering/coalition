@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import unittest, time, re, sys
 from db import DB
 from importlib import import_module
@@ -914,17 +915,23 @@ class DBSQL(DB):
 
 		# Here, we have an INNER JOIN query
 		# Fetch the FIRST job whose affinity match the worker's first affinity in the list (stored in WorkerAffinities)
+		# For better performance, use late row lookup (https://explainextended.com/2009/10/23/mysql-order-by-limit-performance-late-row-lookups/)
+		# J.environment has a high hit cost
 		self._execute(cur, dedent("""
 			SELECT J.id, J.title, J.command, J.dir, J.user, J.environment
-			FROM Jobs AS J
-			INNER JOIN WorkerAffinities AS W
-			ON (( J.h_affinity & W.affinity = J.h_affinity ) & ( J.h_affinity != 0 ))
-			WHERE W.worker_name = '{}'
-			AND J.state = 'WAITING'
-			AND NOT J.h_paused
-			AND J.command != ''
-			ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1""".format(hostname)))
-
+			FROM (
+				SELECT J.id
+				FROM Jobs as J
+				INNER JOIN WorkerAffinities AS W
+				ON ((J.h_affinity & W.affinity = J.h_affinity ) & ( J.h_affinity != 0 ))
+				WHERE W.worker_name = '{}'
+				AND J.state = 'WAITING'
+				AND NOT J.h_paused
+				AND J.command != ''
+				ORDER BY W.ordering ASC, J.h_priority DESC, J.id ASC LIMIT 1
+				) JJ
+			JOIN Jobs J
+			WHERE J.id = JJ.id""".format(hostname)))
 		job = cur.fetchone() # This instruction is redundant because there is a LIMIT 1 in the query
 
 		# At this point, the job will be set to None IF :
@@ -933,6 +940,7 @@ class DBSQL(DB):
 		# The former case is EXPECTED, but not the latter one
 		# Therefore, we need to add a query that take the first Job that has no affinity WHEN Workers are not doing anything
 		if job is None:
+
 			self._execute(cur, dedent("""
 				SELECT id, title, command, dir, user, environment
 				FROM Jobs
@@ -1191,7 +1199,7 @@ class DBSQL(DB):
 			self.LastUpdate = current_time
 			self.RunTime = 0
 			cur = self.Conn.cursor ()
-			timeout = 60
+			timeout = self.config.get("sleep", 2) * 2
 
 			# find all working jobs that are running out of time *or*
 			# all working jobs which worker is timing out
