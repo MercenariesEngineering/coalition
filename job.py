@@ -1,4 +1,10 @@
-# Simulate a job ending in error
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Simulate a job ending in error
+"""
+
 import time, sys
 
 for i in range(1000) :
@@ -7,3 +13,6 @@ for i in range(1000) :
 	time.sleep (0.01)
 
 sys.exit (0)
+
+# vim: tabstop=4 noexpandtab shiftwidth=4 softtabstop=4 textwidth=79
+

@@ -1,0 +1,6 @@
+httplib2
+configparser
+Twisted
+python-ldap
+Sphinx
+sphinx_rtd_theme

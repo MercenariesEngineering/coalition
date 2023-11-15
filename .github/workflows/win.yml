@@ -1,0 +1,29 @@
+name: Tests Windows
+
+# Run this workflow every time a new commit pushed to your repository
+on: [push, pull_request]
+
+jobs:
+  # Set the job key. The key is displayed as the job name
+  # when a job name is not provided
+  test:
+    # Name the Job
+    name: Tests Windows
+    # Set the type of machine to run on
+    runs-on: windows-latest
+
+    steps:
+      # Checks out a copy of your repository on the ubuntu-latest machine
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '2.x'
+
+      - name: Install Python modules
+        run: pip install twisted pypiwin32
+
+      - name: Test
+        run: python tests/main_test.py
