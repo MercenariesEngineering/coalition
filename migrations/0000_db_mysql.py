@@ -89,6 +89,9 @@ CREATE UNIQUE INDEX name_index ON Workers(name)
 CREATE INDEX parent_index ON Jobs(parent)
 """,
 """
+CREATE INDEX state_index ON Jobs(state)
+""",
+"""
 CREATE INDEX job_id_index ON Dependencies(job_id)
 """,
 """
